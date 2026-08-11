@@ -71,3 +71,11 @@
 - **Files modified:** .github/workflows/ci.yml, src/lib/__tests__/ci-workflow.test.ts
 - **EARS verified:** clause 1 — `test_ci_workflow_valid` green (workflow triggers on `pull_request`→main and `push`→dev; steps run `npm ci`, `astro check`, `vitest run`, `playwright test`). YAML validated (pyyaml `safe_load` OK). Full unit suite 24/24; `astro check` clean; audit clean. Real CI conclusion to be observed on the Sprint 1 PR (recorded in the test report).
 - **Commit:** `edea9be032ef127aa78898aa880d23e2b445398f`
+
+## T-010 (sprint 2)
+- **Description:** External book loader (scripts/load-book.mjs)
+- **Intent:** [INT-0002](../intents/INT-0002-load-external-mdbooks.md)
+- **Completed:** 2026-08-11T15:02:29Z
+- **Files modified:** scripts/load-book.mjs, package.json, src/content/book/book.meta.json
+- **EARS verified:** clause 2 (unset → no-op) ✓; clause 3 (invalid path → clear error naming the path + exit 1) ✓; clause 1 (valid book → temp dest populated with SUMMARY/chapters + `book.meta.json.title` = book.toml title "External Handbook") ✓ — verified via a throwaway external book against a temp `--dest` (sample untouched, per critique C-001). `npm run build` (prebuild chain, unset no-op) renders the sample; `astro check` clean; audit clean; full suite 24/24 (no regression). Note: hooked into `predev`/`prebuild` only (not `pretest`/`precheck`) since `book/` is committed — keeps tests running against the sample regardless of `TOME_BOOK`. The formal loader integration tests land in T-012 with the committed fixture.
+- **Commit:** PENDING
