@@ -1,0 +1,25 @@
+/*
+ * Mekzantine — the sacred-computer typeface, designed by the artist who
+ * publishes at mek.gallery. Loaded from Internet Development's public CDN (the
+ * same source sacred itself uses). `--font-family-mono` in tokens.css keeps a
+ * `ui-monospace … monospace` fallback so a blocked CDN never breaks the reader;
+ * self-hosting the woff2 is a planned later hardening.
+ */
+
+@font-face {
+  font-family: 'MekzantineMono';
+  src: url('https://intdev-global.s3.us-west-2.amazonaws.com/public/internet-dev/0e704e0e-fc0f-41b1-80fb-746909651d9e.woff2')
+    format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Mekzantine';
+  src: url('https://intdev-global.s3.us-west-2.amazonaws.com/public/internet-dev/a05d9994-b988-49f4-9030-cd11a3bc7226.woff2')
+    format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
