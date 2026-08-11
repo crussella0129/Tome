@@ -19,8 +19,8 @@ T-202). The realized INT-0002's external-loading is now also gated in CI
 
 ## CI Confirmation
 - **Head SHA:** `a72a22bcff289d2938acb4f20be0b414914f4ec1`
-- **CI run:** `.github/workflows/ci.yml` on the Sprint 3 `dev → main` PR (opened at the Loop checkpoint); conclusion recorded there.
-- **Conclusion:** success (local); CI runtime observed at the checkpoint (expected success — all CI-run gates, incl. the external gate, green locally; actions bumped to `@v5`; artifact now non-empty).
+- **CI run:** `.github/workflows/ci.yml` on the Sprint 3 checkpoint (commit `0fb6b65`, [PR #4](https://github.com/crussella0129/Tome/pull/4)) — [run 31513253817](https://github.com/crussella0129/Tome/actions/runs/31513253817).
+- **Conclusion:** **success** — the `verify` job is green including the new **External book build gate** step; actions ran on `@v5` and the Playwright report uploaded. The run has **no annotations** — the Node-20 deprecation and empty-artifact warnings from Sprints 1–2 are resolved. Closes critique C-001 and INT-0002 backlog T-203.
 - **Confirmations:** local canonical-runner records:
   - `npx vitest run` → `Test Files 8 passed (8) · Tests 30 passed (30)`
   - `node scripts/check-external-build.mjs` → OK (fixture routes, optimized relative image, clean restore)
