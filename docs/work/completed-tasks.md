@@ -22,4 +22,4 @@
 - **Completed:** 2026-08-11T03:53:32Z
 - **Files modified:** src/lib/summary.ts, src/lib/summary.types.ts, src/lib/__tests__/summary.test.ts
 - **EARS verified:** all 5 clauses green via `test_summary_nested_chapters`, `_part_title`, `_prefix_and_suffix`, `_draft_entry`, `_separator` (10/10 tests). `astro check` clean.
-- **Commit:** PENDING
+- **Commit:** `f71212679c0a564957ee94f49b6e990113336342`
