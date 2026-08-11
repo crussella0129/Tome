@@ -47,3 +47,4 @@ a general viewer, deferred there to keep that slice bounded.
   fidelity/breadth work deferred by the now-realized INT-0002).
 - 2026-08-11: `proposed → planned` — Sprint 3 plans (T-013–T-014) accepted; delivers criterion 1 (relative images) and gates it in CI. Criteria 2–3 remain.
 - 2026-08-11: `planned → active` — Sprint 3 Build Phase began implementing T-013–T-014.
+- 2026-08-11: Sprint 3 delivered **criterion 1** (relative-image fidelity), enforced by a CI build gate; remains `active` for criterion 2 (multi-book, backlog T-202) and criterion 3 (live reload, backlog T-204).
