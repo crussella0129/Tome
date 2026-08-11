@@ -1,5 +1,7 @@
 # Agent Tasks (Persistent Backlog)
 
+- [ ] T-015 (sprint 4) [intent: INT-0004]: Source + title detection in load-book.mjs (declared src authoritative; else src→docs→root; title from dir name; enumerated error) — touches: scripts/load-book.mjs, src/lib/__tests__/load-book.test.ts
+- [ ] T-016 (sprint 4) [intent: INT-0004]: Docs-layout fixture + external-build gate (docs-book + handbook regression) + README — touches: fixtures/docs-book/**, scripts/check-external-build.mjs, README.md
 - [ ] T-202 (backlog) [intent: INT-0003]: Multi-book library / reader-facing book switcher (criterion 2) — touches: src/lib/book.ts, src/components, src/pages
 - [ ] T-204 (backlog) [intent: INT-0003]: Live reload of the active external book during dev (criterion 3) — touches: scripts/load-book.mjs, astro.config.mjs
 - [ ] T-205 (backlog) [intent: INT-0003]: External-book browser E2E (load a fixture book via build-time env, assert it renders in a headless browser) — touches: e2e, playwright.config.ts
