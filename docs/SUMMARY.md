@@ -2,6 +2,8 @@
 - [Project Book](README.md)
 - [Intents](intents/README.md)
   - [INT-0001 — Tome ink-on-paper mdBook viewer](intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md)
+  - [INT-0002 — Load external mdBooks](intents/INT-0002-load-external-mdbooks.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
+- [Sprint 1](sprints/s1/sprint-meta.md)

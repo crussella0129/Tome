@@ -69,6 +69,23 @@ test.describe('Tome reader', () => {
     expect(parseFloat(quoteBorder)).toBeGreaterThan(0);
   });
 
+  // T-007 clause 1 (criterion 5 — images)
+  test('test_chapter_image_styled', async ({ page }) => {
+    await page.goto('/components/panels');
+    const img = page.locator('.tome-prose img').first();
+    await expect(img).toBeVisible();
+    // Rendered as a bordered plate, and the asset actually loaded.
+    const info = await img.evaluate((el) => {
+      const image = el as HTMLImageElement;
+      return {
+        border: getComputedStyle(image).borderTopWidth,
+        complete: image.complete && image.naturalWidth > 0,
+      };
+    });
+    expect(parseFloat(info.border)).toBeGreaterThan(0);
+    expect(info.complete).toBe(true);
+  });
+
   // T-002 clause 3
   test('test_paper_theme_active', async ({ page }) => {
     await page.goto('/');
@@ -88,6 +105,24 @@ test.describe('Tome reader', () => {
       () => getComputedStyle(document.body).backgroundColor,
     );
     expect(bg).toBe(WARM_DARK);
+  });
+
+  // T-008 clause 1 (criterion 6 — honour prefers-reduced-motion)
+  test('test_reduced_motion_honored', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    // A token-transitioned control (`.transition-token`) in the sidebar.
+    const btn = page.getByRole('button', { name: 'Switch colour theme' });
+    await expect(btn).toBeVisible();
+    // Computed transition-duration is reported in seconds; the reduce media rule
+    // collapses it to ~0. Take the max across the shorthand list.
+    const durationSeconds = await btn.evaluate((el) =>
+      getComputedStyle(el)
+        .transitionDuration.split(',')
+        .map((v) => parseFloat(v))
+        .reduce((a, b) => Math.max(a, b), 0),
+    );
+    expect(durationSeconds).toBeLessThanOrEqual(0.001); // ≤ 1ms
   });
 
   // T-004 clause 4

@@ -1,13 +1,10 @@
-# >>> sprint-loops >>>
-# The Book is tracked. Ignore only transient helper output.
-*.tmp
-/guards-report.ndjson
-# <<< sprint-loops <<<
 
 # Node / Astro
 node_modules/
 dist/
 .astro/
+# Fetched at build time (not redistributed) by scripts/fetch-fonts.mjs
+public/fonts/
 # Test / build output
 coverage/
 test-results/
@@ -17,3 +14,8 @@ playwright-report/
 .env
 .env.*
 .DS_Store
+# >>> sprint-loops >>>
+# The Book is tracked. Ignore only transient helper output.
+*.tmp
+/guards-report.ndjson
+# <<< sprint-loops <<<

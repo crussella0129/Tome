@@ -14,6 +14,13 @@ fn main() {
 }
 ```
 
+## Figures
+
+An image renders as a bordered plate. Here is Tome's own pipeline — the summary
+becomes a tree becomes the reader:
+
+![Tome pipeline: SUMMARY.md to parseSummary to nav tree to Reader](/images/sacred-diagram.svg)
+
 ## Rules and quotes
 
 A block quote is a marginal note, ruled in the accent colour:
