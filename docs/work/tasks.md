@@ -1,6 +1,5 @@
 # Agent Tasks (Persistent Backlog)
 
-- [ ] T-017 (sprint 5) [intent: INT-0003]: Shared source module (book-source.mjs) + live-reload Astro integration (dev-only watcher → sync into src/content/book) — touches: scripts/book-source.mjs, scripts/load-book.mjs, astro.config.mjs, src/lib/__tests__/book-source.test.ts
 - [ ] T-018 (sprint 5) [intent: INT-0003]: End-to-end live-reload gate (dev + edit + poll) + README — touches: scripts/check-live-reload.mjs, package.json, README.md
 - [ ] T-207 (backlog) [intent: INT-0003]: Bump `actions/upload-artifact@v5` → `@v7` in ci.yml (v5 is a stale major still on Node 20; v7 targets Node 24) + update the `@v5` assertion in `ci-workflow.test.ts` — touches: .github/workflows/ci.yml, src/lib/__tests__/ci-workflow.test.ts
 - [ ] T-202 (backlog) [intent: INT-0003]: Multi-book library / reader-facing book switcher (criterion 2) — touches: src/lib/book.ts, src/components, src/pages

@@ -127,3 +127,11 @@
 - **Files modified:** fixtures/docs-book/docs/SUMMARY.md, fixtures/docs-book/docs/README.md, fixtures/docs-book/docs/overview.md, fixtures/docs-book/docs/details/deep.md, scripts/check-external-build.mjs, README.md
 - **EARS verified:** clause 1 (docs-book renders detecting docs/, dir-name title) — extended `check_external_build` green: builds both `fixtures/handbook` (standard + relative image, criterion 5 regression) and `fixtures/docs-book` (no book.toml → detects docs/), asserting `/overview` + `/details/deep` routes, sample absent, and the "docs-book" directory-name title in the sidebar; restores `src/content/book/` after each (tree clean). Full suite 35/35; `astro check` clean; audit clean. README documents the optional `book.toml` + `src→docs→root` detection + directory-name title.
 - **Commit:** `cb62e4fc63e24d8ec886d33d778053407d60912b`
+
+## T-017 (sprint 5)
+- **Description:** Shared source module + live-reload Astro integration
+- **Intent:** [INT-0003](../intents/INT-0003-richer-external-book-support.md)
+- **Completed:** 2026-08-11T20:39:25Z
+- **Files modified:** scripts/book-source.mjs, scripts/load-book.mjs, astro.config.mjs, src/lib/__tests__/book-source.test.ts
+- **EARS verified:** clause 1 (`resolveBookSource` parity — docs detect, declared-src authoritative, dir-name title, enumerated throw) `test_resolve_book_source`; clause 2 (`syncPath` copies changed / removes deleted / ignores outside-source) `test_sync_path_copy_and_delete`. Loader refactored to import the shared module — its 8 detection tests unchanged (parity). Full suite 37/37; `astro check` clean; audit clean; `npm run build` unaffected (integration is dev-only). Integration confirmed firing: `astro dev logs` → "live reload watching …/fixtures/handbook/src" (label tome-live-reload). End-to-end proof in T-018.
+- **Commit:** PENDING
