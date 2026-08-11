@@ -50,6 +50,23 @@ test.describe('Tome reader', () => {
     // Lists and inline code render.
     await expect(page.locator('.tome-prose ol').first()).toBeVisible();
     await expect(page.locator('.tome-prose code').first()).toBeVisible();
+
+    // A table (in /components) is a bordered sacred panel; links render too.
+    await page.goto('/components');
+    await expect(page.locator('.tome-prose a').first()).toBeVisible();
+    const th = page.locator('.tome-prose table th').first();
+    await expect(th).toBeVisible();
+    const thBorder = await th.evaluate((el) => getComputedStyle(el).borderTopWidth);
+    expect(parseFloat(thBorder)).toBeGreaterThan(0);
+
+    // A block quote (in /components/panels) has the accent rule.
+    await page.goto('/components/panels');
+    const quote = page.locator('.tome-prose blockquote').first();
+    await expect(quote).toBeVisible();
+    const quoteBorder = await quote.evaluate(
+      (el) => getComputedStyle(el).borderLeftWidth,
+    );
+    expect(parseFloat(quoteBorder)).toBeGreaterThan(0);
   });
 
   // T-002 clause 3
