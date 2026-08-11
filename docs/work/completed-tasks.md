@@ -126,4 +126,4 @@
 - **Completed:** 2026-08-11T19:29:16Z
 - **Files modified:** fixtures/docs-book/docs/SUMMARY.md, fixtures/docs-book/docs/README.md, fixtures/docs-book/docs/overview.md, fixtures/docs-book/docs/details/deep.md, scripts/check-external-build.mjs, README.md
 - **EARS verified:** clause 1 (docs-book renders detecting docs/, dir-name title) — extended `check_external_build` green: builds both `fixtures/handbook` (standard + relative image, criterion 5 regression) and `fixtures/docs-book` (no book.toml → detects docs/), asserting `/overview` + `/details/deep` routes, sample absent, and the "docs-book" directory-name title in the sidebar; restores `src/content/book/` after each (tree clean). Full suite 35/35; `astro check` clean; audit clean. README documents the optional `book.toml` + `src→docs→root` detection + directory-name title.
-- **Commit:** PENDING
+- **Commit:** `cb62e4fc63e24d8ec886d33d778053407d60912b`
