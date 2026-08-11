@@ -21,8 +21,8 @@ with no wrapper (detects `docs/`, 132 chapters, title "CubiKan").
 
 ## CI Confirmation
 - **Head SHA:** `1f249f509a68387a35c8327e70214c3433396d93`
-- **CI run:** `.github/workflows/ci.yml` on the Sprint 4 `dev → main` PR (opened at the Loop checkpoint); conclusion recorded there.
-- **Conclusion:** success (local); CI observed at the checkpoint (expected success — all CI-run gates green locally).
+- **CI run:** `.github/workflows/ci.yml` on the Sprint 4 checkpoint (commit `9da6314`, [PR #5](https://github.com/crussella0129/Tome/pull/5)) — [run 31528520850](https://github.com/crussella0129/Tome/actions/runs/31528520850).
+- **Conclusion:** **success** — the `verify` job is green, including the extended two-book **External book build gate**. **One** annotation remains: `actions/upload-artifact@v5` still targets Node 20 (its current Node-24 major is **v7**; `@v5` was a stale bump in Sprint 3). This **corrects the Sprint 3 report's claim that all warnings were resolved** — `checkout@v5`/`setup-node@v5` are correct (Node 24), but `upload-artifact` needs `@v7`. Non-blocking; queued as backlog **T-207**.
 - **Confirmations:** local canonical-runner records:
   - `npx vitest run` → `Test Files 8 passed (8) · Tests 35 passed (35)`
   - `node scripts/check-external-build.mjs` → OK for handbook + docs-book; tree restored clean
