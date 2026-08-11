@@ -102,4 +102,4 @@
 - **Completed:** 2026-08-11T16:28:46Z
 - **Files modified:** fixtures/handbook/src/img/plate.svg, fixtures/handbook/src/first.md, scripts/check-external-build.mjs, package.json
 - **EARS verified:** clause 1 (relative image → optimized `/_astro/` asset) + clause 2 (script builds/asserts/restores, non-zero on failure) — `node scripts/check-external-build.mjs` green: built with `TOME_BOOK=fixtures/handbook`, asserted `dist/first/` present, `dist/getting-started/` absent, and `<img src="/_astro/plate.<hash>.svg">` in `dist/first/`; restored `src/content/book/` to HEAD (tree clean) + rebuilt default. `astro check` clean; vitest 30/30; audit clean.
-- **Commit:** PENDING
+- **Commit:** `1ce7432b12db4e08b9c9d67bc3e10b7a519a17fd`
