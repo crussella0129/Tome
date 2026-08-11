@@ -86,4 +86,4 @@
 - **Completed:** 2026-08-11T15:05:15Z
 - **Files modified:** src/lib/book.ts, src/lib/paths.ts, src/lib/__tests__/paths.test.ts, src/lib/__tests__/book.test.ts
 - **EARS verified:** clause 1 (title from meta, fallback to SUMMARY heading) — `test_book_title_from_meta` (pure `resolveTitle`); clause 2 (nested `a/b`, folder `README`/`index`) — `test_paths_nested_and_readme`; clause 3 (`..` never escapes root; `../secret.md`→`secret`, `chapterUrl` not `/../`) — `test_paths_reject_traversal`. Full suite 27/27; `astro check` clean (JSON import of book.meta.json OK); audit clean.
-- **Commit:** PENDING
+- **Commit:** `d069e1fe00922e41722e3daaed6d866845f008c3`
