@@ -16,8 +16,8 @@ T-202) remains, so **INT-0003 stays `active`**.
 
 ## CI Confirmation
 - **Head SHA:** `2232715f0f768477920356e7be746b58253e83cb`
-- **CI run:** `.github/workflows/ci.yml` on the Sprint 5 `dev → main` PR (opened at the Loop checkpoint); conclusion recorded there.
-- **Conclusion:** success (local); CI observed at the checkpoint (expected success — the integration is dev-only, so `build`/CI are unaffected, and all CI-run gates are green locally).
+- **CI run:** `.github/workflows/ci.yml` on the Sprint 5 checkpoint (commit `a5fb116`, [PR #6](https://github.com/crussella0129/Tome/pull/6)) — [run 31534864111](https://github.com/crussella0129/Tome/actions/runs/31534864111).
+- **Conclusion:** **success** — the `verify` job is green including the two-book External book build gate. The only annotation is the already-tracked `upload-artifact@v5` Node-20 warning (backlog **T-207**, bump to `@v7`). The live-reload integration is dev-only, so `build`/CI are unaffected.
 - **Confirmations:** local canonical-runner records:
   - `npx vitest run` → `Tests 37 passed`
   - `node scripts/check-live-reload.mjs` → OK (live edit appeared, no restart; tree restored clean)
