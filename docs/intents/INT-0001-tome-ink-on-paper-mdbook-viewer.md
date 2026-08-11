@@ -3,7 +3,7 @@
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0001
 - **State:** active
-- **Work evidence:** [Sprint 0 build plan (T-001–T-005)](../sprints/s0/sprint-plans/build-plan.md), [Sprint 0 test plan](../sprints/s0/sprint-plans/test-plan.md)
+- **Work evidence:** [Sprint 0 build plan (T-001–T-005)](../sprints/s0/sprint-plans/build-plan.md), [Sprint 0 test plan](../sprints/s0/sprint-plans/test-plan.md), [Sprint 1 build plan (T-006–T-009)](../sprints/s1/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
 - **Test evidence:** [Sprint 0 test report](../sprints/s0/sprint-tests/test-report.md)
@@ -105,6 +105,11 @@ designer the user cited is the native path, not a deviation.
 - The subtle paper texture (grain + vignette) must stay behind text and never
   degrade body-text contrast (criterion 3); it is kept token-driven and
   asset-free so it cannot break under CSP or offline conditions.
+- Mekzantine has **no published licence**, so Tome does not redistribute the
+  binary. It is **fetched at build time** into a git-ignored `public/fonts/` and
+  served from Tome's own origin (dropping the runtime CDN dependency); the fetch
+  is non-fatal and the `monospace` fallback covers any failure. Committing the
+  woff2 would require confirmed redistribution rights.
 - SUMMARY.md parsing is bespoke; its grammar (mdBook's) must be tracked if
   upstream evolves.
 
