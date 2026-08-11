@@ -49,3 +49,4 @@ a general viewer, deferred there to keep that slice bounded.
 - 2026-08-11: `planned → active` — Sprint 3 Build Phase began implementing T-013–T-014.
 - 2026-08-11: Sprint 3 delivered **criterion 1** (relative-image fidelity), enforced by a CI build gate; remains `active` for criterion 2 (multi-book, backlog T-202) and criterion 3 (live reload, backlog T-204).
 - 2026-08-11: corrected the State field to `active` (it had been left at `planned` since the Sprint 3 `planned → active` history entry). Sprint 5 (T-017–T-018) plans accepted to deliver **criterion 3** (live reload); criterion 2 remains.
+- 2026-08-11: Sprint 5 delivered **criterion 3** (live reload of the active external book during `dev`), proven by the `check_live_reload` gate (edit → reader updates, no restart); remains `active` for criterion 2 (multi-book, backlog T-202).
