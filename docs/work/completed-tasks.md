@@ -62,4 +62,4 @@
 - **Completed:** 2026-08-11T05:39:38Z
 - **Files modified:** e2e/reader.spec.ts
 - **EARS verified:** clause 1 — `test_reduced_motion_honored` green: with `emulateMedia({reducedMotion:'reduce'})`, the `.transition-token` theme button's computed transition-duration collapses to ≤ 1ms (the token `@media (prefers-reduced-motion)` rule). `astro check` clean.
-- **Commit:** PENDING
+- **Commit:** `a26f7c2cc95910222a64ed6a4b9dabf007c57a13`
