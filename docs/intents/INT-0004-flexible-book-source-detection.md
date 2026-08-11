@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0004
-- **State:** planned
+- **State:** realized
 - **Work evidence:** [Sprint 4 build plan (T-015–T-016)](../sprints/s4/sprint-plans/build-plan.md), [Sprint 4 test plan](../sprints/s4/sprint-plans/test-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-016 completion (Sprint 4)](../work/completed-tasks.md#t-016-sprint-4)
+- **Code evidence:** [load-book.mjs source/title detection](../../scripts/load-book.mjs)
 - **Test evidence:** [Sprint 4 test report](../sprints/s4/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [README — Books without a book.toml](../../README.md)
 
 ## Intent
 
@@ -72,3 +72,4 @@ book" true in practice.
   CubiKan demo, which required a hand-built wrapper under the INT-0002 shape).
 - 2026-08-11: `proposed → planned` — Sprint 4 plans (T-015–T-016) accepted; delivers all five criteria (source/title auto-detection).
 - 2026-08-11: `planned → active` — Sprint 4 Build Phase began implementing T-015–T-016.
+- 2026-08-11: `active → realized` — Sprint 4 delivered all five criteria (auto-detect `src`/`docs`/root, authoritative `book.toml` src, directory-name title, enumerated error, no regression), with test/code/doc/completion evidence. Proven directly: `TOME_BOOK=/…/CubiKan` loads with no wrapper (detected `docs/`, 132 chapters, title "CubiKan").
