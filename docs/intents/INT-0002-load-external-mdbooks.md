@@ -2,8 +2,8 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0002
-- **State:** proposed
-- **Work evidence:** none
+- **State:** active
+- **Work evidence:** [Sprint 2 build plan (T-010–T-012)](../sprints/s2/sprint-plans/build-plan.md), [Sprint 2 test plan](../sprints/s2/sprint-plans/test-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
 - **Test evidence:** none
@@ -58,7 +58,15 @@ components keeps this to a source-resolution problem, not a rebuild.
 - Introduces configuration (which book to load) and filesystem/path-resolution
   edge cases (absolute vs relative links, `..` escapes) that need their own tests.
 - The build's content pipeline must handle content outside `src/content/`.
+- The book to load is selected by a **build-time `TOME_BOOK` environment
+  variable** naming the mdBook root; a prebuild step copies its `<src>` tree into
+  `src/content/book/` so the existing render pipeline is reused. When `TOME_BOOK`
+  is **unset the step is a no-op** and the committed sample renders (the INT-0001
+  fallback). A future sprint may add a config-file/CLI form, but `TOME_BOOK` is
+  the baseline interface.
 
 ## Transition history
 - 2026-08-11: created as `proposed` during Sprint 1 Loop (carry-forward from the
   T-101 backlog; distinct outcome from the now-realized INT-0001).
+- 2026-08-11: `proposed → planned` — Sprint 2 build/test plans (T-010–T-012) accepted; first external-book slice (criteria 1–4).
+- 2026-08-11: `planned → active` — Sprint 2 Build Phase began implementing T-010–T-012.
