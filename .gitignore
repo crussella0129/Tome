@@ -1,0 +1,19 @@
+# >>> sprint-loops >>>
+# The Book is tracked. Ignore only transient helper output.
+*.tmp
+/guards-report.ndjson
+# <<< sprint-loops <<<
+
+# Node / Astro
+node_modules/
+dist/
+.astro/
+# Test / build output
+coverage/
+test-results/
+playwright-report/
+.playwright/
+# Env / OS
+.env
+.env.*
+.DS_Store

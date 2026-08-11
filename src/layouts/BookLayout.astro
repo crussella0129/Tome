@@ -1,0 +1,65 @@
+---
+import '../styles/tokens.css';
+import InitTheme from '../components/init-theme.astro';
+import TocSidebar from '../components/TocSidebar';
+import { DEFAULT_THEME } from '../styles/theme';
+import type { BookToc } from '../lib/summary.types';
+
+interface Props {
+  toc: BookToc;
+  activeSlug: string;
+  title: string;
+}
+
+const { toc, activeSlug, title } = Astro.props;
+const bookTitle = toc.title ?? 'Tome';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body class={DEFAULT_THEME.className}>
+    <InitTheme />
+    <div class="app">
+      <TocSidebar
+        toc={toc}
+        activeSlug={activeSlug}
+        bookTitle={bookTitle}
+        client:idle
+      />
+      <main class="content">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>
+
+<style>
+  .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 100dvh;
+  }
+
+  .content {
+    position: relative;
+    z-index: var(--z-page);
+    padding: var(--space-8) var(--space-6);
+    min-width: 0;
+  }
+
+  @media (min-width: 48.0625rem) {
+    .app {
+      grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
+    }
+
+    .content {
+      padding: var(--space-10) var(--space-8);
+    }
+  }
+</style>

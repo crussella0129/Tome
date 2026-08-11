@@ -1,0 +1,204 @@
+/*
+ * Tome design tokens — the single source of truth for colour, type, spacing,
+ * radii, shadow and motion. Adapted from the sacred-computer `global.css`
+ * model: every surface reads `var(--theme-*)`, and a `body.theme-*` class swaps
+ * the whole palette. Components never hardcode colour — that is the discipline
+ * the neutronium audit enforces.
+ *
+ * Two themes ship: `theme-ink-paper` (default) and `theme-terminal-dark`.
+ * The reader-critical `--theme-background` / `--theme-text` pairs are mirrored
+ * in `theme.ts` and guarded for WCAG-AA contrast by the unit test.
+ */
+
+@import 'tailwindcss';
+@import './fonts.css';
+@import './paper.css';
+@import './prose.css';
+
+/* ------------------------------------------------------------------ */
+/* Tailwind @theme — expose the semantic tokens as utilities so island  */
+/* (.tsx) code stays token-driven and theme-reactive.                   */
+/* ------------------------------------------------------------------ */
+@theme {
+  --color-background: var(--theme-background);
+  --color-surface: var(--theme-window-background);
+  --color-surface-sunken: var(--theme-background-modal);
+  --color-ink: var(--theme-text);
+  --color-ink-subdued: var(--theme-text-subdued);
+  --color-edge: var(--theme-border);
+  --color-edge-subdued: var(--theme-border-subdued);
+  --color-accent: var(--theme-focused-foreground);
+  --color-accent-subdued: var(--theme-focused-foreground-subdued);
+  --color-link: var(--theme-link);
+
+  --font-mono: var(--font-family-mono);
+
+  --radius-panel: var(--radius-md);
+
+  --ease-out: var(--motion-ease-out);
+}
+
+/* ------------------------------------------------------------------ */
+/* Non-colour scales — set once, referenced everywhere.                 */
+/* ------------------------------------------------------------------ */
+:root {
+  /* Type scale (monospace, modest ratio). */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  /* Spacing rhythm. Section gaps use the larger steps; intra-element the smaller. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+
+  /* Measure — the readable chapter column. */
+  --measure: 72ch;
+
+  /* Radii. Sacred is crisp; a hairline only, never pill-round. */
+  --radius-sm: 1px;
+  --radius-md: 2px;
+
+  /* Motion. */
+  --duration-fast: 130ms;
+  --duration-med: 220ms;
+  --duration-slow: 320ms;
+  --motion-ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layering (ported from sacred). */
+  --z-page: 1;
+  --z-sidebar: 20;
+  --z-overlay: 30;
+
+  --theme-line-height-base: 1.5;
+}
+
+html,
+body {
+  --font-family-mono: 'MekzantineMono', 'Mekzantine', ui-monospace, 'Cascadia Mono',
+    Consolas, monaco, monospace;
+
+  background: var(--theme-background);
+  color: var(--theme-text);
+  font-family: var(--font-family-mono);
+  font-size: var(--text-base);
+  line-height: var(--theme-line-height-base);
+  font-optical-sizing: auto;
+  text-rendering: geometricPrecision;
+  font-variant-numeric: tabular-nums lining-nums;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--theme-border) transparent;
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* THEME: ink on old paper (default light).                             */
+/* Values mirror INK_PAPER in theme.ts.                                 */
+/* ------------------------------------------------------------------ */
+body.theme-ink-paper {
+  --theme-background: #f3e9d2; /* warm parchment ground */
+  --theme-background-modal: #ece0c4; /* sunken panel */
+  --theme-background-input: #efe5cc;
+  --theme-text: #2b2018; /* sepia-black ink */
+  --theme-text-subdued: #6b5d48; /* faded ink (meta, captions) */
+  --theme-border: #cdbb95; /* aged rule */
+  --theme-border-subdued: rgba(120, 96, 58, 0.28);
+  --theme-focused-foreground: #a83a2b; /* rubric red accent */
+  --theme-focused-foreground-subdued: rgba(168, 58, 43, 0.24);
+  --theme-link: #7a3b1e; /* aged ink link */
+  --theme-window-background: #ece0c4;
+  --theme-window-shadow: #d0bd93;
+
+  /* Paper texture strength for this theme. */
+  --paper-grain-opacity: 0.05;
+  --paper-vignette: rgba(74, 56, 28, 0.12);
+}
+
+/* ------------------------------------------------------------------ */
+/* THEME: warm terminal (dark).                                         */
+/* Values mirror TERMINAL_DARK in theme.ts.                             */
+/* ------------------------------------------------------------------ */
+body.theme-terminal-dark {
+  --theme-background: #16130e; /* warm near-black */
+  --theme-background-modal: #221c14;
+  --theme-background-input: #221c14;
+  --theme-text: #e8dcc2; /* warm parchment ink on dark */
+  --theme-text-subdued: #a2937a;
+  --theme-border: #3a3125;
+  --theme-border-subdued: rgba(232, 220, 194, 0.18);
+  --theme-focused-foreground: #e0a24a; /* amber phosphor accent */
+  --theme-focused-foreground-subdued: rgba(224, 162, 74, 0.28);
+  --theme-link: #d8b47a;
+  --theme-window-background: #221c14;
+  --theme-window-shadow: #0c0a07;
+
+  --paper-grain-opacity: 0.07;
+  --paper-vignette: rgba(0, 0, 0, 0.42);
+}
+
+/* Panel drop shadow — a hard offset, no blur, the sacred "lifted box" look. */
+:root {
+  --shadow-panel: 3px 3px 0 var(--theme-window-shadow);
+}
+
+/* ------------------------------------------------------------------ */
+/* Base element treatment (sacred link highlight, selection, focus).    */
+/* ------------------------------------------------------------------ */
+a {
+  color: var(--theme-link);
+  text-decoration: none;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: var(--theme-focused-foreground-subdued);
+  color: var(--theme-text);
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--theme-focused-foreground);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Token-driven transition utility. Tailwind v4 emits no `duration-*`   */
+/* utility from `--duration-*`, so state transitions use this class.    */
+/* ------------------------------------------------------------------ */
+@layer utilities {
+  .transition-token {
+    transition-property: color, background-color, border-color, outline-color,
+      transform, opacity;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--motion-ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

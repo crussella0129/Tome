@@ -1,0 +1,39 @@
+---
+import type { MarkdownInstance } from 'astro';
+import BookLayout from '../layouts/BookLayout.astro';
+import Pager from '../components/Pager.astro';
+import { bookToc, chapterRoutes, isContentKeyFor } from '../lib/book';
+
+// Every chapter's Markdown, keyed by path. Importers are lazy; each generated
+// page loads only its own chapter.
+const contentModules = import.meta.glob<MarkdownInstance<Record<string, unknown>>>(
+  '../content/book/**/*.md',
+);
+
+export function getStaticPaths() {
+  // One route per non-draft chapter; the root chapter maps to `/`.
+  return chapterRoutes().map((route) => ({
+    params: { slug: route.slug === '' ? undefined : route.slug },
+    props: route,
+  }));
+}
+
+const route = Astro.props;
+const toc = bookToc();
+
+const entry = Object.entries(contentModules).find(([key]) =>
+  isContentKeyFor(key, route.chapter.href!),
+);
+if (!entry) {
+  throw new Error(`Tome: no Markdown found for chapter "${route.chapter.href}"`);
+}
+const mod = await entry[1]();
+const Content = mod.Content;
+---
+
+<BookLayout toc={toc} activeSlug={route.slug} title={route.chapter.title}>
+  <article class="tome-prose">
+    <Content />
+  </article>
+  <Pager prev={route.prev} next={route.next} />
+</BookLayout>

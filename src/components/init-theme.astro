@@ -1,0 +1,19 @@
+---
+// Restore the reader's saved theme before first paint (no flash of the default
+// theme). Rendered as the first child of <body> so `document.body` exists.
+---
+
+<script is:inline>
+  (function () {
+    try {
+      var valid = ['theme-ink-paper', 'theme-terminal-dark'];
+      var saved = localStorage.getItem('tome-theme');
+      var theme = valid.indexOf(saved) >= 0 ? saved : 'theme-ink-paper';
+      var b = document.body;
+      b.classList.remove('theme-ink-paper', 'theme-terminal-dark');
+      b.classList.add(theme);
+    } catch (e) {
+      /* localStorage unavailable — keep the server default */
+    }
+  })();
+</script>
