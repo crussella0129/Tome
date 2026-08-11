@@ -94,4 +94,4 @@
 - **Completed:** 2026-08-11T15:08:38Z
 - **Files modified:** fixtures/handbook/book.toml, fixtures/handbook/src/SUMMARY.md, fixtures/handbook/src/README.md, fixtures/handbook/src/first.md, fixtures/handbook/src/section/nested.md, src/lib/__tests__/load-book.test.ts, README.md
 - **EARS verified:** loader integration `test_load_book_external`/`_noop_when_unset`/`_errors_on_invalid` green (3/3). `gate_external_build`: `TOME_BOOK=fixtures/handbook npm run build` → `dist/first` and `dist/section/nested` present, `dist/getting-started` (sample) absent, and the book.toml title "The Sacred Handbook" in the sidebar; sample restored cleanly (`git checkout` + `git clean`), default rebuild OK. Full suite 30/30; `astro check` clean; audit clean.
-- **Commit:** PENDING
+- **Commit:** `ededce6e17cbc98929da1eff6c06dec65bfc545e`
