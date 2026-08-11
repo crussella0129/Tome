@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0002
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 2 build plan (T-010–T-012)](../sprints/s2/sprint-plans/build-plan.md), [Sprint 2 test plan](../sprints/s2/sprint-plans/test-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-012 completion (Sprint 2)](../work/completed-tasks.md#t-012-sprint-2)
+- **Code evidence:** [load-book.mjs](../../scripts/load-book.mjs), [book.ts title/routes](../../src/lib/book.ts), [traversal-safe paths](../../src/lib/paths.ts)
 - **Test evidence:** [Sprint 2 test report](../sprints/s2/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [README — View a book](../../README.md)
 
 ## Intent
 
@@ -70,3 +70,4 @@ components keeps this to a source-resolution problem, not a rebuild.
   T-101 backlog; distinct outcome from the now-realized INT-0001).
 - 2026-08-11: `proposed → planned` — Sprint 2 build/test plans (T-010–T-012) accepted; first external-book slice (criteria 1–4).
 - 2026-08-11: `planned → active` — Sprint 2 Build Phase began implementing T-010–T-012.
+- 2026-08-11: `active → realized` — Sprint 2 delivered all four criteria (external SUMMARY resolves + renders with the book.toml title, nested/README links resolve, invalid books error clearly, and the sample is the unconfigured fallback), with test/code/doc/completion evidence attached. Fidelity/breadth work carried into [[INT-0003-richer-external-book-support]].
