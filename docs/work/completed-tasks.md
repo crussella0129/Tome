@@ -70,4 +70,4 @@
 - **Completed:** 2026-08-11T05:41:25Z
 - **Files modified:** .github/workflows/ci.yml, src/lib/__tests__/ci-workflow.test.ts
 - **EARS verified:** clause 1 — `test_ci_workflow_valid` green (workflow triggers on `pull_request`→main and `push`→dev; steps run `npm ci`, `astro check`, `vitest run`, `playwright test`). YAML validated (pyyaml `safe_load` OK). Full unit suite 24/24; `astro check` clean; audit clean. Real CI conclusion to be observed on the Sprint 1 PR (recorded in the test report).
-- **Commit:** PENDING
+- **Commit:** `edea9be032ef127aa78898aa880d23e2b445398f`
