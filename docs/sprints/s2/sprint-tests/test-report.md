@@ -21,8 +21,8 @@ fidelity and multi-book (see critique C-002 / the intent's non-goals).
 
 ## CI Confirmation
 - **Head SHA:** `206333c48e40c4db311130515b8a86ad15445864`
-- **CI run:** `.github/workflows/ci.yml` on the Sprint 2 `dev → main` PR (opened at the Loop checkpoint); conclusion recorded there.
-- **Conclusion:** success (local); CI observed at the checkpoint (expected success — all CI-run gates green locally).
+- **CI run:** `.github/workflows/ci.yml` on the Sprint 2 checkpoint (commit `b980d5f`, [PR #3](https://github.com/crussella0129/Tome/pull/3)) — [run 31505932930](https://github.com/crussella0129/Tome/actions/runs/31505932930).
+- **Conclusion:** **success** — CI `verify` job green (npm ci → astro check → vitest 30/30 → playwright 8/8). Same two non-blocking warnings as Sprint 1 (Node-20 actions, empty playwright-report) — tracked as backlog T-203.
 - **Confirmations:** local canonical-runner records:
   - `npx vitest run` → `Test Files 8 passed (8) · Tests 30 passed (30)`
   - `npx playwright test` → `8 passed (8.6s)`
