@@ -60,3 +60,16 @@ with a clear error listing the paths it tried.
 > Note: loading an external book overwrites `src/content/book/` at build time
 > (a deploy-time action). Leave `TOME_BOOK` unset for normal development so the
 > sample stays pristine.
+
+### Live reload
+
+During `npm run dev` with `TOME_BOOK` set, Tome watches the book's source and
+re-syncs changed files into the reader — **edit a chapter on disk and the reader
+updates with no restart**:
+
+```bash
+TOME_BOOK=/path/to/CubiKan npm run dev   # then edit CubiKan/docs/*.md live
+```
+
+This is a dev-only Astro integration (`astro:server:setup`); it has no effect on
+`npm run build`.
