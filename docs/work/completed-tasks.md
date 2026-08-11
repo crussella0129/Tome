@@ -63,3 +63,11 @@
 - **Files modified:** e2e/reader.spec.ts
 - **EARS verified:** clause 1 — `test_reduced_motion_honored` green: with `emulateMedia({reducedMotion:'reduce'})`, the `.transition-token` theme button's computed transition-duration collapses to ≤ 1ms (the token `@media (prefers-reduced-motion)` rule). `astro check` clean.
 - **Commit:** `a26f7c2cc95910222a64ed6a4b9dabf007c57a13`
+
+## T-009 (sprint 1)
+- **Description:** CI workflow (astro check + vitest + playwright)
+- **Intent:** [INT-0001](../intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md)
+- **Completed:** 2026-08-11T05:41:25Z
+- **Files modified:** .github/workflows/ci.yml, src/lib/__tests__/ci-workflow.test.ts
+- **EARS verified:** clause 1 — `test_ci_workflow_valid` green (workflow triggers on `pull_request`→main and `push`→dev; steps run `npm ci`, `astro check`, `vitest run`, `playwright test`). YAML validated (pyyaml `safe_load` OK). Full unit suite 24/24; `astro check` clean; audit clean. Real CI conclusion to be observed on the Sprint 1 PR (recorded in the test report).
+- **Commit:** PENDING
