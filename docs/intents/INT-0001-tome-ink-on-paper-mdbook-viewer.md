@@ -2,10 +2,10 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0001
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 0 build plan (T-001–T-005)](../sprints/s0/sprint-plans/build-plan.md), [Sprint 0 test plan](../sprints/s0/sprint-plans/test-plan.md), [Sprint 1 build plan (T-006–T-009)](../sprints/s1/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-005 completion (Sprint 0)](../work/completed-tasks.md#t-005-sprint-0), [T-009 completion (Sprint 1)](../work/completed-tasks.md#t-009-sprint-1)
+- **Code evidence:** [SUMMARY parser](../../src/lib/summary.ts), [token/theme layer](../../src/styles/tokens.css), [book layout](../../src/layouts/BookLayout.astro)
 - **Test evidence:** [Sprint 0 test report](../sprints/s0/sprint-tests/test-report.md), [Sprint 1 test report](../sprints/s1/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
@@ -118,3 +118,4 @@ designer the user cited is the native path, not a deviation.
 - 2026-08-11: `proposed → planned` — Sprint 0 build/test plans (T-001–T-005) accepted into executable work; Work evidence attached.
 - 2026-08-11: recorded design decisions (subtle-texture parchment; two themes `theme-ink-paper` + `theme-terminal-dark`) into Intent/Consequences per plan-critique C-003; no state change.
 - 2026-08-11: `planned → active` — Sprint 0 Build Phase began implementing T-001–T-005.
+- 2026-08-11: `active → realized` — Sprint 1 completed criteria 5–6, enforced 7 via CI, and hardened 3; all seven acceptance criteria are satisfied for the bundled book with test/code/completion evidence attached. Arbitrary external-book support is carried forward as the distinct [[INT-0002-load-external-mdbooks]].
