@@ -79,3 +79,11 @@
 - **Files modified:** scripts/load-book.mjs, package.json, src/content/book/book.meta.json
 - **EARS verified:** clause 2 (unset → no-op) ✓; clause 3 (invalid path → clear error naming the path + exit 1) ✓; clause 1 (valid book → temp dest populated with SUMMARY/chapters + `book.meta.json.title` = book.toml title "External Handbook") ✓ — verified via a throwaway external book against a temp `--dest` (sample untouched, per critique C-001). `npm run build` (prebuild chain, unset no-op) renders the sample; `astro check` clean; audit clean; full suite 24/24 (no regression). Note: hooked into `predev`/`prebuild` only (not `pretest`/`precheck`) since `book/` is committed — keeps tests running against the sample regardless of `TOME_BOOK`. The formal loader integration tests land in T-012 with the committed fixture.
 - **Commit:** `15f8e22d9e6ecd14dde48901154f0d3b37691cf6`
+
+## T-011 (sprint 2)
+- **Description:** Real-book title (from book.meta.json) + traversal-safe path resolution
+- **Intent:** [INT-0002](../intents/INT-0002-load-external-mdbooks.md)
+- **Completed:** 2026-08-11T15:05:15Z
+- **Files modified:** src/lib/book.ts, src/lib/paths.ts, src/lib/__tests__/paths.test.ts, src/lib/__tests__/book.test.ts
+- **EARS verified:** clause 1 (title from meta, fallback to SUMMARY heading) — `test_book_title_from_meta` (pure `resolveTitle`); clause 2 (nested `a/b`, folder `README`/`index`) — `test_paths_nested_and_readme`; clause 3 (`..` never escapes root; `../secret.md`→`secret`, `chapterUrl` not `/../`) — `test_paths_reject_traversal`. Full suite 27/27; `astro check` clean (JSON import of book.meta.json OK); audit clean.
+- **Commit:** PENDING
