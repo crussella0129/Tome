@@ -110,4 +110,4 @@
 - **Completed:** 2026-08-11T16:31:02Z
 - **Files modified:** .github/workflows/ci.yml, playwright.config.ts, src/lib/__tests__/ci-workflow.test.ts
 - **EARS verified:** clause 1 (CI runs `check-external-build.mjs` after E2E) + clause 2 (actions `@v5`, artifact exists) — `test_ci_workflow_valid` extended and green (asserts the gate step, `checkout/setup-node/upload-artifact @v5`, and no `@v4`); YAML valid (pyyaml). Playwright `html` reporter added → `playwright-report/index.html` generated (artifact will upload); E2E 8/8 (no regression); full suite 30/30; `astro check` clean; audit clean. Runtime CI (gate runs, warnings gone) observed at the checkpoint PR.
-- **Commit:** PENDING
+- **Commit:** `3afab60e86f4f3b56e2dcb1a0a4cb6baa7929f85`
