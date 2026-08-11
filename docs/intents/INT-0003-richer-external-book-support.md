@@ -5,8 +5,8 @@
 - **State:** planned
 - **Work evidence:** [Sprint 3 build plan (T-013–T-014)](../sprints/s3/sprint-plans/build-plan.md), [Sprint 3 test plan](../sprints/s3/sprint-plans/test-plan.md)
 - **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Code evidence:** [check-external-build.mjs](../../scripts/check-external-build.mjs)
+- **Test evidence:** [Sprint 3 test report](../sprints/s3/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
