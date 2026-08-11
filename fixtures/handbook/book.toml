@@ -1,0 +1,7 @@
+# A tiny external mdBook used as a test fixture for TOME_BOOK loading.
+# The title here deliberately differs from src/SUMMARY.md's first heading
+# ("Summary") to prove the title is taken from book.toml.
+[book]
+title = "The Sacred Handbook"
+authors = ["Tome fixtures"]
+src = "src"

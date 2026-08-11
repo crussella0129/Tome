@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chapterRoutes, bookToc } from '../book';
+import { chapterRoutes, bookToc, resolveTitle } from '../book';
 
 describe('bundled book', () => {
   // Integration: parser → route generation (T-003 clause 4 + T-005 clause 1).
@@ -45,7 +45,15 @@ describe('bundled book', () => {
     expect(middle.next?.title).toBe('Sacred Components');
   });
 
-  it('keeps the book title from the summary', () => {
+  it('exposes the book title (from book.meta.json)', () => {
     expect(bookToc().title).toBe('Tome');
+  });
+
+  // T-011 clause 1
+  it('test_book_title_from_meta: prefers the meta title, falls back to the summary heading', () => {
+    expect(resolveTitle('External Handbook', 'Summary')).toBe('External Handbook');
+    expect(resolveTitle(null, 'Summary')).toBe('Summary'); // no book.toml title
+    expect(resolveTitle('', 'Fallback')).toBe('Fallback'); // empty title
+    expect(resolveTitle(undefined, undefined)).toBeUndefined();
   });
 });
