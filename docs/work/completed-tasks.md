@@ -111,3 +111,19 @@
 - **Files modified:** .github/workflows/ci.yml, playwright.config.ts, src/lib/__tests__/ci-workflow.test.ts
 - **EARS verified:** clause 1 (CI runs `check-external-build.mjs` after E2E) + clause 2 (actions `@v5`, artifact exists) — `test_ci_workflow_valid` extended and green (asserts the gate step, `checkout/setup-node/upload-artifact @v5`, and no `@v4`); YAML valid (pyyaml). Playwright `html` reporter added → `playwright-report/index.html` generated (artifact will upload); E2E 8/8 (no regression); full suite 30/30; `astro check` clean; audit clean. Runtime CI (gate runs, warnings gone) observed at the checkpoint PR.
 - **Commit:** `3afab60e86f4f3b56e2dcb1a0a4cb6baa7929f85`
+
+## T-015 (sprint 4)
+- **Description:** Source + title detection in load-book.mjs
+- **Intent:** [INT-0004](../intents/INT-0004-flexible-book-source-detection.md)
+- **Completed:** 2026-08-11T19:26:36Z
+- **Files modified:** scripts/load-book.mjs, src/lib/__tests__/load-book.test.ts
+- **EARS verified:** clause 1 (no book.toml → detect docs/) `test_source_detect_docs`; clause 2 (declared src authoritative, wins over src/docs) `test_source_honor_book_toml_src` (+ `test_source_declared_missing_errors`); clause 3 (title from root dirname) `test_title_from_dirname`; clause 4 (no SUMMARY → enumerated error listing candidates) `test_source_none_errors`. Full suite 35/35; `astro check` clean; audit clean. **Real-world smoke:** `TOME_BOOK=/c/Users/charl/CubiKan node scripts/load-book.mjs` now works with **no wrapper** — auto-detected `CubiKan/docs`, copied 132 chapters, title "CubiKan" from the directory name.
+- **Commit:** `ea69f2cdb8d533ac2db07df0b304232180a08fe1`
+
+## T-016 (sprint 4)
+- **Description:** Docs-layout fixture + external-build gate + README
+- **Intent:** [INT-0004](../intents/INT-0004-flexible-book-source-detection.md)
+- **Completed:** 2026-08-11T19:29:16Z
+- **Files modified:** fixtures/docs-book/docs/SUMMARY.md, fixtures/docs-book/docs/README.md, fixtures/docs-book/docs/overview.md, fixtures/docs-book/docs/details/deep.md, scripts/check-external-build.mjs, README.md
+- **EARS verified:** clause 1 (docs-book renders detecting docs/, dir-name title) — extended `check_external_build` green: builds both `fixtures/handbook` (standard + relative image, criterion 5 regression) and `fixtures/docs-book` (no book.toml → detects docs/), asserting `/overview` + `/details/deep` routes, sample absent, and the "docs-book" directory-name title in the sidebar; restores `src/content/book/` after each (tree clean). Full suite 35/35; `astro check` clean; audit clean. README documents the optional `book.toml` + `src→docs→root` detection + directory-name title.
+- **Commit:** `cb62e4fc63e24d8ec886d33d778053407d60912b`

@@ -8,7 +8,7 @@
 // src/content/book) so tests target a temp dir and never touch the sample.
 import { cp, rm, mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, basename } from 'node:path';
 import process from 'node:process';
 
 function parseDest(argv) {
@@ -33,6 +33,38 @@ function extractBookToml(text) {
   return { title, src };
 }
 
+function fail(message) {
+  console.error(`load-book: ERROR — ${message}`);
+  process.exit(1);
+}
+
+// Resolve the book's source directory — the one containing SUMMARY.md. A
+// declared `book.toml` `src` is authoritative (used exactly, error if it lacks a
+// SUMMARY.md). Otherwise auto-detect: `src/` → `docs/` → the root (root last, so
+// a config-less docs-layout book like CubiKan loads without a wrapper).
+async function resolveSource(root, declaredSrc) {
+  if (declaredSrc) {
+    const dir = join(root, declaredSrc);
+    if (await exists(join(dir, 'SUMMARY.md'))) return dir;
+    fail(
+      `book.toml declares src="${declaredSrc}" but ${join(dir, 'SUMMARY.md')} does not exist.`,
+    );
+  }
+  const tried = [];
+  for (const candidate of ['src', 'docs', '.']) {
+    const dir = join(root, candidate);
+    const summary = join(dir, 'SUMMARY.md');
+    tried.push(summary);
+    if (await exists(summary)) return dir;
+  }
+  fail(
+    `no SUMMARY.md found for TOME_BOOK=${root}. Tried:\n` +
+      tried.map((path) => `    ${path}`).join('\n') +
+      `\n  Point TOME_BOOK at a book root whose src/, docs/, or root contains ` +
+      `SUMMARY.md, or set book.toml [book].src.`,
+  );
+}
+
 async function main() {
   const dest = parseDest(process.argv.slice(2));
   const bookRoot = process.env.TOME_BOOK;
@@ -43,33 +75,25 @@ async function main() {
   }
 
   const root = resolve(bookRoot);
-  let title;
-  let src = 'src';
+  let tomlTitle;
+  let declaredSrc;
   const tomlPath = join(root, 'book.toml');
   if (await exists(tomlPath)) {
     const parsed = extractBookToml(await readFile(tomlPath, 'utf8'));
-    if (parsed.title) title = parsed.title;
-    if (parsed.src) src = parsed.src;
+    if (parsed.title) tomlTitle = parsed.title;
+    if (parsed.src) declaredSrc = parsed.src;
   }
 
-  const srcDir = join(root, src);
-  const summaryPath = join(srcDir, 'SUMMARY.md');
-  if (!(await exists(summaryPath))) {
-    console.error(
-      `load-book: ERROR — no SUMMARY.md at ${summaryPath}.\n` +
-        `  Set TOME_BOOK to an mdBook root that contains ${src}/SUMMARY.md ` +
-        `(check book.toml's [book].src, default "src").`,
-    );
-    process.exit(1);
-  }
+  const srcDir = await resolveSource(root, declaredSrc);
 
   // Replace the destination with the external book's source tree (md + assets).
   await rm(dest, { recursive: true, force: true });
   await mkdir(dest, { recursive: true });
   await cp(srcDir, dest, { recursive: true });
 
-  // The real title comes from book.toml; book.ts falls back to the SUMMARY
-  // heading when this is null.
+  // Title: book.toml title → the book root's directory name → (null, letting
+  // book.ts fall back to the SUMMARY.md heading).
+  const title = tomlTitle ?? (basename(root) || undefined);
   await writeFile(
     join(dest, 'book.meta.json'),
     `${JSON.stringify({ title: title ?? null }, null, 2)}\n`,

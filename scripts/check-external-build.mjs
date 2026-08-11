@@ -1,12 +1,12 @@
-// External-book build gate: builds Tome with the bundled fixture mdBook
-// (TOME_BOOK=fixtures/handbook) and asserts that the external book renders —
-// its routes replace the sample AND a chapter's RELATIVE image is optimized to
-// an /_astro/ asset. Then restores src/content/book/ to HEAD and rebuilds the
-// default. Runs locally and in CI.
+// External-book build gate: for each fixture book, builds Tome with
+// TOME_BOOK pointed at it and asserts the external book renders (its routes
+// replace the sample). Covers the standard layout (book.toml + src/, incl. a
+// relative image) AND a config-less docs/ layout (no book.toml — detected).
+// src/content/book/ is restored to HEAD after EACH book and on any failure, so
+// the gate is idempotent and leaves the tree at HEAD. Runs locally and in CI.
 //
-// NOTE: this restores src/content/book/ via `git checkout` + `git clean`, so it
-// is intended to run on a CLEAN tree (CI always is) — uncommitted edits under
-// src/content/book/ would be discarded.
+// NOTE: restores src/content/book/ via `git checkout` + `git clean` — intended
+// to run on a CLEAN tree (CI always is); uncommitted edits there are discarded.
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,7 +14,7 @@ import process from 'node:process';
 
 const root = process.cwd();
 const BOOK_DIR = 'src/content/book';
-const fixture = join(root, 'fixtures', 'handbook');
+const dist = join(root, 'dist');
 
 function build(env = {}) {
   execSync('npm run build', { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } });
@@ -35,30 +35,56 @@ function fail(message) {
   process.exit(1);
 }
 
-console.log('check-external-build: building with TOME_BOOK=fixtures/handbook …');
-try {
-  build({ TOME_BOOK: fixture });
-} catch {
-  fail('build with the fixture book failed');
+function requireRoute(slug, label) {
+  if (!existsSync(join(dist, slug, 'index.html'))) fail(`${label}: dist/${slug}/ was not generated`);
+}
+function requireAbsent(slug, label) {
+  if (existsSync(join(dist, slug, 'index.html'))) fail(`${label}: dist/${slug}/ is still present`);
+}
+function readRoute(slug) {
+  return readFileSync(join(dist, slug, 'index.html'), 'utf8');
 }
 
-const firstPage = join(root, 'dist', 'first', 'index.html');
-if (!existsSync(firstPage)) fail('fixture route dist/first/ was not generated');
-if (existsSync(join(root, 'dist', 'getting-started', 'index.html'))) {
-  fail('sample route dist/getting-started/ is still present (external book did not replace the sample)');
+// Each case: a fixture book + its assertions on the built dist/.
+const CASES = [
+  {
+    name: 'handbook (standard: book.toml + src/, relative image)',
+    book: join(root, 'fixtures', 'handbook'),
+    check() {
+      requireRoute('first', 'handbook');
+      requireAbsent('getting-started', 'handbook'); // sample replaced
+      if (!/src="\/_astro\/plate\.[^"]+\.svg"/.test(readRoute('first'))) {
+        fail('handbook: the relative image did not render as an optimized /_astro/ asset');
+      }
+    },
+  },
+  {
+    name: 'docs-book (config-less: no book.toml, docs/ layout)',
+    book: join(root, 'fixtures', 'docs-book'),
+    check() {
+      requireRoute('overview', 'docs-book'); // detected docs/ source
+      requireRoute('details/deep', 'docs-book'); // nested from detected source
+      requireAbsent('getting-started', 'docs-book'); // sample replaced
+      if (!readRoute('').includes('>docs-book<')) {
+        fail('docs-book: the directory-name title "docs-book" is not shown in the sidebar');
+      }
+    },
+  },
+];
+
+for (const { name, book, check } of CASES) {
+  console.log(`check-external-build: building ${name} …`);
+  try {
+    build({ TOME_BOOK: book });
+  } catch {
+    fail(`build failed for ${name}`);
+  }
+  check();
+  console.log(`check-external-build: OK — ${name}`);
+  restoreSample();
 }
 
-const html = readFileSync(firstPage, 'utf8');
-if (!/src="\/_astro\/plate\.[^"]+\.svg"/.test(html)) {
-  fail('the relative image did not render as an optimized /_astro/ asset in dist/first/');
-}
-
-console.log(
-  'check-external-build: OK — fixture routes present, sample absent, relative image optimized to /_astro/.',
-);
-
-restoreSample();
-console.log('check-external-build: restored the sample; rebuilding default …');
+console.log('check-external-build: all external books rendered; rebuilding default …');
 try {
   build();
 } catch {
