@@ -3,10 +3,10 @@
 - **Sprint number:** 0
 - **Book schema version:** 2
 - **Start timestamp:** 2026-08-11T03:16:58Z
-- **End timestamp:** (filled at Loop Phase)
+- **End timestamp:** 2026-08-11T04:15:46Z
 - **Model:** claude-opus-4-8
-- **Exit status:** in-progress
+- **Exit status:** success
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Scaffold the Tome reader (Astro+SolidJS+TS+Tailwind v4), establish the ink-on-old-paper + warm-dark `--theme-*` token layer, parse mdBook `SUMMARY.md`, and render a bundled sample chapter with sacred prose styling end to end.
 - **Intents:** [INT-0001](../../intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md) — planned (Sprint 0 advances acceptance criteria 1–4; begins 5–7).
-- **Completion evidence:** (filled at Loop Phase)
+- **Completion evidence:** Tome foundation shipped: Astro+Solid+TS+Tailwind scaffold, ink-on-paper + warm-dark token themes, SUMMARY parser, sidebar island, sample-book rendering; 21 Vitest + 6 Playwright green at 3e950be; INT-0001 criteria 1-4,7 met, 5-6 begun
