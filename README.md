@@ -32,10 +32,30 @@ TOME_BOOK=/path/to/your/mdbook npm run build
 TOME_BOOK=/path/to/your/mdbook npm run dev
 ```
 
-The book's title comes from `book.toml` (`[book].title`); its chapters, nesting,
-prefix/suffix, drafts, and separators come from `src/SUMMARY.md`. If `TOME_BOOK`
-points at a directory without `<src>/SUMMARY.md`, the build stops with a clear
-error. When `TOME_BOOK` is unset, the committed sample renders unchanged.
+The book's chapters, nesting, prefix/suffix, drafts, and separators come from
+`SUMMARY.md`. When `TOME_BOOK` is unset, the committed sample renders unchanged.
+
+### Books without a `book.toml`
+
+`book.toml` is **optional**. If it declares `[book].src`, that source is used
+(and must contain `SUMMARY.md`). Otherwise Tome auto-detects the source by looking
+for `SUMMARY.md` in this order:
+
+1. `src/` (the mdBook default)
+2. `docs/` (common for docs-first repos)
+3. the root itself
+
+So a config-less book whose source lives in `docs/` — for example a Sprint-Loops
+Project Book — loads directly:
+
+```bash
+TOME_BOOK=/path/to/CubiKan npm run dev   # detects docs/, no book.toml needed
+```
+
+The title is taken from `book.toml` (`[book].title`) when present, otherwise the
+**book root's directory name** (e.g. `CubiKan`), otherwise the `SUMMARY.md`
+heading. If no `SUMMARY.md` is found in any candidate location, the build stops
+with a clear error listing the paths it tried.
 
 > Note: loading an external book overwrites `src/content/book/` at build time
 > (a deploy-time action). Leave `TOME_BOOK` unset for normal development so the
