@@ -103,3 +103,11 @@
 - **Files modified:** fixtures/handbook/src/img/plate.svg, fixtures/handbook/src/first.md, scripts/check-external-build.mjs, package.json
 - **EARS verified:** clause 1 (relative image → optimized `/_astro/` asset) + clause 2 (script builds/asserts/restores, non-zero on failure) — `node scripts/check-external-build.mjs` green: built with `TOME_BOOK=fixtures/handbook`, asserted `dist/first/` present, `dist/getting-started/` absent, and `<img src="/_astro/plate.<hash>.svg">` in `dist/first/`; restored `src/content/book/` to HEAD (tree clean) + rebuilt default. `astro check` clean; vitest 30/30; audit clean.
 - **Commit:** `1ce7432b12db4e08b9c9d67bc3e10b7a519a17fd`
+
+## T-014 (sprint 3)
+- **Description:** CI hardening — external gate in CI + actions/artifact hygiene
+- **Intent:** [INT-0003](../intents/INT-0003-richer-external-book-support.md)
+- **Completed:** 2026-08-11T16:31:02Z
+- **Files modified:** .github/workflows/ci.yml, playwright.config.ts, src/lib/__tests__/ci-workflow.test.ts
+- **EARS verified:** clause 1 (CI runs `check-external-build.mjs` after E2E) + clause 2 (actions `@v5`, artifact exists) — `test_ci_workflow_valid` extended and green (asserts the gate step, `checkout/setup-node/upload-artifact @v5`, and no `@v4`); YAML valid (pyyaml). Playwright `html` reporter added → `playwright-report/index.html` generated (artifact will upload); E2E 8/8 (no regression); full suite 30/30; `astro check` clean; audit clean. Runtime CI (gate runs, warnings gone) observed at the checkpoint PR.
+- **Commit:** PENDING

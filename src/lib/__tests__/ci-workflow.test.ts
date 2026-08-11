@@ -16,7 +16,14 @@ describe('CI workflow', () => {
     expect(ci).toMatch(/astro check/);
     expect(ci).toMatch(/vitest run/);
     expect(ci).toMatch(/playwright test/);
+    // The external-book render is gated remotely (T-014).
+    expect(ci).toMatch(/check-external-build\.mjs/);
     // Dependencies installed reproducibly.
     expect(ci).toMatch(/npm ci/);
+    // Actions are on the non-deprecated (Node 24) majors — no @v4 (Node 20).
+    expect(ci).toMatch(/actions\/checkout@v5/);
+    expect(ci).toMatch(/actions\/setup-node@v5/);
+    expect(ci).toMatch(/actions\/upload-artifact@v5/);
+    expect(ci).not.toMatch(/actions\/[a-z-]+@v4/);
   });
 });

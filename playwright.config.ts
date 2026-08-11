@@ -9,7 +9,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: 'list',
+  // `list` for readable console output; `html` produces `playwright-report/`
+  // (never auto-opened) so CI can upload it as an artifact.
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
