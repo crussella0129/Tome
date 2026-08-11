@@ -107,6 +107,24 @@ test.describe('Tome reader', () => {
     expect(bg).toBe(WARM_DARK);
   });
 
+  // T-008 clause 1 (criterion 6 — honour prefers-reduced-motion)
+  test('test_reduced_motion_honored', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    // A token-transitioned control (`.transition-token`) in the sidebar.
+    const btn = page.getByRole('button', { name: 'Switch colour theme' });
+    await expect(btn).toBeVisible();
+    // Computed transition-duration is reported in seconds; the reduce media rule
+    // collapses it to ~0. Take the max across the shorthand list.
+    const durationSeconds = await btn.evaluate((el) =>
+      getComputedStyle(el)
+        .transitionDuration.split(',')
+        .map((v) => parseFloat(v))
+        .reduce((a, b) => Math.max(a, b), 0),
+    );
+    expect(durationSeconds).toBeLessThanOrEqual(0.001); // ≤ 1ms
+  });
+
   // T-004 clause 4
   test('test_sidebar_focus_visible', async ({ page }) => {
     await page.goto('/');

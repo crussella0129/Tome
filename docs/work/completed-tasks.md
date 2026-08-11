@@ -55,3 +55,11 @@
 - **Files modified:** public/images/sacred-diagram.svg, src/content/book/components/panels.md, e2e/reader.spec.ts, playwright.config.ts, scripts/serve-dist.mjs
 - **EARS verified:** clause 1 — `test_chapter_image_styled` green (image renders in `.tome-prose` with border > 0 and loads: naturalWidth > 0); full E2E 7/7. `astro check` clean; audit clean. Infra fix: replaced the daemonizing `astro preview` in the Playwright webServer with a foreground `scripts/serve-dist.mjs` (deterministic, `reuseExistingServer:false`), fixing a fresh-build race that also hardens CI (T-009).
 - **Commit:** `0bf90cb38f0e09fe646241debfd51b0aeb9282c1`
+
+## T-008 (sprint 1)
+- **Description:** prefers-reduced-motion E2E
+- **Intent:** [INT-0001](../intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md)
+- **Completed:** 2026-08-11T05:39:38Z
+- **Files modified:** e2e/reader.spec.ts
+- **EARS verified:** clause 1 — `test_reduced_motion_honored` green: with `emulateMedia({reducedMotion:'reduce'})`, the `.transition-token` theme button's computed transition-duration collapses to ≤ 1ms (the token `@media (prefers-reduced-motion)` rule). `astro check` clean.
+- **Commit:** PENDING
