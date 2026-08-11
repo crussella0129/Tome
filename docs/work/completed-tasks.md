@@ -87,3 +87,11 @@
 - **Files modified:** src/lib/book.ts, src/lib/paths.ts, src/lib/__tests__/paths.test.ts, src/lib/__tests__/book.test.ts
 - **EARS verified:** clause 1 (title from meta, fallback to SUMMARY heading) — `test_book_title_from_meta` (pure `resolveTitle`); clause 2 (nested `a/b`, folder `README`/`index`) — `test_paths_nested_and_readme`; clause 3 (`..` never escapes root; `../secret.md`→`secret`, `chapterUrl` not `/../`) — `test_paths_reject_traversal`. Full suite 27/27; `astro check` clean (JSON import of book.meta.json OK); audit clean.
 - **Commit:** `d069e1fe00922e41722e3daaed6d866845f008c3`
+
+## T-012 (sprint 2)
+- **Description:** External-book fixture + end-to-end build gate + README
+- **Intent:** [INT-0002](../intents/INT-0002-load-external-mdbooks.md)
+- **Completed:** 2026-08-11T15:08:38Z
+- **Files modified:** fixtures/handbook/book.toml, fixtures/handbook/src/SUMMARY.md, fixtures/handbook/src/README.md, fixtures/handbook/src/first.md, fixtures/handbook/src/section/nested.md, src/lib/__tests__/load-book.test.ts, README.md
+- **EARS verified:** loader integration `test_load_book_external`/`_noop_when_unset`/`_errors_on_invalid` green (3/3). `gate_external_build`: `TOME_BOOK=fixtures/handbook npm run build` → `dist/first` and `dist/section/nested` present, `dist/getting-started` (sample) absent, and the book.toml title "The Sacred Handbook" in the sidebar; sample restored cleanly (`git checkout` + `git clean`), default rebuild OK. Full suite 30/30; `astro check` clean; audit clean.
+- **Commit:** PENDING
