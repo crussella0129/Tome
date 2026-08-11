@@ -5,7 +5,9 @@ import solid from 'vite-plugin-solid';
 // `browser` resolve conditions so `solid-js` loads its client build under
 // jsdom. Pure `.ts` tests (the SUMMARY parser, contrast math) run the same way.
 export default defineConfig({
-  plugins: [solid()],
+  // `hot: false` disables solid-refresh, which is dev-only and errors under the
+  // Vitest/SSR transform (`file:///@solid-refresh`).
+  plugins: [solid({ hot: false })],
   resolve: {
     conditions: ['development', 'browser'],
   },
