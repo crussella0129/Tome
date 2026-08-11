@@ -142,4 +142,4 @@
 - **Completed:** 2026-08-11T20:42:56Z
 - **Files modified:** scripts/check-live-reload.mjs, package.json, README.md
 - **EARS verified:** clause 1 (edit during dev reflects, no restart) — `check_live_reload` green: copied fixtures/handbook to a temp mutable book, ran `TOME_BOOK=<temp> astro dev`, confirmed `/first` served "First Chapter", edited the source to "LIVE RELOAD CONFIRMED", and the reader reflected it within the poll window — **no restart**; `finally` stopped dev + restored `src/content/book/` to HEAD (tree clean) + removed the temp book. Full suite 37/37; `astro check` clean; audit clean. README documents live reload. Kept local (not CI) per plan.
-- **Commit:** PENDING
+- **Commit:** `221bf31c21da997175ebc04f7e69d32e64ceb45e`
