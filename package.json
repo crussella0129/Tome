@@ -5,7 +5,9 @@
   "private": true,
   "description": "An ink-on-old-paper mdBook viewer built on sacred-computer components.",
   "scripts": {
+    "predev": "node scripts/fetch-fonts.mjs",
     "dev": "astro dev",
+    "prebuild": "node scripts/fetch-fonts.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",

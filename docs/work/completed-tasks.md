@@ -39,3 +39,11 @@
 - **Files modified:** src/content/book/SUMMARY.md, src/content/book/README.md, src/content/book/getting-started.md, src/content/book/components.md, src/content/book/components/panels.md, src/content/book/about.md, src/pages/[...slug].astro, src/pages/index.astro (removed), src/components/Pager.astro, src/lib/book.ts, src/lib/__tests__/book.test.ts, e2e/reader.spec.ts, astro.config.mjs
 - **EARS verified:** build generates one route per non-draft chapter (/, /getting-started, /components, /components/panels, /about; draft excluded) — `test_book_routes_generated` + `test_pager_prev_next` green (full suite 21/21). Static render confirms clause 1 (Introduction heading + SSR'd sidebar in BookLayout), clause 2 (`<pre>` code panel), clause 4 (pager neighbours). Clauses 2–3 computed-style + clause verification complete via E2E in the Test Phase. `astro check` clean; audit passed. Refinements: single catch-all `[...slug].astro` owns `/` (placeholder `index.astro` removed); added `src/lib/book.ts` (route loader, testable) and `syntaxHighlight:false` so code stays token-styled.
 - **Commit:** `e2cb01d4b23ef139403c88560ec76b6f9883c8a8`
+
+## T-006 (sprint 1)
+- **Description:** Self-host Mekzantine via a build-time fetch script (no redistribution)
+- **Intent:** [INT-0001](../intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md)
+- **Completed:** 2026-08-11T05:31:00Z
+- **Files modified:** scripts/fetch-fonts.mjs, package.json, src/styles/fonts.css, .gitignore, src/styles/__tests__/fonts.test.ts
+- **EARS verified:** clause 1 (`fonts.css` src all `/fonts/`, no external host) — `test_fonts_self_hosted`; clause 2 (fetch writes woff2) — `gate_font_fetch` wrote mekzantine-mono.woff2 + mekzantine.woff2 to public/fonts/; clause 3 (monospace fallback) — `test_font_fallback_present`. Full: build emits CSS referencing `/fonts/…woff2` (no runtime CDN); `astro check` clean; audit clean. `public/fonts/` git-ignored (no binary committed).
+- **Commit:** PENDING
