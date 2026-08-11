@@ -134,4 +134,4 @@
 - **Completed:** 2026-08-11T20:39:25Z
 - **Files modified:** scripts/book-source.mjs, scripts/load-book.mjs, astro.config.mjs, src/lib/__tests__/book-source.test.ts
 - **EARS verified:** clause 1 (`resolveBookSource` parity — docs detect, declared-src authoritative, dir-name title, enumerated throw) `test_resolve_book_source`; clause 2 (`syncPath` copies changed / removes deleted / ignores outside-source) `test_sync_path_copy_and_delete`. Loader refactored to import the shared module — its 8 detection tests unchanged (parity). Full suite 37/37; `astro check` clean; audit clean; `npm run build` unaffected (integration is dev-only). Integration confirmed firing: `astro dev logs` → "live reload watching …/fixtures/handbook/src" (label tome-live-reload). End-to-end proof in T-018.
-- **Commit:** PENDING
+- **Commit:** `83d3ffe080176d97ba18c0c9b216ac52909052eb`
