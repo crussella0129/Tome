@@ -9,6 +9,12 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   site: 'https://example.com',
   integrations: [solid()],
+  markdown: {
+    // Disable Shiki: it injects inline colours that would bypass the token
+    // layer. Code renders as plain <pre><code>, styled monochrome in ink by
+    // prose.css — the sacred / ink-on-paper look.
+    syntaxHighlight: false,
+  },
   vite: {
     plugins: [tailwindcss()],
   },

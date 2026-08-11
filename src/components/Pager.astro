@@ -1,0 +1,92 @@
+---
+import { chapterUrl } from '../lib/paths';
+import type { ChapterNode } from '../lib/summary.types';
+
+interface Props {
+  prev?: ChapterNode;
+  next?: ChapterNode;
+}
+
+const { prev, next } = Astro.props;
+---
+
+<nav class="pager" aria-label="Chapter navigation">
+  {
+    prev ? (
+      <a class="pager-link prev" href={chapterUrl(prev.href!)} rel="prev">
+        <span class="dir">← Previous</span>
+        <span class="title">{prev.title}</span>
+      </a>
+    ) : (
+      <span class="pager-spacer" />
+    )
+  }
+  {
+    next ? (
+      <a class="pager-link next" href={chapterUrl(next.href!)} rel="next">
+        <span class="dir">Next →</span>
+        <span class="title">{next.title}</span>
+      </a>
+    ) : (
+      <span class="pager-spacer" />
+    )
+  }
+</nav>
+
+<style>
+  .pager {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-top: var(--space-10);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--theme-border);
+    max-width: var(--measure);
+  }
+
+  .pager-link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--theme-border);
+    border-radius: var(--radius-md);
+    background: var(--theme-window-background);
+    color: var(--theme-text);
+    text-decoration: none;
+    transition-property: background-color, border-color, transform;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--motion-ease-out);
+  }
+
+  .pager-link.next {
+    text-align: right;
+  }
+
+  .pager-link:hover {
+    border-color: var(--theme-focused-foreground);
+    background: var(--theme-focused-foreground-subdued);
+  }
+
+  .dir {
+    font-size: var(--text-2xs);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--theme-text-subdued);
+  }
+
+  .title {
+    font-size: var(--text-sm);
+    font-weight: 700;
+  }
+
+  .pager-spacer {
+    display: block;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pager-link {
+      transition: none;
+    }
+  }
+</style>

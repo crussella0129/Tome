@@ -31,3 +31,11 @@
 - **Files modified:** src/layouts/BookLayout.astro, src/components/TocSidebar.tsx, src/components/TocSidebar.module.css, src/components/init-theme.astro, src/lib/paths.ts, src/components/__tests__/TocSidebar.test.tsx, vitest.config.ts
 - **EARS verified:** clauses 1–3 green via `test_sidebar_lists_chapter_links`, `test_sidebar_marks_current`, `test_sidebar_toggle_collapses` (full suite 18/18). Clause 4 (focus-visible) verified via E2E in the Test Phase. `astro check` clean (0/0/0); neutronium audit passed (`.map` warnings are data transforms). Added `src/lib/paths.ts` (chapter href→slug mapping, shared with T-005) and set `hot:false` in `vitest.config.ts` to fix the solid-refresh test transform.
 - **Commit:** `46cea2a1b39cd219b8277800c3a6f4489e09aad0`
+
+## T-005 (sprint 0)
+- **Description:** Bundled sample mdBook + chapter rendering with sacred prose styling
+- **Intent:** [INT-0001](../intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md)
+- **Completed:** 2026-08-11T04:07:40Z
+- **Files modified:** src/content/book/SUMMARY.md, src/content/book/README.md, src/content/book/getting-started.md, src/content/book/components.md, src/content/book/components/panels.md, src/content/book/about.md, src/pages/[...slug].astro, src/pages/index.astro (removed), src/components/Pager.astro, src/lib/book.ts, src/lib/__tests__/book.test.ts, e2e/reader.spec.ts, astro.config.mjs
+- **EARS verified:** build generates one route per non-draft chapter (/, /getting-started, /components, /components/panels, /about; draft excluded) — `test_book_routes_generated` + `test_pager_prev_next` green (full suite 21/21). Static render confirms clause 1 (Introduction heading + SSR'd sidebar in BookLayout), clause 2 (`<pre>` code panel), clause 4 (pager neighbours). Clauses 2–3 computed-style + clause verification complete via E2E in the Test Phase. `astro check` clean; audit passed. Refinements: single catch-all `[...slug].astro` owns `/` (placeholder `index.astro` removed); added `src/lib/book.ts` (route loader, testable) and `syntaxHighlight:false` so code stays token-styled.
+- **Commit:** PENDING
