@@ -13,7 +13,8 @@
     "check": "astro check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:external": "node scripts/check-external-build.mjs"
   },
   "dependencies": {
     "@astrojs/solid-js": "^7.0.2",

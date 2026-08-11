@@ -95,3 +95,11 @@
 - **Files modified:** fixtures/handbook/book.toml, fixtures/handbook/src/SUMMARY.md, fixtures/handbook/src/README.md, fixtures/handbook/src/first.md, fixtures/handbook/src/section/nested.md, src/lib/__tests__/load-book.test.ts, README.md
 - **EARS verified:** loader integration `test_load_book_external`/`_noop_when_unset`/`_errors_on_invalid` green (3/3). `gate_external_build`: `TOME_BOOK=fixtures/handbook npm run build` → `dist/first` and `dist/section/nested` present, `dist/getting-started` (sample) absent, and the book.toml title "The Sacred Handbook" in the sidebar; sample restored cleanly (`git checkout` + `git clean`), default rebuild OK. Full suite 30/30; `astro check` clean; audit clean.
 - **Commit:** `ededce6e17cbc98929da1eff6c06dec65bfc545e`
+
+## T-013 (sprint 3)
+- **Description:** Prove relative-image fidelity + scripted external-build gate
+- **Intent:** [INT-0003](../intents/INT-0003-richer-external-book-support.md)
+- **Completed:** 2026-08-11T16:28:46Z
+- **Files modified:** fixtures/handbook/src/img/plate.svg, fixtures/handbook/src/first.md, scripts/check-external-build.mjs, package.json
+- **EARS verified:** clause 1 (relative image → optimized `/_astro/` asset) + clause 2 (script builds/asserts/restores, non-zero on failure) — `node scripts/check-external-build.mjs` green: built with `TOME_BOOK=fixtures/handbook`, asserted `dist/first/` present, `dist/getting-started/` absent, and `<img src="/_astro/plate.<hash>.svg">` in `dist/first/`; restored `src/content/book/` to HEAD (tree clean) + rebuilt default. `astro check` clean; vitest 30/30; audit clean.
+- **Commit:** PENDING
