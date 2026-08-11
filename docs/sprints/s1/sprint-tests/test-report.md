@@ -21,8 +21,8 @@ external book directories remain a separate future intent, not part of INT-0001.
 
 ## CI Confirmation
 - **Head SHA:** `2ec25101eabcd61d3d2392713a29fb237a5a5d4b`
-- **CI run:** `.github/workflows/ci.yml` added this sprint; its first run is triggered by the Sprint 1 `dev → main` PR opened at the Loop checkpoint. Conclusion recorded there.
-- **Conclusion:** success (local); CI runtime pending PR (expected success — all gates green locally).
+- **CI run:** `.github/workflows/ci.yml`, first run on the Sprint 1 checkpoint (commit `eb88624`, [PR #2](https://github.com/crussella0129/Tome/pull/2)) — [run 31500420717](https://github.com/crussella0129/Tome/actions/runs/31500420717).
+- **Conclusion:** **success** — CI `verify` job green in 53s (npm ci → astro check → vitest → playwright install → E2E all ✓). Closes critique C-001. Two non-blocking warnings: actions target Node 20 (deprecation notice; runs forced to Node 24) and the `upload-artifact` step found no `playwright-report/` (the `list` reporter emits none) — minor CI hygiene, noted below.
 - **Confirmations:** local canonical-runner records:
   - `npx vitest run` → `Test Files 6 passed (6) · Tests 24 passed (24)`
   - `npx playwright test` → `8 passed (24.9s)`
@@ -34,7 +34,7 @@ external book directories remain a separate future intent, not part of INT-0001.
 None.
 
 ## Technical Debt Identified
-- Observed CI conclusion is recorded at the checkpoint, not the test phase (critique C-001).
+- CI hygiene: bump `actions/*@v4` to `@v5` (Node 20 deprecation) and either add an HTML Playwright reporter or drop the `upload-artifact` step (currently uploads nothing under the `list` reporter). Non-blocking; observed as warnings on [run 31500420717](https://github.com/crussella0129/Tome/actions/runs/31500420717).
 - Font-absent fallback is proven statically, not by a missing-font render (critique C-002) — proportionate.
 - Mekzantine remains fetched from the CDN at build time (not vendored) due to the undocumented licence; revisit only with confirmed redistribution rights.
 
