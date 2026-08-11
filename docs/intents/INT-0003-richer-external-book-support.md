@@ -2,11 +2,11 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0003
-- **State:** proposed
-- **Work evidence:** none
+- **State:** planned
+- **Work evidence:** [Sprint 3 build plan (T-013–T-014)](../sprints/s3/sprint-plans/build-plan.md), [Sprint 3 test plan](../sprints/s3/sprint-plans/test-plan.md)
 - **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Code evidence:** [check-external-build.mjs](../../scripts/check-external-build.mjs)
+- **Test evidence:** [Sprint 3 test report](../sprints/s3/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
@@ -45,3 +45,6 @@ a general viewer, deferred there to keep that slice bounded.
 ## Transition history
 - 2026-08-11: created as `proposed` during Sprint 2 Loop (carry-forward of the
   fidelity/breadth work deferred by the now-realized INT-0002).
+- 2026-08-11: `proposed → planned` — Sprint 3 plans (T-013–T-014) accepted; delivers criterion 1 (relative images) and gates it in CI. Criteria 2–3 remain.
+- 2026-08-11: `planned → active` — Sprint 3 Build Phase began implementing T-013–T-014.
+- 2026-08-11: Sprint 3 delivered **criterion 1** (relative-image fidelity), enforced by a CI build gate; remains `active` for criterion 2 (multi-book, backlog T-202) and criterion 3 (live reload, backlog T-204).
