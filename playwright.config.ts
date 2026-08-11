@@ -15,9 +15,11 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run build && npm run preview',
+    // A foreground static server (not `astro preview`, which daemonizes and
+    // races the readiness check). Always fresh — never reuse a stale build.
+    command: 'npm run build && node scripts/serve-dist.mjs',
     url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });

@@ -69,6 +69,23 @@ test.describe('Tome reader', () => {
     expect(parseFloat(quoteBorder)).toBeGreaterThan(0);
   });
 
+  // T-007 clause 1 (criterion 5 — images)
+  test('test_chapter_image_styled', async ({ page }) => {
+    await page.goto('/components/panels');
+    const img = page.locator('.tome-prose img').first();
+    await expect(img).toBeVisible();
+    // Rendered as a bordered plate, and the asset actually loaded.
+    const info = await img.evaluate((el) => {
+      const image = el as HTMLImageElement;
+      return {
+        border: getComputedStyle(image).borderTopWidth,
+        complete: image.complete && image.naturalWidth > 0,
+      };
+    });
+    expect(parseFloat(info.border)).toBeGreaterThan(0);
+    expect(info.complete).toBe(true);
+  });
+
   // T-002 clause 3
   test('test_paper_theme_active', async ({ page }) => {
     await page.goto('/');

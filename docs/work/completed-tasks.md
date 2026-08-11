@@ -47,3 +47,11 @@
 - **Files modified:** scripts/fetch-fonts.mjs, package.json, src/styles/fonts.css, .gitignore, src/styles/__tests__/fonts.test.ts
 - **EARS verified:** clause 1 (`fonts.css` src all `/fonts/`, no external host) — `test_fonts_self_hosted`; clause 2 (fetch writes woff2) — `gate_font_fetch` wrote mekzantine-mono.woff2 + mekzantine.woff2 to public/fonts/; clause 3 (monospace fallback) — `test_font_fallback_present`. Full: build emits CSS referencing `/fonts/…woff2` (no runtime CDN); `astro check` clean; audit clean. `public/fonts/` git-ignored (no binary committed).
 - **Commit:** `e743c466d9e6f1faff654395fb9fae7f8d3757cb`
+
+## T-007 (sprint 1)
+- **Description:** Image chapter + criterion-5 image proof
+- **Intent:** [INT-0001](../intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md)
+- **Completed:** 2026-08-11T05:38:09Z
+- **Files modified:** public/images/sacred-diagram.svg, src/content/book/components/panels.md, e2e/reader.spec.ts, playwright.config.ts, scripts/serve-dist.mjs
+- **EARS verified:** clause 1 — `test_chapter_image_styled` green (image renders in `.tome-prose` with border > 0 and loads: naturalWidth > 0); full E2E 7/7. `astro check` clean; audit clean. Infra fix: replaced the daemonizing `astro preview` in the Playwright webServer with a foreground `scripts/serve-dist.mjs` (deterministic, `reuseExistingServer:false`), fixing a fresh-build race that also hardens CI (T-009).
+- **Commit:** PENDING
