@@ -1,0 +1,30 @@
+# tome.config.toml — the Bibliotheca manifest.
+#
+# List the mdBooks ("tomes") this Tome should present. On `dev`/`build`,
+# scripts/load-books.mjs reads this file and copies each book into the content
+# library. With one tome the reader sits at the root; with several, Tome shows a
+# Bibliotheca index at `/` and namespaces each tome under `/<slug>/`.
+#
+# Precedence (highest first):
+#   1. The TOME_BOOKS="/a,/b" (comma-separated) or TOME_BOOK="/a" env var.
+#   2. The [[book]] entries below.
+#   3. Neither → the committed sample tome renders (the default; this file ships
+#      fully commented, so it is a no-op until you add an entry).
+#
+# Each entry:
+#   path   (required) — the book's root directory (absolute, or relative to this
+#                       file). Its source is auto-detected: book.toml [book].src,
+#                       else src/ → docs/ → the root (whichever has SUMMARY.md).
+#   title  (optional) — overrides the book.toml title / directory name.
+#   slug   (optional) — the URL segment + library dir (default: the directory
+#                       name, slugified). Collisions are de-duplicated.
+#
+# Example — a two-tome Bibliotheca (uncomment and edit):
+#
+# [[book]]
+# path = "../CubiKan"
+# title = "CubiKan"
+#
+# [[book]]
+# path = "../my-notes"
+# slug = "notes"

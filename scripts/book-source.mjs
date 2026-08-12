@@ -1,6 +1,6 @@
-// Shared book-source logic used by BOTH the build-time loader (load-book.mjs)
-// and the dev-time live-reload integration (astro.config.mjs): detect a book's
-// source directory + title, and sync one changed file into the destination.
+// Shared book-source logic used by the build-time loader (load-books.mjs) and
+// the dev-time live-reload integration (astro.config.mjs): detect a book's
+// source directory + title + slug, and sync one changed file into the destination.
 import { readFile, access, mkdir, rm, copyFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { join, resolve, basename, relative, dirname } from 'node:path';
@@ -77,9 +77,9 @@ export async function resolveBookSource(bookRoot) {
     }
     if (!sourceDir) {
       throw new Error(
-        `no SUMMARY.md found for TOME_BOOK=${root}. Tried:\n` +
+        `no SUMMARY.md found for book root ${root}. Tried:\n` +
           tried.map((path) => `    ${path}`).join('\n') +
-          `\n  Point TOME_BOOK at a book root whose src/, docs/, or root contains ` +
+          `\n  Point the book path at a root whose src/, docs/, or root contains ` +
           `SUMMARY.md, or set book.toml [book].src.`,
       );
     }

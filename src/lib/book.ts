@@ -4,7 +4,7 @@ import type { BookToc, ChapterNode } from './summary.types';
 
 // The library: every tome's spine + metadata, eagerly imported as raw text /
 // JSON (Vite globs). The committed sample lives at `books/tome/`; the loader
-// (load-book.mjs / load-books.mjs) replaces or adds sibling tomes at build time.
+// (load-books.mjs) replaces it with the configured tomes at build time.
 const summaryRaws = import.meta.glob('../content/books/*/SUMMARY.md', {
   query: '?raw',
   import: 'default',
