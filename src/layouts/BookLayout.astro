@@ -9,9 +9,11 @@ interface Props {
   toc: BookToc;
   activeSlug: string;
   title: string;
+  /** Namespace prefix for chapter links; `''` in a single-tome library. */
+  bookSlug?: string;
 }
 
-const { toc, activeSlug, title } = Astro.props;
+const { toc, activeSlug, title, bookSlug = '' } = Astro.props;
 const bookTitle = toc.title ?? 'Tome';
 ---
 
@@ -30,6 +32,7 @@ const bookTitle = toc.title ?? 'Tome';
         toc={toc}
         activeSlug={activeSlug}
         bookTitle={bookTitle}
+        bookSlug={bookSlug}
         client:idle
       />
       <main class="content">

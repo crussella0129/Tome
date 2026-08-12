@@ -1,16 +1,17 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import { join } from 'node:path';
 import solid from '@astrojs/solid-js';
 import tailwindcss from '@tailwindcss/vite';
 import { resolveBookSource, syncPath } from './scripts/book-source.mjs';
 
-const BOOK_DEST = 'src/content/book';
+const LIB_DEST = 'src/content/books';
 
 /**
  * Dev-only live reload for an external `TOME_BOOK`: watch the book's source and
- * re-sync changed files into `src/content/book/` so edits appear in the reader
- * without a restart. `astro:server:setup` fires only in `dev`, so this has zero
- * effect on `build`/prod.
+ * re-sync changed files into its `src/content/books/<slug>/` dir so edits appear
+ * in the reader without a restart. `astro:server:setup` fires only in `dev`, so
+ * this has zero effect on `build`/prod.
  * @returns {import('astro').AstroIntegration}
  */
 function tomeLiveReload() {
@@ -21,15 +22,18 @@ function tomeLiveReload() {
         const bookRoot = process.env.TOME_BOOK;
         if (!bookRoot) return;
         let sourceDir;
+        let dest;
         try {
-          ({ sourceDir } = await resolveBookSource(bookRoot));
+          const resolved = await resolveBookSource(bookRoot);
+          sourceDir = resolved.sourceDir;
+          dest = join(LIB_DEST, resolved.slug);
         } catch (err) {
           logger.warn(`live reload disabled: ${err instanceof Error ? err.message : err}`);
           return;
         }
         const reload = async (/** @type {string} */ changed) => {
           try {
-            const target = await syncPath(changed, sourceDir, BOOK_DEST);
+            const target = await syncPath(changed, sourceDir, dest);
             if (!target) return; // not under the book source
             logger.info(`synced ${changed} → reloading`);
             const hot = server.hot ?? server.ws;

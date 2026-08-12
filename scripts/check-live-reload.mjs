@@ -2,7 +2,7 @@
 // Copies fixtures/handbook into a temp MUTABLE book, runs `astro dev` against it,
 // confirms the reader serves the original chapter, edits the source on disk, and
 // polls until the reader reflects the edit — proving live reload without a
-// restart. A `finally` block always stops dev, restores src/content/book to HEAD
+// restart. A `finally` block always stops dev, restores src/content/books to HEAD
 // (predev overwrote it), and removes the temp book.
 import { execSync } from 'node:child_process';
 import { cpSync, rmSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 
 const root = process.cwd();
-const BOOK_DIR = 'src/content/book';
+const BOOK_DIR = 'src/content/books';
 const URL = 'http://localhost:4321/first';
 const MARKER = 'LIVE RELOAD CONFIRMED';
 

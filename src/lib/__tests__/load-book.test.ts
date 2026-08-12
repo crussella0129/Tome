@@ -9,11 +9,18 @@ import {
   existsSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
+import { slugify } from '../../../scripts/book-source.mjs';
 
 const root = process.cwd();
 const script = join(root, 'scripts', 'load-book.mjs');
 const fixture = join(root, 'fixtures', 'handbook');
+
+// load-book writes into the library at `<dest>/<slug>/`; a single external book
+// is the sole tome there. Slug derives from the book root's directory name.
+function bookDir(dest: string, bookRoot: string): string {
+  return join(dest, slugify(basename(bookRoot)));
+}
 
 describe('load-book.mjs', () => {
   let tmp: string;
@@ -24,7 +31,7 @@ describe('load-book.mjs', () => {
     rmSync(tmp, { recursive: true, force: true });
   });
 
-  // T-010 clause 1 (criterion 1): external book populates the destination.
+  // T-010 clause 1 (criterion 1): external book populates the library tome dir.
   it('test_load_book_external: copies TOME_BOOK src and writes the book.toml title', () => {
     const dest = join(tmp, 'ext');
     execFileSync('node', [script, '--dest', dest], {
@@ -32,10 +39,11 @@ describe('load-book.mjs', () => {
       env: { ...process.env, TOME_BOOK: fixture },
       encoding: 'utf8',
     });
-    expect(existsSync(join(dest, 'SUMMARY.md'))).toBe(true);
-    expect(existsSync(join(dest, 'first.md'))).toBe(true);
-    expect(existsSync(join(dest, 'section', 'nested.md'))).toBe(true);
-    const meta = JSON.parse(readFileSync(join(dest, 'book.meta.json'), 'utf8'));
+    const out = bookDir(dest, fixture);
+    expect(existsSync(join(out, 'SUMMARY.md'))).toBe(true);
+    expect(existsSync(join(out, 'first.md'))).toBe(true);
+    expect(existsSync(join(out, 'section', 'nested.md'))).toBe(true);
+    const meta = JSON.parse(readFileSync(join(out, 'book.meta.json'), 'utf8'));
     expect(meta.title).toBe('The Sacred Handbook');
   });
 
@@ -121,8 +129,9 @@ describe('load-book.mjs source detection', () => {
     });
     const dest = join(tmp, 'out-docs');
     load(book, dest);
-    expect(existsSync(join(dest, 'SUMMARY.md'))).toBe(true);
-    expect(existsSync(join(dest, 'README.md'))).toBe(true);
+    const out = bookDir(dest, book);
+    expect(existsSync(join(out, 'SUMMARY.md'))).toBe(true);
+    expect(existsSync(join(out, 'README.md'))).toBe(true);
   });
 
   // criterion 2
@@ -137,8 +146,9 @@ describe('load-book.mjs source detection', () => {
     });
     const dest = join(tmp, 'out-declared');
     load(book, dest);
-    expect(existsSync(join(dest, 'g.md'))).toBe(true); // from guide/
-    expect(existsSync(join(dest, 'wrong.md'))).toBe(false); // not src/ or docs/
+    const out = bookDir(dest, book);
+    expect(existsSync(join(out, 'g.md'))).toBe(true); // from guide/
+    expect(existsSync(join(out, 'wrong.md'))).toBe(false); // not src/ or docs/
   });
 
   it('test_source_declared_missing_errors: a declared src without SUMMARY errors', () => {
@@ -160,7 +170,7 @@ describe('load-book.mjs source detection', () => {
     });
     const dest = join(tmp, 'out-title');
     load(book, dest);
-    const meta = JSON.parse(readFileSync(join(dest, 'book.meta.json'), 'utf8'));
+    const meta = JSON.parse(readFileSync(join(bookDir(dest, book), 'book.meta.json'), 'utf8'));
     expect(meta.title).toBe('MyBook');
   });
 

@@ -14,6 +14,21 @@ export async function exists(path) {
   }
 }
 
+/**
+ * A filesystem/URL-safe tome slug from an arbitrary name (a directory name or
+ * title): lowercased, non-alphanumerics collapsed to single hyphens, trimmed.
+ * Falls back to `book` for an empty result. Callers dedupe collisions.
+ */
+export function slugify(name) {
+  return (
+    String(name)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'book'
+  );
+}
+
 // Extract just `title` and `src` from a book.toml (two fields — no TOML dep).
 export function extractBookToml(text) {
   const title = text.match(/^\s*title\s*=\s*["']([^"']*)["']/m)?.[1];
@@ -71,7 +86,9 @@ export async function resolveBookSource(bookRoot) {
   }
 
   const title = tomlTitle ?? (basename(root) || undefined);
-  return { root, sourceDir, title: title ?? null };
+  // Default per-tome slug from the root directory name (stable across runs and
+  // independent of the title, which may contain spaces). Callers may override.
+  return { root, sourceDir, title: title ?? null, slug: slugify(basename(root)) };
 }
 
 /**

@@ -2,38 +2,81 @@
 import type { MarkdownInstance } from 'astro';
 import BookLayout from '../layouts/BookLayout.astro';
 import Pager from '../components/Pager.astro';
-import { bookToc, chapterRoutes, isContentKeyFor } from '../lib/book';
+import { books, tomePages, isContentKeyFor } from '../lib/book';
+import { chapterUrlIn } from '../lib/paths';
+import '../styles/tokens.css';
+import InitTheme from '../components/init-theme.astro';
+import { DEFAULT_THEME } from '../styles/theme';
 
 // Every chapter's Markdown, keyed by path. Importers are lazy; each generated
 // page loads only its own chapter.
 const contentModules = import.meta.glob<MarkdownInstance<Record<string, unknown>>>(
-  '../content/book/**/*.md',
+  '../content/books/**/*.md',
 );
 
 export function getStaticPaths() {
-  // One route per non-draft chapter; the root chapter maps to `/`.
-  return chapterRoutes().map((route) => ({
-    params: { slug: route.slug === '' ? undefined : route.slug },
-    props: route,
+  // Adaptive: one tome → root routes; many → namespaced routes + a `/` Bibliotheca.
+  return tomePages(books()).map((page) => ({
+    params: { slug: page.routeSlug === '' ? undefined : page.routeSlug },
+    props: page,
   }));
 }
 
-const route = Astro.props;
-const toc = bookToc();
+const page = Astro.props;
+const multi = tomePages(books()).some((p) => p.kind === 'bibliotheca');
 
-const entry = Object.entries(contentModules).find(([key]) =>
-  isContentKeyFor(key, route.chapter.href!),
-);
-if (!entry) {
-  throw new Error(`Tome: no Markdown found for chapter "${route.chapter.href}"`);
+let Content: MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+if (page.kind === 'chapter') {
+  const entry = Object.entries(contentModules).find(([key]) =>
+    isContentKeyFor(key, page.book.slug, page.route.chapter.href!),
+  );
+  if (!entry) {
+    throw new Error(
+      `Tome: no Markdown found for "${page.book.slug}/${page.route.chapter.href}"`,
+    );
+  }
+  Content = (await entry[1]()).Content;
 }
-const mod = await entry[1]();
-const Content = mod.Content;
 ---
 
-<BookLayout toc={toc} activeSlug={route.slug} title={route.chapter.title}>
-  <article class="tome-prose">
-    <Content />
-  </article>
-  <Pager prev={route.prev} next={route.next} />
-</BookLayout>
+{
+  page.kind === 'chapter' && Content ? (
+    <BookLayout
+      toc={page.book.toc}
+      activeSlug={page.route.slug}
+      bookSlug={multi ? page.book.slug : ''}
+      title={page.route.chapter.title}
+    >
+      <article class="tome-prose">
+        <Content />
+      </article>
+      <Pager prev={page.route.prev} next={page.route.next} />
+    </BookLayout>
+  ) : (
+    page.kind === 'bibliotheca' && (
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <meta name="generator" content={Astro.generator} />
+          <title>Bibliotheca</title>
+        </head>
+        <body class={DEFAULT_THEME.className}>
+          <InitTheme />
+          <main class="bibliotheca">
+            <h1>Bibliotheca</h1>
+            <ul>
+              {page.books.map((book) => (
+                <li>
+                  <a href={chapterUrlIn(book.slug, book.chapters[0]?.chapter.href ?? '')}>
+                    {book.title ?? book.slug}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </main>
+        </body>
+      </html>
+    )
+  )
+}

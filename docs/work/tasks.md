@@ -1,6 +1,9 @@
 # Agent Tasks (Persistent Backlog)
 
+- [ ] T-019 (sprint 6) [intent: INT-0003]: Multi-book content model + adaptive routing (migrate sample → src/content/books/tome; books() library; adaptive /<chapter> vs /<tome>/<chapter> + bibliotheca; repoint load-book/live-reload/gates dest) — touches: src/content/books/**, src/lib/book.ts, src/pages/[...slug].astro, scripts/load-book.mjs, astro.config.mjs, scripts/check-external-build.mjs, scripts/check-live-reload.mjs, src/lib/__tests__/book.test.ts
+- [ ] T-020 (sprint 6) [intent: INT-0003]: load-books.mjs + tome.config.toml (smol-toml) + env precedence + multi-copy/dedup — touches: scripts/load-books.mjs, package.json, tome.config.toml, src/lib/__tests__/load-books.test.ts
+- [ ] T-021 (sprint 6) [intent: INT-0003]: Bibliotheca index + sidebar book switcher (adaptive) — touches: src/components/Bibliotheca.astro, src/components/TocSidebar.tsx, src/components/TocSidebar.module.css, src/layouts/BookLayout.astro, src/components/__tests__/TocSidebar.test.tsx
+- [ ] T-022 (sprint 6) [intent: INT-0003]: Multi-book end-to-end gate (check-multibook: two tomes → namespaced routes + bibliotheca) + README — touches: scripts/check-multibook.mjs, package.json, README.md
 - [ ] T-207 (backlog) [intent: INT-0003]: Bump `actions/upload-artifact@v5` → `@v7` in ci.yml (v5 is a stale major still on Node 20; v7 targets Node 24) + update the `@v5` assertion in `ci-workflow.test.ts` — touches: .github/workflows/ci.yml, src/lib/__tests__/ci-workflow.test.ts
-- [ ] T-202 (backlog) [intent: INT-0003]: Multi-book library / reader-facing book switcher (criterion 2) — touches: src/lib/book.ts, src/components, src/pages
 - [ ] T-205 (backlog) [intent: INT-0003]: External-book browser E2E (load a fixture book via build-time env, assert it renders in a headless browser) — touches: e2e, playwright.config.ts
 - [ ] T-206 (backlog) [intent: INT-0003]: Parent-relative image support (`../assets/x.png`) for external chapters — touches: scripts/load-book.mjs, fixtures, e2e
