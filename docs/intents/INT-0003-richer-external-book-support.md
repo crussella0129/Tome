@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0003
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 3 build plan (T-013–T-014)](../sprints/s3/sprint-plans/build-plan.md), [Sprint 3 test plan](../sprints/s3/sprint-plans/test-plan.md), [Sprint 5 build plan (T-017–T-018)](../sprints/s5/sprint-plans/build-plan.md), [Sprint 6 build plan (T-019–T-022)](../sprints/s6/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** [check-external-build.mjs](../../scripts/check-external-build.mjs), [live-reload integration](../../astro.config.mjs), [book-source.mjs](../../scripts/book-source.mjs)
-- **Test evidence:** [Sprint 3 test report](../sprints/s3/sprint-tests/test-report.md), [Sprint 5 test report](../sprints/s5/sprint-tests/test-report.md)
-- **Documentation evidence:** [README — Live reload](../../README.md)
+- **Completion evidence:** [Sprint 6 test report](../sprints/s6/sprint-tests/test-report.md) — criterion 2 (the Bibliotheca) delivered; with criteria 1 (Sprint 3) and 3 (Sprint 5) already met, all three are satisfied.
+- **Code evidence:** [book.ts — adaptive library/routing](../../src/lib/book.ts), [load-books.mjs — TOML/env loader](../../scripts/load-books.mjs), [Bibliotheca.astro](../../src/components/Bibliotheca.astro), [check-multibook.mjs](../../scripts/check-multibook.mjs), [check-external-build.mjs](../../scripts/check-external-build.mjs), [live-reload integration](../../astro.config.mjs), [book-source.mjs](../../scripts/book-source.mjs)
+- **Test evidence:** [Sprint 3 test report](../sprints/s3/sprint-tests/test-report.md), [Sprint 5 test report](../sprints/s5/sprint-tests/test-report.md), [Sprint 6 test report](../sprints/s6/sprint-tests/test-report.md)
+- **Documentation evidence:** [README — Live reload](../../README.md), [README — The Bibliotheca](../../README.md#the-bibliotheca--a-library-of-books)
 
 ## Intent
 
@@ -59,3 +59,4 @@ a general viewer, deferred there to keep that slice bounded.
 - 2026-08-11: Sprint 3 delivered **criterion 1** (relative-image fidelity), enforced by a CI build gate; remains `active` for criterion 2 (multi-book, backlog T-202) and criterion 3 (live reload, backlog T-204).
 - 2026-08-11: corrected the State field to `active` (it had been left at `planned` since the Sprint 3 `planned → active` history entry). Sprint 5 (T-017–T-018) plans accepted to deliver **criterion 3** (live reload); criterion 2 remains.
 - 2026-08-11: Sprint 5 delivered **criterion 3** (live reload of the active external book during `dev`), proven by the `check_live_reload` gate (edit → reader updates, no restart); remains `active` for criterion 2 (multi-book, backlog T-202).
+- 2026-08-12: `active → realized` — Sprint 6 (T-019–T-022) delivered **criterion 2** (the Bibliotheca: a `tome.config.toml`/env-configured multi-book library, adaptive routing — one tome at the root, many namespaced under `/<tome>/` with a `/` library index + sidebar switcher, owner defaulting to the OS user), proven end to end by the `check_multibook` gate (two fixture tomes → namespaced routes + Bibliotheca + switcher) now run in CI. All three acceptance criteria (relative images, multi-book, live reload) are met, so INT-0003 is **realized**.
