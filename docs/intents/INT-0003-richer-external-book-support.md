@@ -4,7 +4,7 @@
 - **Intent ID:** INT-0003
 - **State:** realized
 - **Work evidence:** [Sprint 3 build plan (T-013–T-014)](../sprints/s3/sprint-plans/build-plan.md), [Sprint 3 test plan](../sprints/s3/sprint-plans/test-plan.md), [Sprint 5 build plan (T-017–T-018)](../sprints/s5/sprint-plans/build-plan.md), [Sprint 6 build plan (T-019–T-022)](../sprints/s6/sprint-plans/build-plan.md)
-- **Completion evidence:** [Sprint 6 test report](../sprints/s6/sprint-tests/test-report.md) — criterion 2 (the Bibliotheca) delivered; with criteria 1 (Sprint 3) and 3 (Sprint 5) already met, all three are satisfied.
+- **Completion evidence:** [T-019–T-022 completion (Sprint 6)](../work/completed-tasks.md#t-019-sprint-6), [T-014 completion (Sprint 3)](../work/completed-tasks.md#t-014-sprint-3), [T-018 completion (Sprint 5)](../work/completed-tasks.md#t-018-sprint-5) — criterion 2 (the Bibliotheca) delivered; with criteria 1 (Sprint 3) and 3 (Sprint 5) already met, all three are satisfied.
 - **Code evidence:** [book.ts — adaptive library/routing](../../src/lib/book.ts), [load-books.mjs — TOML/env loader](../../scripts/load-books.mjs), [Bibliotheca.astro](../../src/components/Bibliotheca.astro), [check-multibook.mjs](../../scripts/check-multibook.mjs), [check-external-build.mjs](../../scripts/check-external-build.mjs), [live-reload integration](../../astro.config.mjs), [book-source.mjs](../../scripts/book-source.mjs)
 - **Test evidence:** [Sprint 3 test report](../sprints/s3/sprint-tests/test-report.md), [Sprint 5 test report](../sprints/s5/sprint-tests/test-report.md), [Sprint 6 test report](../sprints/s6/sprint-tests/test-report.md)
 - **Documentation evidence:** [README — Live reload](../../README.md), [README — The Bibliotheca](../../README.md#the-bibliotheca--a-library-of-books)
