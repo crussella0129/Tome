@@ -3,7 +3,7 @@
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0003
 - **State:** active
-- **Work evidence:** [Sprint 3 build plan (T-013–T-014)](../sprints/s3/sprint-plans/build-plan.md), [Sprint 3 test plan](../sprints/s3/sprint-plans/test-plan.md), [Sprint 5 build plan (T-017–T-018)](../sprints/s5/sprint-plans/build-plan.md)
+- **Work evidence:** [Sprint 3 build plan (T-013–T-014)](../sprints/s3/sprint-plans/build-plan.md), [Sprint 3 test plan](../sprints/s3/sprint-plans/test-plan.md), [Sprint 5 build plan (T-017–T-018)](../sprints/s5/sprint-plans/build-plan.md), [Sprint 6 build plan (T-019–T-022)](../sprints/s6/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** [check-external-build.mjs](../../scripts/check-external-build.mjs), [live-reload integration](../../astro.config.mjs), [book-source.mjs](../../scripts/book-source.mjs)
 - **Test evidence:** [Sprint 3 test report](../sprints/s3/sprint-tests/test-report.md), [Sprint 5 test report](../sprints/s5/sprint-tests/test-report.md)
@@ -41,6 +41,15 @@ a general viewer, deferred there to keep that slice bounded.
 - Relative-asset resolution likely needs an Astro asset-pipeline or rewrite step
   for copied external content.
 - Multi-book introduces selection/state and route namespacing per book.
+- **Multi-book design (criterion 2), decided with the user:** the library ("the
+  **Bibliotheca**") is configured by a committed **`tome.config.toml`**
+  (`[[book]]` entries) with a `TOME_BOOKS`/`TOME_BOOK` **env override**; routing is
+  **adaptive** — one tome stays at root `/<chapter>` (no churn), multiple tomes are
+  namespaced `/<tome>/<chapter>` with `/` as the Bibliotheca index and a sidebar
+  switcher. "Bibliotheca" is used as one tasteful touch, not across the whole UI.
+- A **desktop shell** to browse a local Bibliotheca is deliberately **out of
+  scope here** — it becomes its own future intent (Electron-first per standing
+  guidance), wrapping this web library.
 
 ## Transition history
 - 2026-08-11: created as `proposed` during Sprint 2 Loop (carry-forward of the
