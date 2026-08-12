@@ -11,6 +11,12 @@
 #   3. Neither → the committed sample tome renders (the default; this file ships
 #      fully commented, so it is a no-op until you add an entry).
 #
+# owner — whose library this is. The Bibliotheca masthead reads "The Bibliotheca
+# of <owner>". Defaults to the OS login name, so it personalizes with no config;
+# set this key (or the TOME_OWNER env var) to override it.
+#
+# owner = "Your Name"
+#
 # Each entry:
 #   path   (required) — the book's root directory (absolute, or relative to this
 #                       file). Its source is auto-detected: book.toml [book].src,

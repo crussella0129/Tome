@@ -2,11 +2,9 @@
 import type { MarkdownInstance } from 'astro';
 import BookLayout from '../layouts/BookLayout.astro';
 import Pager from '../components/Pager.astro';
-import { books, tomePages, isContentKeyFor } from '../lib/book';
-import { chapterUrlIn } from '../lib/paths';
-import '../styles/tokens.css';
-import InitTheme from '../components/init-theme.astro';
-import { DEFAULT_THEME } from '../styles/theme';
+import Bibliotheca from '../components/Bibliotheca.astro';
+import { books, tomePages, bibliothecaEntries, isContentKeyFor } from '../lib/book';
+import { resolveOwner } from '../../scripts/library-config.mjs';
 
 // Every chapter's Markdown, keyed by path. Importers are lazy; each generated
 // page loads only its own chapter.
@@ -23,7 +21,12 @@ export function getStaticPaths() {
 }
 
 const page = Astro.props;
-const multi = tomePages(books()).some((p) => p.kind === 'bibliotheca');
+const library = books();
+const multi = library.length > 1;
+// The switcher only exists with several tomes; drop `count` for the island props.
+const switcher = multi
+  ? bibliothecaEntries(library).map(({ slug, title, href }) => ({ slug, title, href }))
+  : undefined;
 
 let Content: MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
 if (page.kind === 'chapter') {
@@ -40,43 +43,23 @@ if (page.kind === 'chapter') {
 ---
 
 {
-  page.kind === 'chapter' && Content ? (
-    <BookLayout
-      toc={page.book.toc}
-      activeSlug={page.route.slug}
-      bookSlug={multi ? page.book.slug : ''}
-      title={page.route.chapter.title}
-    >
-      <article class="tome-prose">
-        <Content />
-      </article>
-      <Pager prev={page.route.prev} next={page.route.next} />
-    </BookLayout>
+  page.kind === 'bibliotheca' ? (
+    <Bibliotheca books={page.books} owner={await resolveOwner()} />
   ) : (
-    page.kind === 'bibliotheca' && (
-      <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <meta name="generator" content={Astro.generator} />
-          <title>Bibliotheca</title>
-        </head>
-        <body class={DEFAULT_THEME.className}>
-          <InitTheme />
-          <main class="bibliotheca">
-            <h1>Bibliotheca</h1>
-            <ul>
-              {page.books.map((book) => (
-                <li>
-                  <a href={chapterUrlIn(book.slug, book.chapters[0]?.chapter.href ?? '')}>
-                    {book.title ?? book.slug}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </main>
-        </body>
-      </html>
+    Content && (
+      <BookLayout
+        toc={page.book.toc}
+        activeSlug={page.route.slug}
+        bookSlug={multi ? page.book.slug : ''}
+        books={switcher}
+        activeBook={page.book.slug}
+        title={page.route.chapter.title}
+      >
+        <article class="tome-prose">
+          <Content />
+        </article>
+        <Pager prev={page.route.prev} next={page.route.next} />
+      </BookLayout>
     )
   )
 }

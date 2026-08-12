@@ -10,7 +10,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, basename } from 'node:path';
+import { userInfo } from 'node:os';
 import { slugify } from '../../../scripts/book-source.mjs';
+import { resolveOwner } from '../../../scripts/library-config.mjs';
 
 const root = process.cwd();
 const script = join(root, 'scripts', 'load-books.mjs');
@@ -269,5 +271,21 @@ describe('load-books.mjs — manifest, precedence, and multi-copy', () => {
     expect(code).not.toBe(0);
     expect(stderr).toMatch(/SUMMARY\.md/);
     expect(existsSync(dest)).toBe(false); // resolve-all-first: nothing written
+  });
+
+  // T-021: the Bibliotheca owner (masthead "The Bibliotheca of <owner>").
+  it('test_resolve_owner_precedence: env > tome.config.toml owner > OS username', async () => {
+    const cfg = join(tmp, 'owner.config.toml');
+    writeFileSync(cfg, 'owner = "The Scriptorium"\n');
+    // env wins
+    expect(await resolveOwner({ configPath: cfg, env: { TOME_OWNER: 'Env Name' } })).toBe(
+      'Env Name',
+    );
+    // then the config owner
+    expect(await resolveOwner({ configPath: cfg, env: {} })).toBe('The Scriptorium');
+    // then the OS login name (zero-config personalization)
+    expect(await resolveOwner({ configPath: join(tmp, 'absent.toml'), env: {} })).toBe(
+      userInfo().username,
+    );
   });
 });

@@ -4,6 +4,7 @@ import {
   makeBook,
   tomePages,
   pageSlug,
+  bibliothecaEntries,
   resolveTitle,
   type ChapterPage,
 } from '../book';
@@ -93,6 +94,14 @@ describe('adaptive routing', () => {
     expect(pageSlug('tome', 'intro', false)).toBe('intro');
     expect(pageSlug('tome', '', true)).toBe('tome'); // multi root → tome index
     expect(pageSlug('tome', 'intro', true)).toBe('tome/intro');
+  });
+
+  // T-021 clause 2: the Bibliotheca lists each tome as a titled, namespaced link.
+  it('test_bibliotheca_lists_tomes: one titled entry per tome, namespaced href + count', () => {
+    expect(bibliothecaEntries([alpha, beta])).toEqual([
+      { slug: 'alpha', title: 'Alpha', href: '/alpha', count: 2 },
+      { slug: 'beta', title: 'Beta', href: '/beta', count: 2 },
+    ]);
   });
 });
 

@@ -4,12 +4,23 @@ import { chapterUrlIn, hrefToSlug } from '../lib/paths';
 import { THEMES, DEFAULT_THEME } from '../styles/theme';
 import styles from './TocSidebar.module.css';
 
+/** A tome in the sidebar switcher: a titled link to that tome's entry chapter. */
+export interface SwitcherBook {
+  slug: string;
+  title: string;
+  href: string;
+}
+
 interface TocSidebarProps {
   toc: BookToc;
   activeSlug: string;
   bookTitle: string;
   /** Namespace prefix for chapter links; `''` in a single-tome library. */
   bookSlug?: string;
+  /** The library's tomes; a switcher renders only when there is more than one. */
+  books?: SwitcherBook[];
+  /** The active tome's slug, marked `aria-current` in the switcher. */
+  activeBook?: string;
 }
 
 const THEME_CLASSES = THEMES.map((t) => t.className);
@@ -172,6 +183,33 @@ export default function TocSidebar(props: TocSidebarProps) {
           <span aria-hidden="true">{open() ? '×' : '≡'}</span>
         </button>
       </div>
+
+      <Show when={props.books && props.books.length > 1}>
+        <div class={styles.switcher}>
+          <div class={styles.switcherHead}>
+            <span class={styles.switcherLabel}>Tomes</span>
+            <a class={styles.bibliothecaLink} href="/">
+              Bibliotheca
+            </a>
+          </div>
+          <ul class={styles.switcherList}>
+            <For each={props.books}>
+              {(book) => (
+                <li>
+                  <a
+                    class={styles.switcherLink}
+                    classList={{ [styles.switcherCurrent!]: book.slug === props.activeBook }}
+                    href={book.href}
+                    aria-current={book.slug === props.activeBook ? 'true' : undefined}
+                  >
+                    {book.title}
+                  </a>
+                </li>
+              )}
+            </For>
+          </ul>
+        </div>
+      </Show>
 
       <div class={styles.scroll}>
         <TocList

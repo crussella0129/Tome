@@ -43,6 +43,44 @@ describe('TocSidebar', () => {
     expect(other).not.toHaveAttribute('aria-current');
   });
 
+  // T-021 clause 1: with several tomes, a switcher lists them (active marked) + a
+  // Bibliotheca link; with one tome, no switcher renders.
+  const twoBooks = [
+    { slug: 'alpha', title: 'Alpha', href: '/alpha' },
+    { slug: 'beta', title: 'Beta', href: '/beta' },
+  ];
+
+  it('test_sidebar_book_switcher: multi-tome switcher lists tomes, marks the active, links the Bibliotheca', () => {
+    const { getByRole } = render(() => (
+      <TocSidebar
+        toc={toc}
+        activeSlug=""
+        bookTitle="Current Tome"
+        bookSlug="alpha"
+        books={twoBooks}
+        activeBook="alpha"
+      />
+    ));
+    const active = getByRole('link', { name: 'Alpha' });
+    expect(active).toHaveAttribute('href', '/alpha');
+    expect(active).toHaveAttribute('aria-current', 'true');
+
+    const other = getByRole('link', { name: 'Beta' });
+    expect(other).toHaveAttribute('href', '/beta');
+    expect(other).not.toHaveAttribute('aria-current');
+
+    const biblio = getByRole('link', { name: 'Bibliotheca' });
+    expect(biblio).toHaveAttribute('href', '/');
+  });
+
+  it('test_sidebar_book_switcher: a single tome renders no switcher', () => {
+    const { queryByText, queryByRole } = render(() => (
+      <TocSidebar toc={toc} activeSlug="" bookTitle="Handbook" />
+    ));
+    expect(queryByText('Tomes')).toBeNull();
+    expect(queryByRole('link', { name: 'Bibliotheca' })).toBeNull();
+  });
+
   // T-004 EARS clause 3
   it('test_sidebar_toggle_collapses: the toggle flips the open-state', () => {
     const { getByRole, container } = render(() => (

@@ -1,7 +1,7 @@
 ---
 import '../styles/tokens.css';
 import InitTheme from '../components/init-theme.astro';
-import TocSidebar from '../components/TocSidebar';
+import TocSidebar, { type SwitcherBook } from '../components/TocSidebar';
 import { DEFAULT_THEME } from '../styles/theme';
 import type { BookToc } from '../lib/summary.types';
 
@@ -11,9 +11,13 @@ interface Props {
   title: string;
   /** Namespace prefix for chapter links; `''` in a single-tome library. */
   bookSlug?: string;
+  /** The library's tomes for the sidebar switcher; omitted with a single tome. */
+  books?: SwitcherBook[];
+  /** The active tome's slug, marked in the switcher. */
+  activeBook?: string;
 }
 
-const { toc, activeSlug, title, bookSlug = '' } = Astro.props;
+const { toc, activeSlug, title, bookSlug = '', books, activeBook } = Astro.props;
 const bookTitle = toc.title ?? 'Tome';
 ---
 
@@ -33,6 +37,8 @@ const bookTitle = toc.title ?? 'Tome';
         activeSlug={activeSlug}
         bookTitle={bookTitle}
         bookSlug={bookSlug}
+        books={books}
+        activeBook={activeBook}
         client:idle
       />
       <main class="content">

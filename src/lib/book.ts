@@ -1,5 +1,5 @@
 import { parseSummary, flattenChapters } from './summary';
-import { hrefToSlug } from './paths';
+import { hrefToSlug, chapterUrlIn } from './paths';
 import type { BookToc, ChapterNode } from './summary.types';
 
 // The library: every tome's spine + metadata, eagerly imported as raw text /
@@ -144,4 +144,28 @@ export function isContentKeyFor(
 ): boolean {
   const clean = href.trim().replace(/^\.\//, '');
   return globKey.endsWith(`content/books/${bookSlug}/${clean}`);
+}
+
+/** A tome as it appears in the Bibliotheca / sidebar switcher: a titled link. */
+export interface TomeEntry {
+  slug: string;
+  title: string;
+  /** Namespaced route to the tome's first chapter (its entry point). */
+  href: string;
+  /** Number of linked chapters, shown as catalogue metadata. */
+  count: number;
+}
+
+/**
+ * The library's tomes as titled links, for the Bibliotheca index and the sidebar
+ * switcher. Only meaningful with more than one tome; each `href` is namespaced
+ * under the tome slug. Serializable, so it can cross into the sidebar island.
+ */
+export function bibliothecaEntries(list: Book[]): TomeEntry[] {
+  return list.map((book) => ({
+    slug: book.slug,
+    title: book.title ?? book.slug,
+    href: chapterUrlIn(book.slug, book.chapters[0]?.chapter.href ?? ''),
+    count: book.chapters.length,
+  }));
 }
