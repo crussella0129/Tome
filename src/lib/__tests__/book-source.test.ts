@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-// The shared module used by load-book.mjs and the live-reload integration.
+// The shared module used by load-books.mjs and the live-reload integration.
 import { resolveBookSource, syncPath } from '../../../scripts/book-source.mjs';
 
 function normalize(p: string): string {

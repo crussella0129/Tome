@@ -1,11 +1,12 @@
 // External-book build gate: for each fixture book, builds Tome with
 // TOME_BOOK pointed at it and asserts the external book renders (its routes
-// replace the sample). Covers the standard layout (book.toml + src/, incl. a
+// replace the sample). A single external book stays at the root (adaptive
+// single-tome mode). Covers the standard layout (book.toml + src/, incl. a
 // relative image) AND a config-less docs/ layout (no book.toml — detected).
-// src/content/book/ is restored to HEAD after EACH book and on any failure, so
+// src/content/books/ is restored to HEAD after EACH book and on any failure, so
 // the gate is idempotent and leaves the tree at HEAD. Runs locally and in CI.
 //
-// NOTE: restores src/content/book/ via `git checkout` + `git clean` — intended
+// NOTE: restores src/content/books/ via `git checkout` + `git clean` — intended
 // to run on a CLEAN tree (CI always is); uncommitted edits there are discarded.
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
@@ -13,7 +14,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 
 const root = process.cwd();
-const BOOK_DIR = 'src/content/book';
+const BOOK_DIR = 'src/content/books';
 const dist = join(root, 'dist');
 
 function build(env = {}) {

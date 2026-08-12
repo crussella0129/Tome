@@ -29,10 +29,21 @@ export function hrefToSlug(href: string): string {
   return parts.join('/');
 }
 
-/** Route URL for a chapter link. The root chapter maps to `/`. */
+/**
+ * Route URL for a chapter link within a tome. In a single-tome library
+ * `bookSlug` is `''` and chapters live at the root (`/`, `/getting-started`);
+ * with several tomes each is namespaced under its slug (`/tome`,
+ * `/tome/getting-started`). The tome's root chapter maps to the tome's own page.
+ */
+export function chapterUrlIn(bookSlug: string, href: string): string {
+  const within = hrefToSlug(href);
+  if (!bookSlug) return within === '' ? '/' : `/${within}`;
+  return within === '' ? `/${bookSlug}` : `/${bookSlug}/${within}`;
+}
+
+/** Route URL for a chapter link in a single-tome library. The root maps to `/`. */
 export function chapterUrl(href: string): string {
-  const slug = hrefToSlug(href);
-  return slug === '' ? '/' : `/${slug}`;
+  return chapterUrlIn('', href);
 }
 
 /** Normalize an incoming route param (`undefined` at the index) to a slug. */

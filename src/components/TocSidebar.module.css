@@ -145,6 +145,71 @@
   border-color: var(--theme-focused-foreground);
 }
 
+/* Book switcher — the current tome + its siblings, shown only in a multi-tome
+   library (the Bibliotheca). A sunken panel above the chapter list. */
+.switcher {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-background-modal);
+}
+
+.switcherHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.switcherLabel {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--theme-text-subdued);
+}
+
+.bibliothecaLink {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--theme-link);
+  text-decoration: none;
+}
+
+.bibliothecaLink:hover {
+  text-decoration: underline;
+}
+
+.switcherList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.switcherLink {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--theme-text);
+  text-decoration: none;
+}
+
+.switcherLink:hover {
+  background: var(--theme-window-background);
+}
+
+.switcherCurrent {
+  border-left-color: var(--theme-focused-foreground);
+  background: var(--theme-focused-foreground-subdued);
+  color: var(--theme-focused-foreground);
+  font-weight: 700;
+}
+
 /* Desktop: a full-height sticky column; the collapse toggle is hidden. */
 @media (min-width: 48.0625rem) {
   .sidebar {

@@ -37,6 +37,9 @@ jobs:
       - name: External book build gate
         run: node scripts/check-external-build.mjs
 
+      - name: Multi-book build gate
+        run: node scripts/check-multibook.mjs
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}

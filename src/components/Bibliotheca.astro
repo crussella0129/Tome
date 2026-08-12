@@ -1,0 +1,171 @@
+---
+import '../styles/tokens.css';
+import InitTheme from './init-theme.astro';
+import { DEFAULT_THEME } from '../styles/theme';
+import { bibliothecaEntries, type Book } from '../lib/book';
+
+interface Props {
+  books: Book[];
+  /** Optional library owner: masthead reads "The Bibliotheca of <owner>". */
+  owner?: string | null;
+}
+
+const { books, owner } = Astro.props;
+const tomes = bibliothecaEntries(books).map((tome, i) => ({
+  ...tome,
+  numeral: String(i + 1).padStart(2, '0'),
+}));
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Bibliotheca</title>
+    <meta name="description" content="The library — every tome, catalogued." />
+  </head>
+  <body class={DEFAULT_THEME.className}>
+    <InitTheme />
+    <main class="library">
+      <header class="masthead">
+        {owner && <p class="eyebrow">The Bibliotheca of</p>}
+        <h1 class="wordmark">{owner ?? 'Bibliotheca'}</h1>
+        <p class="count">{tomes.length} {tomes.length === 1 ? 'tome' : 'tomes'} catalogued</p>
+      </header>
+
+      <ul class="shelf">
+        {
+          tomes.map((tome) => (
+            <li class="plate">
+              <a class="plate-link transition-token" href={tome.href}>
+                <span class="numeral">{tome.numeral}</span>
+                <span class="details">
+                  <span class="title">{tome.title}</span>
+                  <span class="meta">
+                    {tome.count} {tome.count === 1 ? 'chapter' : 'chapters'}
+                  </span>
+                </span>
+                <span class="arrow" aria-hidden="true">→</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </main>
+  </body>
+</html>
+
+<style>
+  .library {
+    position: relative;
+    z-index: var(--z-page);
+    max-width: 44rem;
+    margin-inline: auto;
+    padding: var(--space-10) var(--space-6) var(--space-8);
+  }
+
+  .masthead {
+    padding-bottom: var(--space-4);
+    margin-bottom: var(--space-8);
+    border-bottom: 2px solid var(--theme-focused-foreground);
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-size: var(--text-2xs);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--theme-text-subdued);
+  }
+
+  .wordmark {
+    margin: var(--space-2) 0 var(--space-3);
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--theme-text);
+    line-height: 1.05;
+  }
+
+  .count {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--theme-text-subdued);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .shelf {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .plate {
+    margin: 0;
+  }
+
+  .plate-link {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-5);
+    background: var(--theme-window-background);
+    border: 1px solid var(--theme-border);
+    border-left: 3px solid var(--theme-border);
+    border-radius: var(--radius-md);
+    color: var(--theme-text);
+    text-decoration: none;
+  }
+
+  .plate-link:hover {
+    border-color: var(--theme-focused-foreground);
+    border-left-color: var(--theme-focused-foreground);
+    box-shadow: var(--shadow-panel);
+    transform: translate(-1px, -1px);
+  }
+
+  .numeral {
+    font-size: var(--text-lg);
+    font-variant-numeric: tabular-nums;
+    color: var(--theme-focused-foreground);
+    letter-spacing: 0.08em;
+  }
+
+  .details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .title {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--theme-text);
+  }
+
+  .meta {
+    font-size: var(--text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--theme-text-subdued);
+  }
+
+  .arrow {
+    font-size: var(--text-lg);
+    color: var(--theme-text-subdued);
+  }
+
+  .plate-link:hover .arrow {
+    color: var(--theme-focused-foreground);
+    transform: translateX(2px);
+  }
+</style>

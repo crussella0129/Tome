@@ -1,13 +1,26 @@
 import { createSignal, onMount, createEffect, For, Show, Switch, Match } from 'solid-js';
 import type { BookToc, TocNode, ChapterNode } from '../lib/summary.types';
-import { chapterUrl, hrefToSlug } from '../lib/paths';
+import { chapterUrlIn, hrefToSlug } from '../lib/paths';
 import { THEMES, DEFAULT_THEME } from '../styles/theme';
 import styles from './TocSidebar.module.css';
+
+/** A tome in the sidebar switcher: a titled link to that tome's entry chapter. */
+export interface SwitcherBook {
+  slug: string;
+  title: string;
+  href: string;
+}
 
 interface TocSidebarProps {
   toc: BookToc;
   activeSlug: string;
   bookTitle: string;
+  /** Namespace prefix for chapter links; `''` in a single-tome library. */
+  bookSlug?: string;
+  /** The library's tomes; a switcher renders only when there is more than one. */
+  books?: SwitcherBook[];
+  /** The active tome's slug, marked `aria-current` in the switcher. */
+  activeBook?: string;
 }
 
 const THEME_CLASSES = THEMES.map((t) => t.className);
@@ -15,7 +28,11 @@ const NAV_STORAGE_KEY = 'tome-nav-open';
 const THEME_STORAGE_KEY = 'tome-theme';
 
 /** One chapter row: a link (or a plain label for drafts), indented by depth. */
-function ChapterRow(props: { node: ChapterNode; activeSlug: string }) {
+function ChapterRow(props: {
+  node: ChapterNode;
+  activeSlug: string;
+  bookSlug: string;
+}) {
   const isCurrent = () =>
     !props.node.draft &&
     props.node.href !== undefined &&
@@ -36,7 +53,7 @@ function ChapterRow(props: { node: ChapterNode; activeSlug: string }) {
       <a
         class={styles.link}
         classList={{ [styles.current!]: isCurrent() }}
-        href={chapterUrl(props.node.href!)}
+        href={chapterUrlIn(props.bookSlug, props.node.href!)}
         style={{ '--toc-depth': String(props.node.depth) }}
         aria-current={isCurrent() ? 'page' : undefined}
       >
@@ -47,7 +64,11 @@ function ChapterRow(props: { node: ChapterNode; activeSlug: string }) {
 }
 
 /** Recursively render a list of TOC nodes. */
-function TocList(props: { nodes: TocNode[]; activeSlug: string }) {
+function TocList(props: {
+  nodes: TocNode[];
+  activeSlug: string;
+  bookSlug: string;
+}) {
   return (
     <ul class={styles.list}>
       <For each={props.nodes}>
@@ -61,11 +82,16 @@ function TocList(props: { nodes: TocNode[]; activeSlug: string }) {
             </Match>
             <Match when={node.kind === 'chapter'}>
               <li class={styles.item}>
-                <ChapterRow node={node as ChapterNode} activeSlug={props.activeSlug} />
+                <ChapterRow
+                  node={node as ChapterNode}
+                  activeSlug={props.activeSlug}
+                  bookSlug={props.bookSlug}
+                />
                 <Show when={(node as ChapterNode).children.length > 0}>
                   <TocList
                     nodes={(node as ChapterNode).children}
                     activeSlug={props.activeSlug}
+                    bookSlug={props.bookSlug}
                   />
                 </Show>
               </li>
@@ -144,7 +170,7 @@ export default function TocSidebar(props: TocSidebarProps) {
       data-open={open() ? 'true' : 'false'}
     >
       <div class={styles.header}>
-        <a class={styles.brand} href="/">
+        <a class={styles.brand} href={props.bookSlug ? `/${props.bookSlug}` : '/'}>
           {props.bookTitle}
         </a>
         <button
@@ -158,8 +184,39 @@ export default function TocSidebar(props: TocSidebarProps) {
         </button>
       </div>
 
+      <Show when={props.books && props.books.length > 1}>
+        <div class={styles.switcher}>
+          <div class={styles.switcherHead}>
+            <span class={styles.switcherLabel}>Tomes</span>
+            <a class={styles.bibliothecaLink} href="/">
+              Bibliotheca
+            </a>
+          </div>
+          <ul class={styles.switcherList}>
+            <For each={props.books}>
+              {(book) => (
+                <li>
+                  <a
+                    class={styles.switcherLink}
+                    classList={{ [styles.switcherCurrent!]: book.slug === props.activeBook }}
+                    href={book.href}
+                    aria-current={book.slug === props.activeBook ? 'true' : undefined}
+                  >
+                    {book.title}
+                  </a>
+                </li>
+              )}
+            </For>
+          </ul>
+        </div>
+      </Show>
+
       <div class={styles.scroll}>
-        <TocList nodes={props.toc.nodes} activeSlug={props.activeSlug} />
+        <TocList
+          nodes={props.toc.nodes}
+          activeSlug={props.activeSlug}
+          bookSlug={props.bookSlug ?? ''}
+        />
       </div>
 
       <div class={styles.footer}>
