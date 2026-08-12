@@ -18,6 +18,8 @@ describe('CI workflow', () => {
     expect(ci).toMatch(/playwright test/);
     // The external-book render is gated remotely (T-014).
     expect(ci).toMatch(/check-external-build\.mjs/);
+    // The multi-book (Bibliotheca) render is gated too (T-022).
+    expect(ci).toMatch(/check-multibook\.mjs/);
     // Dependencies installed reproducibly.
     expect(ci).toMatch(/npm ci/);
     // Actions are on the non-deprecated (Node 24) majors — no @v4 (Node 20).

@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check:external": "node scripts/check-external-build.mjs",
-    "check:livereload": "node scripts/check-live-reload.mjs"
+    "check:livereload": "node scripts/check-live-reload.mjs",
+    "check:multibook": "node scripts/check-multibook.mjs"
   },
   "dependencies": {
     "@astrojs/solid-js": "^7.0.2",
