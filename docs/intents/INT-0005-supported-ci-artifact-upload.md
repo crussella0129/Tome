@@ -2,11 +2,11 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0005
-- **State:** active
+- **State:** realized
 - **Work evidence:** [T-207 Sprint 7 build plan](../sprints/s7/sprint-plans/build-plan.md#t-207-upgrade-the-playwright-report-uploader-to-v7-and-lock-its-workflow-contract)
-- **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Completion evidence:** [T-207 completion (Sprint 7)](../work/completed-tasks.md#t-207-sprint-7)
+- **Code evidence:** [CI workflow](../../.github/workflows/ci.yml), [workflow contract test](../../src/lib/__tests__/ci-workflow.test.ts)
+- **Test evidence:** [Sprint 7 test report](../sprints/s7/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
@@ -63,3 +63,8 @@ that originally introduced it.
   T-207, covering all three acceptance criteria without changing INT-0003.
 - 2026-08-13: `planned → active` — Build Phase began executing T-207 against
   the locked Sprint 7 plans.
+- 2026-08-13: `active → realized` — Sprint 7 T-207 upgraded the sole Playwright
+  report uploader to v7 while preserving its artifact contract; local contract,
+  regression, and syntax gates passed, and hosted CI run 31700205126 completed
+  successfully with the expected artifact and no warning annotations. All three
+  acceptance criteria are satisfied.
