@@ -5,6 +5,7 @@
   - [INT-0002 — Load external mdBooks](intents/INT-0002-load-external-mdbooks.md)
   - [INT-0003 — Richer external-book support](intents/INT-0003-richer-external-book-support.md)
   - [INT-0004 — Flexible book source detection](intents/INT-0004-flexible-book-source-detection.md)
+  - [INT-0005 — Supported CI artifact upload](intents/INT-0005-supported-ci-artifact-upload.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -14,3 +15,4 @@
 - [Sprint 4](sprints/s4/sprint-meta.md)
 - [Sprint 5](sprints/s5/sprint-meta.md)
 - [Sprint 6](sprints/s6/sprint-meta.md)
+- [Sprint 7](sprints/s7/sprint-meta.md)
