@@ -96,6 +96,10 @@ describe('parent asset preparation', () => {
       join(root, 'assets', 'plate (1).svg'),
       '<svg xmlns="http://www.w3.org/2000/svg"/>',
     );
+    write(
+      join(root, 'assets', 'unreferenced.svg'),
+      '<svg data-unused="true"/>',
+    );
     cpSync(sourceDir, stagedTome, { recursive: true });
 
     await prepareParentAssets({ root, sourceDir, stagedTome });
@@ -118,6 +122,11 @@ describe('parent asset preparation', () => {
         'utf8',
       ),
     ).toContain('<svg');
+    expect(
+      existsSync(
+        join(stagedTome, PARENT_ASSET_DIR, 'assets', 'unreferenced.svg'),
+      ),
+    ).toBe(false);
   });
 
   it('test_prepare_parent_asset_preserves_non_targets: leaves other syntax byte-identical', async () => {

@@ -327,6 +327,7 @@ describe('load-books.mjs — parent-relative assets', () => {
       'src/SUMMARY.md': '# Summary\n\n[First](first.md)\n',
       'src/first.md': '# First\n\n![Parent plate](../assets/plate.svg)\n',
       'assets/plate.svg': '<svg data-source="single"/>',
+      'assets/unreferenced.svg': '<svg data-unused="true"/>',
     });
     const dest = join(tmp, 'single-output');
 
@@ -339,6 +340,9 @@ describe('load-books.mjs — parent-relative assets', () => {
     expect(
       readFileSync(join(out, PARENT_ASSET_DIR, 'assets', 'plate.svg'), 'utf8'),
     ).toContain('data-source="single"');
+    expect(
+      existsSync(join(out, PARENT_ASSET_DIR, 'assets', 'unreferenced.svg')),
+    ).toBe(false);
     expect(
       JSON.parse(readFileSync(join(out, 'book.meta.json'), 'utf8')).title,
     ).toBe('Parent Book');
