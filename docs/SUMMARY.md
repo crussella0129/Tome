@@ -7,6 +7,7 @@
   - [INT-0004 — Flexible book source detection](intents/INT-0004-flexible-book-source-detection.md)
   - [INT-0005 — Supported CI artifact upload](intents/INT-0005-supported-ci-artifact-upload.md)
   - [INT-0006 — Browser-verified external books](intents/INT-0006-browser-verified-external-books.md)
+  - [INT-0007 — Parent-relative external assets](intents/INT-0007-parent-relative-external-assets.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -18,3 +19,4 @@
 - [Sprint 6](sprints/s6/sprint-meta.md)
 - [Sprint 7](sprints/s7/sprint-meta.md)
 - [Sprint 8](sprints/s8/sprint-meta.md)
+- [Sprint 9](sprints/s9/sprint-meta.md)

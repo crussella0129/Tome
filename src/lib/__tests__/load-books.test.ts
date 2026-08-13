@@ -7,12 +7,15 @@ import {
   writeFileSync,
   readFileSync,
   existsSync,
+  readdirSync,
+  symlinkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, basename } from 'node:path';
 import { userInfo } from 'node:os';
 import { slugify } from '../../../scripts/book-source.mjs';
 import { resolveOwner } from '../../../scripts/library-config.mjs';
+import { PARENT_ASSET_DIR } from '../../../scripts/parent-assets.mjs';
 
 const root = process.cwd();
 const script = join(root, 'scripts', 'load-books.mjs');
@@ -34,7 +37,11 @@ function env(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
   return { ...e, ...overrides };
 }
 
-function run(dest: string, overrides: Record<string, string> = {}, args: string[] = []) {
+function run(
+  dest: string,
+  overrides: Record<string, string> = {},
+  args: string[] = [],
+) {
   execFileSync('node', [script, '--dest', dest, ...args], {
     cwd: root,
     env: env(overrides),
@@ -68,6 +75,13 @@ function makeBook(bookRoot: string, files: Record<string, string>): string {
     writeFileSync(full, content);
   }
   return bookRoot;
+}
+
+function stageResidue(dest: string): string[] {
+  const parent = dirname(dest);
+  if (!existsSync(parent)) return [];
+  const prefix = `.${basename(dest)}.stage-`;
+  return readdirSync(parent).filter((name) => name.startsWith(prefix));
 }
 
 describe('load-books.mjs — single external book (TOME_BOOK)', () => {
@@ -168,13 +182,17 @@ describe('load-books.mjs — source detection', () => {
     });
     const dest = join(tmp, 'out-title');
     run(dest, { TOME_BOOK: book });
-    const meta = JSON.parse(readFileSync(join(bookDir(dest, book), 'book.meta.json'), 'utf8'));
+    const meta = JSON.parse(
+      readFileSync(join(bookDir(dest, book), 'book.meta.json'), 'utf8'),
+    );
     expect(meta.title).toBe('MyBook');
   });
 
   it('test_source_none_errors: no SUMMARY in src/docs/root → enumerated error', () => {
     const book = makeBook(join(tmp, 'empty'), { 'README.md': '# nothing\n' });
-    const { code, stderr } = runExpectError(join(tmp, 'out-none'), { TOME_BOOK: book });
+    const { code, stderr } = runExpectError(join(tmp, 'out-none'), {
+      TOME_BOOK: book,
+    });
     expect(code).not.toBe(0);
     expect(stderr).toMatch(/Tried:/);
     expect(stderr).toMatch(/src[\\/]SUMMARY\.md/);
@@ -242,7 +260,9 @@ describe('load-books.mjs — manifest, precedence, and multi-copy', () => {
     run(dest, { TOME_BOOKS: `${alpha},${beta}` });
     for (const slug of ['alpha', 'beta']) {
       expect(existsSync(join(dest, slug, 'SUMMARY.md'))).toBe(true);
-      const meta = JSON.parse(readFileSync(join(dest, slug, 'book.meta.json'), 'utf8'));
+      const meta = JSON.parse(
+        readFileSync(join(dest, slug, 'book.meta.json'), 'utf8'),
+      );
       expect(typeof meta.title === 'string' || meta.title === null).toBe(true);
     }
   });
@@ -278,14 +298,230 @@ describe('load-books.mjs — manifest, precedence, and multi-copy', () => {
     const cfg = join(tmp, 'owner.config.toml');
     writeFileSync(cfg, 'owner = "The Scriptorium"\n');
     // env wins
-    expect(await resolveOwner({ configPath: cfg, env: { TOME_OWNER: 'Env Name' } })).toBe(
-      'Env Name',
-    );
+    expect(
+      await resolveOwner({ configPath: cfg, env: { TOME_OWNER: 'Env Name' } }),
+    ).toBe('Env Name');
     // then the config owner
-    expect(await resolveOwner({ configPath: cfg, env: {} })).toBe('The Scriptorium');
+    expect(await resolveOwner({ configPath: cfg, env: {} })).toBe(
+      'The Scriptorium',
+    );
     // then the OS login name (zero-config personalization)
-    expect(await resolveOwner({ configPath: join(tmp, 'absent.toml'), env: {} })).toBe(
-      userInfo().username,
+    expect(
+      await resolveOwner({ configPath: join(tmp, 'absent.toml'), env: {} }),
+    ).toBe(userInfo().username);
+  });
+});
+
+describe('load-books.mjs — parent-relative assets', () => {
+  let tmp: string;
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'tome-parent-loader-'));
+  });
+  afterAll(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('test_load_books_parent_asset: stages and rewrites a root-sibling image', () => {
+    const book = makeBook(join(tmp, 'single', 'book'), {
+      'book.toml': '[book]\ntitle = "Parent Book"\nsrc = "src"\n',
+      'src/SUMMARY.md': '# Summary\n\n[First](first.md)\n',
+      'src/first.md': '# First\n\n![Parent plate](../assets/plate.svg)\n',
+      'assets/plate.svg': '<svg data-source="single"/>',
+    });
+    const dest = join(tmp, 'single-output');
+
+    run(dest, { TOME_BOOK: book });
+
+    const out = bookDir(dest, book);
+    expect(readFileSync(join(out, 'first.md'), 'utf8')).toContain(
+      `![Parent plate](./${PARENT_ASSET_DIR}/assets/plate.svg)`,
+    );
+    expect(
+      readFileSync(join(out, PARENT_ASSET_DIR, 'assets', 'plate.svg'), 'utf8'),
+    ).toContain('data-source="single"');
+    expect(
+      JSON.parse(readFileSync(join(out, 'book.meta.json'), 'utf8')).title,
+    ).toBe('Parent Book');
+    expect(stageResidue(dest)).toEqual([]);
+  });
+
+  it('test_load_books_parent_asset_isolation: equal paths remain tome-private', () => {
+    const first = makeBook(join(tmp, 'isolated', 'p1', 'guide'), {
+      'src/SUMMARY.md': '# One\n\n[First](first.md)\n',
+      'src/first.md': '![Shared name](../assets/shared.svg)\n',
+      'assets/shared.svg': '<svg data-book="one"/>',
+    });
+    const second = makeBook(join(tmp, 'isolated', 'p2', 'guide'), {
+      'src/SUMMARY.md': '# Two\n\n[First](first.md)\n',
+      'src/first.md': '![Shared name](../assets/shared.svg)\n',
+      'assets/shared.svg': '<svg data-book="two"/>',
+    });
+    const dest = join(tmp, 'isolated-output');
+
+    run(dest, { TOME_BOOKS: `${first},${second}` });
+
+    expect(
+      readFileSync(
+        join(dest, 'guide', PARENT_ASSET_DIR, 'assets', 'shared.svg'),
+        'utf8',
+      ),
+    ).toContain('data-book="one"');
+    expect(
+      readFileSync(
+        join(dest, 'guide-2', PARENT_ASSET_DIR, 'assets', 'shared.svg'),
+        'utf8',
+      ),
+    ).toContain('data-book="two"');
+    expect(readFileSync(join(dest, 'guide', 'first.md'), 'utf8')).toContain(
+      PARENT_ASSET_DIR,
+    );
+    expect(readFileSync(join(dest, 'guide-2', 'first.md'), 'utf8')).toContain(
+      PARENT_ASSET_DIR,
+    );
+    expect(stageResidue(dest)).toEqual([]);
+  });
+
+  const atomicFailureCases: Array<{
+    label: string;
+    url: string;
+    chapter?: string;
+    extra: Record<string, string>;
+  }> = [
+    {
+      label: 'missing',
+      url: '../assets/missing.svg',
+      extra: {},
+    },
+    {
+      label: 'directory',
+      url: '../assets/folder',
+      extra: { 'assets/folder/.keep': '' },
+    },
+    {
+      label: 'reserved collision',
+      url: '../assets/plate.svg',
+      extra: {
+        'assets/plate.svg': '<svg/>',
+        [`src/${PARENT_ASSET_DIR}/keep.txt`]: 'occupied',
+      },
+    },
+    {
+      label: 'reserved nested directory',
+      url: '../../assets/plate.svg',
+      chapter: `src/${PARENT_ASSET_DIR}/nested.md`,
+      extra: { 'assets/plate.svg': '<svg/>' },
+    },
+    {
+      label: 'malformed percent',
+      url: '../assets/%ZZ.svg',
+      extra: {},
+    },
+    {
+      label: 'lexical escape',
+      url: '../../outside.svg',
+      extra: {},
+    },
+  ];
+
+  it.each(atomicFailureCases)(
+    'test_parent_asset_errors_are_atomic_across_tomes: $label',
+    ({ label, url, chapter = 'src/first.md', extra }) => {
+      const caseRoot = join(tmp, 'atomic', label.replaceAll(' ', '-'));
+      const good = makeBook(join(caseRoot, 'good'), {
+        'src/SUMMARY.md': '# Good\n\n[First](first.md)\n',
+        'src/first.md': '# Good\n',
+      });
+      const bad = makeBook(join(caseRoot, 'bad'), {
+        'src/SUMMARY.md': '# Bad\n\n[First](first.md)\n',
+        'src/first.md':
+          chapter === 'src/first.md'
+            ? `# Bad\n\n![Broken](${url})\n`
+            : '# Bad\n',
+        ...(chapter === 'src/first.md'
+          ? {}
+          : { [chapter]: `# Nested\n\n![Broken](${url})\n` }),
+        ...extra,
+      });
+      if (label === 'lexical escape')
+        writeFileSync(join(caseRoot, 'outside.svg'), '<svg/>');
+      const dest = join(caseRoot, 'output');
+      mkdirSync(dest, { recursive: true });
+      writeFileSync(join(dest, 'sentinel.txt'), 'keep');
+
+      const { code, stderr } = runExpectError(dest, {
+        TOME_BOOKS: `${good},${bad}`,
+      });
+
+      expect(code).not.toBe(0);
+      expect(stderr).toContain(basename(chapter));
+      expect(stderr).toContain(url);
+      expect(readFileSync(join(dest, 'sentinel.txt'), 'utf8')).toBe('keep');
+      expect(existsSync(join(dest, 'good'))).toBe(false);
+      expect(stageResidue(dest)).toEqual([]);
+    },
+  );
+
+  it('test_declared_source_outside_root: independently confines parent targets', () => {
+    const base = join(tmp, 'declared-external');
+    const book = makeBook(join(base, 'book'), {
+      'book.toml': '[book]\nsrc = "../shared"\n',
+      'assets/inside.svg': '<svg data-location="inside"/>',
+    });
+    makeBook(join(base, 'shared'), {
+      'SUMMARY.md': '# Shared\n\n[First](first.md)\n',
+      'first.md':
+        '![Local](./img/local.svg)\n\n![Parent](../book/assets/inside.svg)\n',
+      'img/local.svg': '<svg data-location="source"/>',
+    });
+    const dest = join(base, 'success-output');
+
+    run(dest, { TOME_BOOK: book });
+
+    const markdown = readFileSync(join(dest, 'book', 'first.md'), 'utf8');
+    expect(markdown).toContain('![Local](./img/local.svg)');
+    expect(markdown).toContain(
+      `![Parent](./${PARENT_ASSET_DIR}/assets/inside.svg)`,
+    );
+
+    writeFileSync(
+      join(base, 'shared', 'first.md'),
+      '![Outside](../outside.svg)\n',
+    );
+    writeFileSync(join(base, 'outside.svg'), '<svg/>');
+    const failedDest = join(base, 'failed-output');
+    mkdirSync(failedDest, { recursive: true });
+    writeFileSync(join(failedDest, 'sentinel.txt'), 'keep');
+    const failure = runExpectError(failedDest, { TOME_BOOK: book });
+    expect(failure.code).not.toBe(0);
+    expect(failure.stderr).toMatch(
+      /parent asset "\.\.\/outside\.svg" in first\.md escapes the configured book root/,
+    );
+    expect(readFileSync(join(failedDest, 'sentinel.txt'), 'utf8')).toBe('keep');
+    expect(stageResidue(failedDest)).toEqual([]);
+  });
+
+  it('test_declared_symlinked_source: resolves parent targets from the lexical source', (context) => {
+    const base = join(tmp, 'declared-symlink');
+    const book = makeBook(join(base, 'book'), {
+      'book.toml': '[book]\nsrc = "src"\n',
+      'assets/inside.svg': '<svg data-location="inside"/>',
+    });
+    const shared = makeBook(join(base, 'shared'), {
+      'SUMMARY.md': '# Shared\n\n[First](first.md)\n',
+      'first.md': '![Parent](../assets/inside.svg)\n',
+    });
+    try {
+      symlinkSync(shared, join(book, 'src'), 'dir');
+    } catch {
+      context.skip();
+      return;
+    }
+    const dest = join(base, 'output');
+
+    run(dest, { TOME_BOOK: book });
+
+    expect(readFileSync(join(dest, 'book', 'first.md'), 'utf8')).toContain(
+      `![Parent](./${PARENT_ASSET_DIR}/assets/inside.svg)`,
     );
   });
 });

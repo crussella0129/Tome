@@ -14,11 +14,21 @@
 // hook). Library root overridable (--dest / TOME_BOOK_DEST, default
 // src/content/books) and manifest path overridable (--config / TOME_CONFIG) so
 // tests isolate and never touch the sample.
-import { cp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import {
+  cp,
+  rm,
+  mkdir,
+  writeFile,
+  readFile,
+  mkdtemp,
+  realpath,
+  rename,
+} from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
 import process from 'node:process';
 import { parse as parseToml } from 'smol-toml';
 import { resolveBookSource, slugify, exists } from './book-source.mjs';
+import { prepareParentAssets } from './parent-assets.mjs';
 
 function argValue(argv, flag) {
   const i = argv.indexOf(flag);
@@ -27,8 +37,14 @@ function argValue(argv, flag) {
 
 function parseOptions(argv) {
   return {
-    dest: argValue(argv, '--dest') || process.env.TOME_BOOK_DEST || 'src/content/books',
-    configPath: argValue(argv, '--config') || process.env.TOME_CONFIG || 'tome.config.toml',
+    dest:
+      argValue(argv, '--dest') ||
+      process.env.TOME_BOOK_DEST ||
+      'src/content/books',
+    configPath:
+      argValue(argv, '--config') ||
+      process.env.TOME_CONFIG ||
+      'tome.config.toml',
   };
 }
 
@@ -90,23 +106,95 @@ async function main() {
     const src = await resolveBookSource(spec.path);
     const title = spec.title ?? src.title;
     const slug = dedupeSlug(slugify(spec.slug ?? src.slug), used);
-    resolved.push({ sourceDir: src.sourceDir, title, slug });
+    resolved.push({
+      root: src.root,
+      sourceDir: src.sourceDir,
+      sourceRealDir: await realpath(src.sourceDir),
+      title,
+      slug,
+    });
   }
 
-  // Replace the whole library with the resolved set.
-  await rm(dest, { recursive: true, force: true });
-  for (const book of resolved) {
-    const out = join(dest, book.slug);
-    await mkdir(out, { recursive: true });
-    await cp(book.sourceDir, out, { recursive: true });
-    await writeFile(
-      join(out, 'book.meta.json'),
-      `${JSON.stringify({ title: book.title ?? null }, null, 2)}\n`,
-    );
+  // Prepare every tome beside the destination before replacing the library.
+  // A later-tome failure therefore leaves the existing destination untouched.
+  const destination = resolve(dest);
+  await mkdir(dirname(destination), { recursive: true });
+  let stage = await mkdtemp(
+    join(dirname(destination), `.${basename(destination)}.stage-`),
+  );
+  let backupContainer = null;
+  let backup = null;
+  try {
+    for (const book of resolved) {
+      const out = join(stage, book.slug);
+      await mkdir(out, { recursive: true });
+      await cp(book.sourceRealDir, out, { recursive: true });
+      await prepareParentAssets({
+        root: book.root,
+        sourceDir: book.sourceDir,
+        stagedTome: out,
+      });
+      await writeFile(
+        join(out, 'book.meta.json'),
+        `${JSON.stringify({ title: book.title ?? null }, null, 2)}\n`,
+      );
+    }
+
+    // Keep the previous library available for rollback until the staged tree
+    // has been published successfully. Both moves stay on the same filesystem.
+    if (await exists(destination)) {
+      backupContainer = await mkdtemp(
+        join(dirname(destination), `.${basename(destination)}.backup-`),
+      );
+      backup = join(backupContainer, 'previous');
+      try {
+        await rename(destination, backup);
+      } catch (error) {
+        await rm(backupContainer, { recursive: true, force: true });
+        backupContainer = null;
+        backup = null;
+        throw error;
+      }
+    }
+
+    try {
+      await rename(stage, destination);
+      stage = null;
+    } catch (publishError) {
+      if (backup) {
+        try {
+          await rename(backup, destination);
+          backup = null;
+        } catch (rollbackError) {
+          throw new AggregateError(
+            [publishError, rollbackError],
+            `could not publish staged library or restore the previous library; previous library remains at ${backup}`,
+          );
+        }
+      }
+      throw publishError;
+    }
+
+    if (backupContainer) {
+      await rm(backupContainer, { recursive: true, force: true });
+      backupContainer = null;
+      backup = null;
+    }
+  } finally {
+    if (stage) await rm(stage, { recursive: true, force: true });
+    // Preserve a non-null backup after a failed rollback: it is the only copy
+    // of the previous library and the error above tells the operator its path.
+    if (backupContainer && !backup) {
+      await rm(backupContainer, { recursive: true, force: true });
+    }
   }
 
-  const summary = resolved.map((b) => `${b.slug} ("${b.title ?? '(untitled)'}")`).join(', ');
-  console.log(`load-books: loaded ${resolved.length} tome(s) into ${dest}: ${summary}`);
+  const summary = resolved
+    .map((b) => `${b.slug} ("${b.title ?? '(untitled)'}")`)
+    .join(', ');
+  console.log(
+    `load-books: loaded ${resolved.length} tome(s) into ${dest}: ${summary}`,
+  );
 }
 
 main().catch((err) => {
