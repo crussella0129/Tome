@@ -2,11 +2,11 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0006
-- **State:** active
+- **State:** realized
 - **Work evidence:** [T-205 Sprint 8 build plan](../sprints/s8/sprint-plans/build-plan.md#t-205-join-the-external-fixture-build-gate-to-an-isolated-chromium-verification-mode)
-- **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Completion evidence:** [T-205 completion (Sprint 8)](../work/completed-tasks.md#t-205-sprint-8)
+- **Code evidence:** [external-book browser specification](../../e2e/external-book.spec.ts), [isolated Playwright modes](../../playwright.config.ts), [restoring external-book gate](../../scripts/check-external-build.mjs)
+- **Test evidence:** [Sprint 8 test report](../sprints/s8/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
@@ -66,3 +66,9 @@ navigation, and real rendering could regress without either gate noticing.
   reopening INT-0003.
 - 2026-08-13: `planned → active` — Build Phase began executing T-205 against
   the locked Sprint 8 plans.
+- 2026-08-13: `active → realized` — T-205 satisfied all three acceptance
+  criteria: isolated Chromium verified fixture-specific rendering, navigation,
+  decoded relative-image delivery, and sacred-prose styling; forced-failure and
+  successful local gates proved restoration and report isolation; hosted CI run
+  31733596864 passed the external browser, ordinary reader, multi-book, and
+  artifact gates with a clean final critique.
