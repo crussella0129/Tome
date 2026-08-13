@@ -181,4 +181,4 @@
 - **Completed:** 2026-08-13T04:53:31Z
 - **Files modified:** .github/workflows/ci.yml, src/lib/__tests__/ci-workflow.test.ts, docs/SUMMARY.md, docs/intents/INT-0005-supported-ci-artifact-upload.md, docs/sprints/s7/sprint-meta.md, docs/sprints/s7/sprint-research/research-report.md, docs/sprints/s7/sprint-plans/build-plan.md, docs/sprints/s7/sprint-plans/test-plan.md, docs/sprints/s7/sprint-plans/critique.md, docs/work/tasks.md, docs/work/completed-tasks.md
 - **EARS verified:** workflow now has exactly one `actions/upload-artifact` reference at `@v7` and preserves `if: ${{ !cancelled() }}`, name `playwright-report`, path `playwright-report/`, and 30-day retention — focused `test_ci_workflow_valid` 1/1 green and PyYAML parse clean. Full Vitest suite 49/49; Astro check 0 errors / 0 warnings / 0 hints; Neutronium audit passed with two reviewed non-JSX data-transform warnings. The hosted checkpoint clause remains Test Phase evidence and is not claimed here.
-- **Commit:** PENDING
+- **Commit:** `f635ad10835e474f1238ce544d349ec96affc688`
