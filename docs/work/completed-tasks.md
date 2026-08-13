@@ -182,3 +182,11 @@
 - **Files modified:** .github/workflows/ci.yml, src/lib/__tests__/ci-workflow.test.ts, docs/SUMMARY.md, docs/intents/INT-0005-supported-ci-artifact-upload.md, docs/sprints/s7/sprint-meta.md, docs/sprints/s7/sprint-research/research-report.md, docs/sprints/s7/sprint-plans/build-plan.md, docs/sprints/s7/sprint-plans/test-plan.md, docs/sprints/s7/sprint-plans/critique.md, docs/work/tasks.md, docs/work/completed-tasks.md
 - **EARS verified:** workflow now has exactly one `actions/upload-artifact` reference at `@v7` and preserves `if: ${{ !cancelled() }}`, name `playwright-report`, path `playwright-report/`, and 30-day retention — focused `test_ci_workflow_valid` 1/1 green and PyYAML parse clean. Full Vitest suite 49/49; Astro check 0 errors / 0 warnings / 0 hints; Neutronium audit passed with two reviewed non-JSX data-transform warnings. The hosted checkpoint clause remains Test Phase evidence and is not claimed here.
 - **Commit:** `f635ad10835e474f1238ce544d349ec96affc688`
+
+## T-205 (sprint 8)
+- **Description:** Join the external fixture build gate to an isolated Chromium verification mode
+- **Intent:** [INT-0006](../intents/INT-0006-browser-verified-external-books.md)
+- **Completed:** 2026-08-13T18:55:17Z
+- **Files modified:** e2e/external-book.spec.ts, playwright.config.ts, scripts/check-external-build.mjs, docs/SUMMARY.md, docs/intents/INT-0006-browser-verified-external-books.md, docs/sprints/s8/sprint-meta.md, docs/sprints/s8/sprint-research/research-report.md, docs/sprints/s8/sprint-plans/build-plan.md, docs/sprints/s8/sprint-plans/test-plan.md, docs/sprints/s8/sprint-plans/critique.md, docs/work/tasks.md, docs/work/completed-tasks.md
+- **EARS verified:** default Playwright mode lists only the 8 bundled-reader tests; external mode lists only `test_external_book_renders_in_browser` and `test_external_relative_image_loads`. A deliberate missing-browser run failed nonzero and left `src/content/books/` pristine. The successful external gate passed both Chromium tests, both fixture output checks, strict restoration, an ordinary-report sentinel, and the final default rebuild. Full Vitest passed 49/49; Astro check reported 0 errors / 0 warnings / 0 hints; bundled-reader Playwright passed 8/8; the multi-book gate and its default rebuild passed. Hosted CI remains Test Phase evidence.
+- **Commit:** PENDING

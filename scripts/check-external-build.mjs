@@ -6,9 +6,10 @@
 // src/content/books/ is restored to HEAD after EACH book and on any failure, so
 // the gate is idempotent and leaves the tree at HEAD. Runs locally and in CI.
 //
-// NOTE: restores src/content/books/ via `git checkout` + `git clean` — intended
-// to run on a CLEAN tree (CI always is); uncommitted edits there are discarded.
-import { execSync } from 'node:child_process';
+// NOTE: this gate replaces src/content/books/. It refuses to start unless that
+// target is pristine, then strictly restores tracked content and removes only
+// fixture residue within the target after each case.
+import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -21,19 +22,47 @@ function build(env = {}) {
   execSync('npm run build', { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } });
 }
 
-function restoreSample() {
-  try {
-    execSync(`git checkout -- ${BOOK_DIR}`, { cwd: root, stdio: 'ignore' });
-    execSync(`git clean -fdq ${BOOK_DIR}`, { cwd: root, stdio: 'ignore' });
-  } catch {
-    /* best effort */
+function verifyHandbookInBrowser() {
+  execSync('npx playwright test', {
+    cwd: root,
+    stdio: 'inherit',
+    env: { ...process.env, TOME_EXTERNAL_BOOK_E2E: '1' },
+  });
+}
+
+function contentStatus() {
+  return execFileSync(
+    'git',
+    ['status', '--porcelain=v1', '--untracked-files=all', '--ignored=matching', '--', BOOK_DIR],
+    { cwd: root, encoding: 'utf8' },
+  ).trim();
+}
+
+function requirePristineContent() {
+  const status = contentStatus();
+  if (status) {
+    throw new Error(
+      `${BOOK_DIR} has local tracked, untracked, or ignored changes; refusing destructive fixture sync:\n${status}`,
+    );
   }
 }
 
+function restoreSample() {
+  execFileSync('git', ['restore', '--source=HEAD', '--worktree', '--', BOOK_DIR], {
+    cwd: root,
+    stdio: 'ignore',
+  });
+  execFileSync('git', ['clean', '-fdqx', '--', BOOK_DIR], { cwd: root, stdio: 'ignore' });
+  const status = contentStatus();
+  if (status) throw new Error(`sample restoration left content residue:\n${status}`);
+}
+
 function fail(message) {
-  console.error(`check-external-build: FAIL — ${message}`);
-  restoreSample();
-  process.exit(1);
+  throw new Error(message);
+}
+
+function message(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function requireRoute(slug, label) {
@@ -51,6 +80,7 @@ const CASES = [
   {
     name: 'handbook (standard: book.toml + src/, relative image)',
     book: join(root, 'fixtures', 'handbook'),
+    browser: true,
     check() {
       requireRoute('first', 'handbook');
       requireAbsent('getting-started', 'handbook'); // sample replaced
@@ -73,21 +103,44 @@ const CASES = [
   },
 ];
 
-for (const { name, book, check } of CASES) {
-  console.log(`check-external-build: building ${name} …`);
+function runCase({ name, book, check, browser = false }) {
+  let caseError;
   try {
+    console.log(`check-external-build: building ${name} …`);
     build({ TOME_BOOK: book });
-  } catch {
-    fail(`build failed for ${name}`);
+    check();
+    if (browser) {
+      console.log('check-external-build: verifying handbook in Chromium …');
+      verifyHandbookInBrowser();
+    }
+    console.log(`check-external-build: OK — ${name}`);
+  } catch (error) {
+    caseError = error;
   }
-  check();
-  console.log(`check-external-build: OK — ${name}`);
-  restoreSample();
+
+  try {
+    restoreSample();
+  } catch (restoreError) {
+    if (caseError) {
+      throw new AggregateError(
+        [caseError, restoreError],
+        `${name} failed (${message(caseError)}) and sample restoration failed (${message(restoreError)})`,
+      );
+    }
+    throw restoreError;
+  }
+
+  if (caseError) throw caseError;
 }
 
-console.log('check-external-build: all external books rendered; rebuilding default …');
 try {
+  requirePristineContent();
+  for (const fixtureCase of CASES) runCase(fixtureCase);
+
+  console.log('check-external-build: all external books rendered; rebuilding default …');
   build();
-} catch {
-  /* non-fatal: the sample is restored on disk; a rebuild failure here is unrelated */
+  requirePristineContent();
+} catch (error) {
+  console.error(`check-external-build: FAIL — ${message(error)}`);
+  process.exitCode = 1;
 }
