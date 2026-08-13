@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0007
-- **State:** active
+- **State:** realized
 - **Work evidence:** [T-206 Sprint 9 build plan](../sprints/s9/sprint-plans/build-plan.md#t-206-prepare-and-verify-tome-private-parent-relative-image-assets)
-- **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
-- **Documentation evidence:** none
+- **Completion evidence:** [T-206 completion (Sprint 9)](../work/completed-tasks.md#t-206-sprint-9)
+- **Code evidence:** [parent-asset preparation](../../scripts/parent-assets.mjs), [atomic external-book loader](../../scripts/load-books.mjs), [external build gate](../../scripts/check-external-build.mjs), [external Chromium specification](../../e2e/external-book.spec.ts)
+- **Test evidence:** [Sprint 9 test report](../sprints/s9/sprint-tests/test-report.md)
+- **Documentation evidence:** [canonical handbook parent-relative example](../../fixtures/handbook/src/first.md)
 
 ## Intent
 
@@ -80,3 +80,10 @@ not unfinished work in the already-realized INT-0003.
   output, Chromium, and regression evidence for all four acceptance criteria.
 - 2026-08-13: `planned → active` — Build Phase began executing T-206 against
   the locked Sprint 9 plans.
+- 2026-08-13: `active → realized` — T-206 satisfied all four criteria: exact
+  CommonMark destination rewriting copied referenced-only, book-confined assets;
+  invalid later-tome targets preserved the prior library and cleaned staging;
+  non-target, platform, external-source, and per-tome isolation behavior passed;
+  and both relative-image classes optimized while Chromium decoded and styled
+  the parent image. The final critique was clean and hosted CI run 31740605981
+  passed at `777f6fe160bc7d111bbf8c99fca93e48004f9ee2`.

@@ -8,5 +8,5 @@
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Safely prepare and browser-verify external-book images that traverse from a declared source directory to a sibling asset within the same book root.
-- **Intents:** [INT-0007](../../intents/INT-0007-parent-relative-external-assets.md) — active; T-206 covers criteria 1–4. [INT-0003](../../intents/INT-0003-richer-external-book-support.md) and [INT-0004](../../intents/INT-0004-flexible-book-source-detection.md) — realized regression provenance only, unchanged.
+- **Intents:** [INT-0007](../../intents/INT-0007-parent-relative-external-assets.md) — realized; T-206 satisfies criteria 1–4. [INT-0003](../../intents/INT-0003-richer-external-book-support.md) and [INT-0004](../../intents/INT-0004-flexible-book-source-detection.md) — realized regression provenance only, unchanged.
 - **Completion evidence:** (filled at Loop Phase)
