@@ -15,6 +15,7 @@ import {
   PARENT_ASSET_DIR,
   imageDestinationSpans,
   isPathInside,
+  prepareChapterParentAssets,
   prepareParentAssets,
   toMarkdownPath,
 } from '../../../scripts/parent-assets.mjs';
@@ -186,5 +187,80 @@ describe('parent asset preparation', () => {
     ).rejects.toThrow(
       /parent asset "\.\.\/assets\/link\.svg" in first\.md resolves outside the configured book root/,
     );
+  });
+});
+
+// INT-0009 — the per-chapter path used by the dev live-reload watcher.
+describe('per-chapter parent asset preparation (live reload)', () => {
+  it('test_prepare_chapter_rewrites_parent_asset: rewrites + copies, reusing an existing reserved dir', async () => {
+    const base = temp('tome-chapter-parent-');
+    const root = join(base, 'book');
+    const sourceDir = join(root, 'src');
+    const stagedTome = join(base, 'staged');
+    write(join(sourceDir, 'first.md'), '![Plate](../assets/plate.svg)\n');
+    write(join(root, 'assets', 'plate.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    cpSync(sourceDir, stagedTome, { recursive: true });
+    // The dev case: the reserved directory already exists from the initial load.
+    mkdirSync(join(stagedTome, PARENT_ASSET_DIR), { recursive: true });
+
+    const changed = await prepareChapterParentAssets({
+      root,
+      sourceDir,
+      stagedTome,
+      sourceFile: join(sourceDir, 'first.md'),
+      stagedFile: join(stagedTome, 'first.md'),
+    });
+
+    expect(changed).toBe(true);
+    expect(readFileSync(join(stagedTome, 'first.md'), 'utf8')).toBe(
+      '![Plate](./__tome_parent_assets__/assets/plate.svg)\n',
+    );
+    expect(
+      existsSync(join(stagedTome, PARENT_ASSET_DIR, 'assets', 'plate.svg')),
+    ).toBe(true);
+  });
+
+  it('test_prepare_chapter_rejects_escape: a target outside the book root throws (parity with build path)', async () => {
+    const base = temp('tome-chapter-escape-');
+    const root = join(base, 'book');
+    const sourceDir = join(root, 'src');
+    const stagedTome = join(base, 'staged');
+    // From src, `../../outside.svg` resolves to base/outside.svg — outside root.
+    write(join(sourceDir, 'first.md'), '![Escape](../../outside.svg)\n');
+    write(join(base, 'outside.svg'), '<svg/>');
+    cpSync(sourceDir, stagedTome, { recursive: true });
+
+    await expect(
+      prepareChapterParentAssets({
+        root,
+        sourceDir,
+        stagedTome,
+        sourceFile: join(sourceDir, 'first.md'),
+        stagedFile: join(stagedTome, 'first.md'),
+      }),
+    ).rejects.toThrow(/escapes the configured book root/);
+  });
+
+  it('test_prepare_chapter_leaves_in_source: in-source + non-local images are unchanged', async () => {
+    const base = temp('tome-chapter-insource-');
+    const root = join(base, 'book');
+    const sourceDir = join(root, 'src');
+    const stagedTome = join(base, 'staged');
+    const markdown = '![local](./img/x.svg)\n![web](https://example.com/x.svg)\n';
+    write(join(sourceDir, 'first.md'), markdown);
+    write(join(sourceDir, 'img', 'x.svg'), '<svg/>');
+    cpSync(sourceDir, stagedTome, { recursive: true });
+
+    const changed = await prepareChapterParentAssets({
+      root,
+      sourceDir,
+      stagedTome,
+      sourceFile: join(sourceDir, 'first.md'),
+      stagedFile: join(stagedTome, 'first.md'),
+    });
+
+    expect(changed).toBe(false);
+    expect(readFileSync(join(stagedTome, 'first.md'), 'utf8')).toBe(markdown);
+    expect(existsSync(join(stagedTome, PARENT_ASSET_DIR))).toBe(false);
   });
 });

@@ -146,9 +146,99 @@ async function ensurePrivateDir(privateDir, context) {
 }
 
 /**
- * Rewrite and copy parent-relative inline image assets for one staged tome.
- * `sourceDir` remains lexical on purpose: declared/symlinked sources can live
- * beyond `root`, while each target is independently confined to `root`.
+ * Rewrite and copy the parent-relative inline image assets of ONE staged chapter.
+ * The containment checks (in-source skip, root confinement, realpath, regular
+ * file) are the security boundary shared by the whole-tome build path and the
+ * dev live-reload path; only the reserved-directory policy differs, injected as
+ * `ensurePrivate`. `sourceDir` stays lexical on purpose (declared/symlinked
+ * sources can live beyond `root`); each target is independently confined to
+ * `root`. Returns whether any asset was rewritten.
+ */
+async function rewriteChapterAssets({
+  root,
+  realRoot,
+  sourceDir,
+  sourceFile,
+  stagedFile,
+  privateDir,
+  ensurePrivate,
+}) {
+  const markdown = await readFile(stagedFile, 'utf8');
+  const replacements = [];
+
+  for (const span of imageDestinationSpans(markdown)) {
+    let local;
+    try {
+      local = splitLocalUrl(span.url);
+    } catch (error) {
+      throw assetFailure(sourceDir, sourceFile, span.url, error.message);
+    }
+    if (!local) continue;
+
+    const target = path.resolve(path.dirname(sourceFile), local.path);
+    if (isPathInside(sourceDir, target)) continue;
+    if (!isPathInside(root, target)) {
+      throw assetFailure(
+        sourceDir,
+        sourceFile,
+        span.url,
+        'escapes the configured book root',
+      );
+    }
+
+    let realTarget;
+    try {
+      realTarget = await realpath(target);
+    } catch {
+      throw assetFailure(sourceDir, sourceFile, span.url, 'does not exist');
+    }
+    if (!isPathInside(realRoot, realTarget)) {
+      throw assetFailure(
+        sourceDir,
+        sourceFile,
+        span.url,
+        'resolves outside the configured book root',
+      );
+    }
+    if (!(await stat(realTarget)).isFile()) {
+      throw assetFailure(
+        sourceDir,
+        sourceFile,
+        span.url,
+        'does not resolve to a regular file',
+      );
+    }
+
+    await ensurePrivate({ sourceDir, sourceFile, url: span.url });
+    const rootRelative = path.relative(root, target);
+    const stagedAsset = path.join(privateDir, rootRelative);
+    await mkdir(path.dirname(stagedAsset), { recursive: true });
+    await copyFile(realTarget, stagedAsset);
+
+    const rewritten = `${toMarkdownPath(path.relative(path.dirname(stagedFile), stagedAsset))}${local.suffix}`;
+    replacements.push({ ...span, rewritten });
+  }
+
+  if (replacements.length > 0) {
+    let output = markdown;
+    for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
+      output =
+        output.slice(0, replacement.start) +
+        replacement.rewritten +
+        output.slice(replacement.end);
+    }
+    await writeFile(stagedFile, output);
+  }
+
+  return replacements.length > 0;
+}
+
+/**
+ * Rewrite and copy parent-relative inline image assets for one staged tome
+ * (the build/load path). `sourceDir` remains lexical on purpose: declared or
+ * symlinked sources can live beyond `root`, while each target is independently
+ * confined to `root`. Throws if the reserved directory preexists — a file below
+ * that name in the source would otherwise bypass preparation.
  */
 export async function prepareParentAssets({ root, sourceDir, stagedTome }) {
   const realRoot = await realpath(root);
@@ -160,88 +250,29 @@ export async function prepareParentAssets({ root, sourceDir, stagedTome }) {
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
   }
+
+  // Create the reserved directory on first use, rejecting a preexisting one.
   let privateDirCreated = false;
+  const ensurePrivate = async (context) => {
+    if (privateDirCreated) return;
+    await ensurePrivateDir(privateDir, context);
+    privateDirCreated = true;
+  };
 
   for (const stagedFile of await markdownFiles(stagedTome)) {
     const sourceFile = path.join(
       sourceDir,
       path.relative(stagedTome, stagedFile),
     );
-    const markdown = await readFile(stagedFile, 'utf8');
-    const replacements = [];
-
-    for (const span of imageDestinationSpans(markdown)) {
-      let local;
-      try {
-        local = splitLocalUrl(span.url);
-      } catch (error) {
-        throw assetFailure(sourceDir, sourceFile, span.url, error.message);
-      }
-      if (!local) continue;
-
-      const target = path.resolve(path.dirname(sourceFile), local.path);
-      if (isPathInside(sourceDir, target)) continue;
-      if (!isPathInside(root, target)) {
-        throw assetFailure(
-          sourceDir,
-          sourceFile,
-          span.url,
-          'escapes the configured book root',
-        );
-      }
-
-      let realTarget;
-      try {
-        realTarget = await realpath(target);
-      } catch {
-        throw assetFailure(sourceDir, sourceFile, span.url, 'does not exist');
-      }
-      if (!isPathInside(realRoot, realTarget)) {
-        throw assetFailure(
-          sourceDir,
-          sourceFile,
-          span.url,
-          'resolves outside the configured book root',
-        );
-      }
-      if (!(await stat(realTarget)).isFile()) {
-        throw assetFailure(
-          sourceDir,
-          sourceFile,
-          span.url,
-          'does not resolve to a regular file',
-        );
-      }
-
-      if (!privateDirCreated) {
-        await ensurePrivateDir(privateDir, {
-          sourceDir,
-          sourceFile,
-          url: span.url,
-        });
-        privateDirCreated = true;
-      }
-      const rootRelative = path.relative(root, target);
-      const stagedAsset = path.join(privateDir, rootRelative);
-      await mkdir(path.dirname(stagedAsset), { recursive: true });
-      await copyFile(realTarget, stagedAsset);
-
-      const rewritten = `${toMarkdownPath(path.relative(path.dirname(stagedFile), stagedAsset))}${local.suffix}`;
-      replacements.push({ ...span, rewritten });
-    }
-
-    if (replacements.length > 0) {
-      let output = markdown;
-      for (const replacement of replacements.sort(
-        (a, b) => b.start - a.start,
-      )) {
-        output =
-          output.slice(0, replacement.start) +
-          replacement.rewritten +
-          output.slice(replacement.end);
-      }
-      await writeFile(stagedFile, output);
-    }
+    await rewriteChapterAssets({
+      root,
+      realRoot,
+      sourceDir,
+      sourceFile,
+      stagedFile,
+      privateDir,
+      ensurePrivate,
+    });
   }
 
   // The name is exclusively owned by Tome even when the source happened not
@@ -255,4 +286,36 @@ export async function prepareParentAssets({ root, sourceDir, stagedTome }) {
       `collides with reserved directory ${JSON.stringify(PARENT_ASSET_DIR)}`,
     );
   }
+}
+
+/**
+ * Rewrite and copy the parent-relative assets of ONE chapter synced by the dev
+ * live-reload watcher (INT-0009). Unlike the build path it reuses the already-
+ * staged tome's `__tome_parent_assets__` directory (idempotent `mkdir`, no
+ * preexisting-dir guard — the dev destination is Tome's own, created at load),
+ * while applying the identical containment checks and URL rewrite. `sourceFile`
+ * is the edited source chapter (for resolving relative targets); `stagedFile` is
+ * its copy under `stagedTome`. Returns whether an asset was rewritten.
+ */
+export async function prepareChapterParentAssets({
+  root,
+  sourceDir,
+  stagedTome,
+  sourceFile,
+  stagedFile,
+}) {
+  const realRoot = await realpath(root);
+  const privateDir = path.join(stagedTome, PARENT_ASSET_DIR);
+  const ensurePrivate = async () => {
+    await mkdir(privateDir, { recursive: true });
+  };
+  return rewriteChapterAssets({
+    root,
+    realRoot,
+    sourceDir,
+    sourceFile,
+    stagedFile,
+    privateDir,
+    ensurePrivate,
+  });
 }

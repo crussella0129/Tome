@@ -77,3 +77,5 @@ chapters is a distinct fidelity outcome, not unfinished INT-0003/INT-0007 work.
   parent-asset preparation reusing the build path's classification + containment,
   wired into the dev watcher, with the extended `check_live_reload` gate proving all
   four criteria.
+- 2026-08-14: `planned → active` — Sprint 11 Build Phase began implementing T-209
+  against the locked plans.
