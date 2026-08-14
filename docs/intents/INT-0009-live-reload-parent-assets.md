@@ -2,11 +2,11 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0009
-- **State:** planned
+- **State:** realized
 - **Work evidence:** [Sprint 11 build plan (T-209)](../sprints/s11/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Completion evidence:** [T-209 completion (Sprint 11)](../work/completed-tasks.md#t-209-sprint-11)
+- **Code evidence:** [per-chapter parent-asset prep](../../scripts/parent-assets.mjs), [dev watcher wiring](../../astro.config.mjs), [extended live-reload gate](../../scripts/check-live-reload.mjs)
+- **Test evidence:** [Sprint 11 test report](../sprints/s11/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
@@ -79,3 +79,11 @@ chapters is a distinct fidelity outcome, not unfinished INT-0003/INT-0007 work.
   four criteria.
 - 2026-08-14: `planned → active` — Sprint 11 Build Phase began implementing T-209
   against the locked plans.
+- 2026-08-14: `active → realized` — T-209 delivered all four criteria: a per-chapter
+  `prepareChapterParentAssets` (sharing the build path's containment classifier,
+  reusing the already-staged reserved dir) wired into the dev watcher after
+  `syncPath` for `.md`; unit-tested for rewrite/copy, containment parity, and
+  in-source no-op; and proven end to end by the extended `check_live_reload` gate —
+  editing a parent-asset chapter now reflects **and** the parent image resolves via
+  the tome-private staged asset (the Sprint-10 failure is fixed). The build path is
+  untouched (extract-only refactor; its 5 tests + `check_external_build` stay green).
