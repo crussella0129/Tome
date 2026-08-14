@@ -40,6 +40,9 @@ jobs:
       - name: Multi-book build gate
         run: node scripts/check-multibook.mjs
 
+      - name: Search build gate
+        run: node scripts/check-search.mjs
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}

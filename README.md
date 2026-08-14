@@ -6,7 +6,8 @@ component vocabulary (from Internet Development Studio), re-skinned into an
 **ink-on-old-paper** aesthetic and set in Mekzantine.
 
 Built with Astro + SolidJS + TypeScript + Tailwind v4 — zero JavaScript by
-default, with only the table-of-contents sidebar hydrated as an island.
+default, with only the table-of-contents sidebar and the search overlay hydrated
+as islands.
 
 ## Develop
 
@@ -18,6 +19,7 @@ npm test               # unit + integration (Vitest)
 npm run test:e2e       # end-to-end (Playwright)
 npm run check:external # external single-book build gate
 npm run check:multibook # two-tome Bibliotheca build gate
+npm run check:search   # search index + query build gate
 ```
 
 ## View a book
@@ -113,3 +115,21 @@ OS login name — override it with the `owner` key or the `TOME_OWNER` env var.
 
 The `check:multibook` gate builds a two-tome library from the fixtures and
 asserts the namespaced routes, the Bibliotheca index, and the sidebar switcher.
+
+## Search
+
+Every page has a library-wide search. Press **`/`** (or click the search field)
+to open a keyboard-first overlay: type to rank results across every tome —
+titles and headings above body text — and open one to jump straight to that
+chapter, deep-linking to the matching heading.
+
+Search is built from a static index emitted at build time
+(`dist/search-index.json`) covering each chapter's title, headings, and text. The
+reader fetches it lazily on first open, so a page ships no search data until you
+ask for it — the overlay is the only search JavaScript, hydrated when idle. In a
+multi-tome library, results link to `/<tome>/<chapter>`; with a single tome, to
+`/<chapter>`.
+
+The `check:search` gate builds the site (single- and multi-tome) and asserts the
+index is emitted with the right coverage and adaptive URLs, and that a real query
+resolves to the expected chapter.

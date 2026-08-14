@@ -8,7 +8,9 @@ const PORT = externalBookMode ? 4322 : 4321;
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: externalBookMode ? '**/external-book.spec.ts' : '**/reader.spec.ts',
+  testMatch: externalBookMode
+    ? '**/external-book.spec.ts'
+    : ['**/reader.spec.ts', '**/search.spec.ts'],
   fullyParallel: !externalBookMode,
   workers: externalBookMode ? 1 : undefined,
   forbidOnly: !!process.env.CI,

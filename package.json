@@ -16,12 +16,14 @@
     "test:e2e": "playwright test",
     "check:external": "node scripts/check-external-build.mjs",
     "check:livereload": "node scripts/check-live-reload.mjs",
-    "check:multibook": "node scripts/check-multibook.mjs"
+    "check:multibook": "node scripts/check-multibook.mjs",
+    "check:search": "node scripts/check-search.mjs"
   },
   "dependencies": {
     "@astrojs/solid-js": "^7.0.2",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.2.0",
+    "github-slugger": "^2.0.0",
     "mdast-util-from-markdown": "^2.0.3",
     "smol-toml": "^1.8.0",
     "solid-js": "^1.9.14",
