@@ -79,3 +79,5 @@ reader capability now that viewing and loading are complete.
   build-time index endpoint + pure scorer (T-023), a keyboard-first sacred
   overlay island (T-024), and a CI build gate + docs (T-025) covering all four
   acceptance criteria.
+- 2026-08-14: `planned → active` — Sprint 10 Build Phase began implementing
+  T-023–T-025 against the locked plans.
