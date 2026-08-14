@@ -4,6 +4,7 @@ import BookLayout from '../layouts/BookLayout.astro';
 import Pager from '../components/Pager.astro';
 import Bibliotheca from '../components/Bibliotheca.astro';
 import { books, tomePages, bibliothecaEntries, isContentKeyFor } from '../lib/book';
+import type { Heading } from '../components/OnThisPage';
 import { resolveOwner } from '../../scripts/library-config.mjs';
 
 // Every chapter's Markdown, keyed by path. Importers are lazy; each generated
@@ -29,6 +30,7 @@ const switcher = multi
   : undefined;
 
 let Content: MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+let headings: Heading[] = [];
 if (page.kind === 'chapter') {
   const entry = Object.entries(contentModules).find(([key]) =>
     isContentKeyFor(key, page.book.slug, page.route.chapter.href!),
@@ -38,7 +40,10 @@ if (page.kind === 'chapter') {
       `Tome: no Markdown found for "${page.book.slug}/${page.route.chapter.href}"`,
     );
   }
-  Content = (await entry[1]()).Content;
+  const mod = await entry[1]();
+  Content = mod.Content;
+  // The chapter's section headings (H2/H3) for the "on this page" rail.
+  headings = (mod.getHeadings?.() ?? []).filter((h) => h.depth >= 2 && h.depth <= 3);
 }
 ---
 
@@ -54,6 +59,7 @@ if (page.kind === 'chapter') {
         books={switcher}
         activeBook={page.book.slug}
         title={page.route.chapter.title}
+        headings={headings}
       >
         <article class="tome-prose">
           <Content />

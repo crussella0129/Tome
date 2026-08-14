@@ -70,3 +70,5 @@ documentation readers provide them).
 - 2026-08-14: `proposed → planned` — Sprint 12 plans T-026 (server-rendered "on this
   page" rail + scroll-sync island), T-027 (guarded keyboard chapter nav island), and
   T-028 (E2E + README), covering all four criteria.
+- 2026-08-14: `planned → active` — Sprint 12 Build Phase began implementing
+  T-026–T-028 against the locked plans.
