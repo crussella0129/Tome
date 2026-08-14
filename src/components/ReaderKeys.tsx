@@ -42,6 +42,8 @@ export default function ReaderKeys(props: ReaderKeysProps) {
     };
 
     document.addEventListener('keydown', onKey);
+    // Deterministic hydration signal (used by the E2E to avoid the idle race).
+    document.documentElement.dataset.readerKeys = 'true';
     onCleanup(() => document.removeEventListener('keydown', onKey));
   });
 

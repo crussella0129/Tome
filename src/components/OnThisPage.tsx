@@ -40,27 +40,34 @@ export default function OnThisPage(props: OnThisPageProps) {
   const [active, setActive] = createSignal<string | undefined>(props.headings[0]?.slug);
 
   onMount(() => {
-    if (props.headings.length === 0 || typeof IntersectionObserver !== 'function') return;
+    if (props.headings.length === 0 || typeof window === 'undefined') return;
 
+    let ticking = false;
     const recompute = () => {
+      ticking = false;
       const tops = props.headings.map((h) => {
         const el = document.getElementById(h.slug);
         return el ? el.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
       });
       setActive(activeHeadingSlug(props.headings, tops));
     };
-
-    // Fire as headings cross the top band of the viewport; recompute from live
-    // positions so scrolling within a long section still resolves correctly.
-    const observer = new IntersectionObserver(recompute, {
-      rootMargin: '0px 0px -85% 0px',
-    });
-    for (const h of props.headings) {
-      const el = document.getElementById(h.slug);
-      if (el) observer.observe(el);
-    }
+    // A passive scroll listener, throttled to one recompute per frame, reliably
+    // re-derives the active section from live positions (an IntersectionObserver
+    // misses fast jump-scrolls that skip a thin trigger band). No motion.
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(recompute);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
     recompute();
-    onCleanup(() => observer.disconnect());
+    // Deterministic hydration signal (used by the E2E scroll-sync check).
+    document.documentElement.dataset.onThisPage = 'true';
+    onCleanup(() => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    });
   });
 
   return (

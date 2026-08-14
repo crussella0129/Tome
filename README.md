@@ -6,8 +6,8 @@ component vocabulary (from Internet Development Studio), re-skinned into an
 **ink-on-old-paper** aesthetic and set in Mekzantine.
 
 Built with Astro + SolidJS + TypeScript + Tailwind v4 — zero JavaScript by
-default, with only the table-of-contents sidebar and the search overlay hydrated
-as islands.
+default, with only a few small islands hydrated (the table-of-contents sidebar,
+the search overlay, and the in-chapter navigation aids).
 
 ## Develop
 
@@ -133,3 +133,15 @@ multi-tome library, results link to `/<tome>/<chapter>`; with a single tome, to
 The `check:search` gate builds the site (single- and multi-tome) and asserts the
 index is emitted with the right coverage and adaptive URLs, and that a real query
 resolves to the expected chapter.
+
+## Reading a chapter
+
+Two in-chapter navigation aids appear while reading:
+
+- **On this page** — on wide viewports, a rail beside the chapter lists its
+  section headings (H2/H3) as links. It is server-rendered (the links work with
+  no JavaScript) and, once hydrated, highlights the section you're currently
+  scrolled to.
+- **Keyboard chapter navigation** — press **`→`** or **`j`** for the next
+  chapter, **`←`** or **`k`** for the previous one. The shortcuts stand down while
+  you're typing in a field or the search overlay is open.
