@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0008
-- **State:** planned
+- **State:** realized
 - **Work evidence:** [Sprint 10 build plan (T-023–T-025)](../sprints/s10/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
-- **Documentation evidence:** none
+- **Completion evidence:** [T-023–T-025 completion (Sprint 10)](../work/completed-tasks.md#t-023-sprint-10)
+- **Code evidence:** [search index builder](../../src/lib/search-index.ts), [pure scorer](../../src/lib/search.ts), [index endpoint](../../src/pages/search-index.json.ts), [search overlay island](../../src/components/SearchOverlay.tsx), [search build gate](../../scripts/check-search.mjs)
+- **Test evidence:** [Sprint 10 test report](../sprints/s10/sprint-tests/test-report.md)
+- **Documentation evidence:** [README — Search](../../README.md#search)
 
 ## Intent
 
@@ -81,3 +81,12 @@ reader capability now that viewing and loading are complete.
   acceptance criteria.
 - 2026-08-14: `planned → active` — Sprint 10 Build Phase began implementing
   T-023–T-025 against the locked plans.
+- 2026-08-14: `active → realized` — Sprint 10 delivered all four criteria: a
+  build-time `dist/search-index.json` covering every chapter with github-slugger
+  heading parity (T-023), a keyboard-first sacred overlay (`/`, focus trap,
+  listbox, adaptive deep links) mounted as one `client:idle` island (T-024), and a
+  CI `check_search` gate proving the index + a real query end to end for single-
+  and multi-tome builds (T-025). 72/72 unit, 9/9 E2E, `check_search`/`check_external`/
+  `check_multibook` green, `astro check` clean. (An unrelated, pre-existing
+  live-reload × parent-asset failure — Sprint-9 fixture, INT-0007 domain — was
+  diagnosed and filed as T-209; it does not touch INT-0008.)
