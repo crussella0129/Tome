@@ -2,6 +2,7 @@
 import '../styles/tokens.css';
 import InitTheme from '../components/init-theme.astro';
 import TocSidebar, { type SwitcherBook } from '../components/TocSidebar';
+import SearchOverlay from '../components/SearchOverlay';
 import { DEFAULT_THEME } from '../styles/theme';
 import type { BookToc } from '../lib/summary.types';
 
@@ -42,6 +43,9 @@ const bookTitle = toc.title ?? 'Tome';
         client:idle
       />
       <main class="content">
+        <div class="searchbar">
+          <SearchOverlay client:idle />
+        </div>
         <slot />
       </main>
     </div>
@@ -60,6 +64,12 @@ const bookTitle = toc.title ?? 'Tome';
     z-index: var(--z-page);
     padding: var(--space-8) var(--space-6);
     min-width: 0;
+  }
+
+  .searchbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--space-6);
   }
 
   @media (min-width: 48.0625rem) {

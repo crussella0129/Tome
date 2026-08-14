@@ -1,6 +1,7 @@
 ---
 import '../styles/tokens.css';
 import InitTheme from './init-theme.astro';
+import SearchOverlay from './SearchOverlay';
 import { DEFAULT_THEME } from '../styles/theme';
 import { bibliothecaEntries, type Book } from '../lib/book';
 
@@ -32,6 +33,9 @@ const tomes = bibliothecaEntries(books).map((tome, i) => ({
         {owner && <p class="eyebrow">The Bibliotheca of</p>}
         <h1 class="wordmark">{owner ?? 'Bibliotheca'}</h1>
         <p class="count">{tomes.length} {tomes.length === 1 ? 'tome' : 'tomes'} catalogued</p>
+        <div class="masthead-search">
+          <SearchOverlay client:idle />
+        </div>
       </header>
 
       <ul class="shelf">
@@ -94,6 +98,10 @@ const tomes = bibliothecaEntries(books).map((tome, i) => ({
     font-size: var(--text-sm);
     color: var(--theme-text-subdued);
     font-variant-numeric: tabular-nums;
+  }
+
+  .masthead-search {
+    margin-top: var(--space-5);
   }
 
   .shelf {

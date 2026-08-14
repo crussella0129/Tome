@@ -1,0 +1,201 @@
+/* Search — a sacred command panel. Trigger reads as a field; the overlay is a
+   lifted box with the hard offset shadow. Every colour is a --theme-* token. */
+
+.root {
+  display: block;
+}
+
+/* Trigger: looks like a search field, acts as a button. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 26rem;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  color: var(--theme-text-subdued);
+  background: var(--theme-background-input);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.trigger:hover {
+  border-color: var(--theme-focused-foreground);
+  color: var(--theme-text);
+}
+
+.triggerIcon {
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--theme-focused-foreground);
+}
+
+.triggerLabel {
+  flex: 1;
+  letter-spacing: 0.04em;
+}
+
+.kbd {
+  font: inherit;
+  font-size: var(--text-2xs);
+  padding: 0 var(--space-2);
+  color: var(--theme-text-subdued);
+  background: var(--theme-window-background);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+}
+
+/* Overlay scrim + centered dialog near the top. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-8) var(--space-4);
+  background: color-mix(in srgb, var(--theme-background) 55%, transparent);
+  animation: fade var(--duration-fast) var(--motion-ease-out);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 40rem;
+  max-height: min(70vh, 40rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--theme-window-background);
+  border: 1px solid var(--theme-focused-foreground);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+  animation: rise var(--duration-med) var(--motion-ease-out);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.fieldIcon {
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--theme-focused-foreground);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--text-lg);
+  color: var(--theme-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--theme-text-subdued);
+}
+
+.close {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  font: inherit;
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--theme-text-subdued);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+.hint,
+.empty {
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--theme-text-subdued);
+  text-align: center;
+}
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  overflow-y: auto;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--theme-text);
+}
+
+.result:hover,
+.resultActive {
+  background: var(--theme-focused-foreground-subdued);
+  border-left-color: var(--theme-focused-foreground);
+}
+
+.resultTitle {
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.resultHeading {
+  font-size: var(--text-sm);
+  color: var(--theme-focused-foreground);
+}
+
+.resultHeading::before {
+  content: '§ ';
+  opacity: 0.7;
+}
+
+.resultTome {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--theme-text-subdued);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .dialog {
+    animation: none;
+  }
+}
