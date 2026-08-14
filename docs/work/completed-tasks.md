@@ -222,3 +222,19 @@
 - **Files modified:** scripts/check-search.mjs (new), package.json (check:search), .github/workflows/ci.yml (Search build gate step), src/lib/__tests__/ci-workflow.test.ts (asserts the gate), README.md (Search section)
 - **EARS verified:** clause (index emitted + adaptive + query resolves) — `check_search` green: the single-tome build emits `dist/search-index.json` covering the sample (a `/getting-started` record with heading slug `the-summary-is-the-spine`) and `search('panels', index)` resolves to `/components/panels`; the two-tome build (`TOME_BOOKS=fixtures/handbook,fixtures/docs-book`) emits namespaced URLs (`/handbook/first`, `/docs-book/…`) and `search('nested', index)` resolves to a `/handbook/…` URL; the gate restores `src/content/books/` to HEAD and rebuilds default (tree clean). The gate runs the real scorer by importing `src/lib/search.ts` (Node 24 type-strips its type-only import). Wired into CI as a "Search build gate" step; `test_ci_workflow_valid` asserts `check-search.mjs` present (ci.yml validated as YAML). README documents the `/` shortcut, the lazily-fetched index, and adaptive result links. Full suite 72/72; `astro check` 0 errors.
 - **Commit:** `5aef8158f051abaffa28745e93a2c84ce23a5319`
+
+## T-209 (sprint 11)
+- **Description:** Per-chapter parent-asset preparation on live sync
+- **Intent:** [INT-0009](../intents/INT-0009-live-reload-parent-assets.md)
+- **Completed:** 2026-08-14T22:55:48Z
+- **Files modified:** scripts/parent-assets.mjs (extract shared `rewriteChapterAssets` classifier; add exported `prepareChapterParentAssets`; `prepareParentAssets` refactored, behavior identical), astro.config.mjs (capture `root`; run per-chapter prep after `syncPath` for `.md`), scripts/check-live-reload.mjs (assert the parent image resolves after the live edit), src/lib/__tests__/parent-assets.test.ts (3 live-path tests), docs/intents/INT-0009-live-reload-parent-assets.md (planned → active)
+- **EARS verified:** clause 1 (rewrite + copy, in-source unchanged) — `test_prepare_chapter_rewrites_parent_asset` (rewrites `../assets/plate.svg` → `./__tome_parent_assets__/assets/plate.svg` and copies the asset, **succeeding with the reserved dir already present** — the dev case), `test_prepare_chapter_leaves_in_source` (in-source + non-local left byte-identical, no reserved dir). clause 2 (containment parity) — `test_prepare_chapter_rejects_escape` (a target outside the book root throws, same as the build path). clause 3+4 (dev edit reflects + image resolves) — `check_live_reload` extended: editing the handbook chapter (which references `../assets/parent-plate.svg`) reflects the edit **and** the served page references the tome-private `__tome_parent_assets__/…/parent-plate.svg` asset (no ImageNotFound), no restart; tree restored clean. Build path unchanged: the 5 existing `prepareParentAssets` tests stay green and `check_external_build` still emits `/_astro/parent-plate.<hash>.svg` (Chromium spec passes). Full parent-assets suite 8/8; `astro check` 0 errors.
+- **Commit:** `f9760c2583d62aee48671631103dc29ccc1eeedf`
+
+## T-208 (sprint 11)
+- **Description:** De-flake the theme-toggle E2E
+- **Intent:** [INT-0001](../intents/INT-0001-tome-ink-on-paper-mdbook-viewer.md) (regression provenance; realized, unchanged)
+- **Completed:** 2026-08-14T22:56:42Z
+- **Files modified:** e2e/reader.spec.ts
+- **EARS verified:** `test_dark_theme_active` now awaits the sidebar hydration signal `body.js-nav` (set in `TocSidebar.onMount`) before clicking "Switch colour theme", so the toggle's handler is always attached before the click — eliminating the `client:idle` race that intermittently reddened the run. Assertion unchanged (body gains `theme-terminal-dark` + the warm-dark background). Playwright 9/9 green. INT-0001's acceptance is unchanged (stays realized).
+- **Commit:** `128ef8b05b7f4082bdcfc5618abaca531c72c957`

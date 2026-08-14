@@ -64,7 +64,9 @@ not unfinished work in the already-realized INT-0003.
   remain unchanged or unsupported.
 - Dev startup receives the prepared asset, but live edits to book-root siblings
   are not promised by this intent because the existing watcher owns only the
-  detected source directory.
+  detected source directory. (The live-editing slice — a chapter that references a
+  parent asset reflecting edits in `dev` — is picked up by
+  [INT-0009](INT-0009-live-reload-parent-assets.md); this intent stays realized.)
 - INT-0004's authoritative declared-source behavior remains intact even when a
   source is outside or symlinked beyond the book root. Parent-asset targets are
   classified relative to that source but independently required to resolve

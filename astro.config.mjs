@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import solid from '@astrojs/solid-js';
 import tailwindcss from '@tailwindcss/vite';
 import { resolveBookSource, syncPath } from './scripts/book-source.mjs';
+import { prepareChapterParentAssets } from './scripts/parent-assets.mjs';
 
 const LIB_DEST = 'src/content/books';
 
@@ -21,10 +22,12 @@ function tomeLiveReload() {
       'astro:server:setup': async ({ server, logger }) => {
         const bookRoot = process.env.TOME_BOOK;
         if (!bookRoot) return;
+        let root;
         let sourceDir;
         let dest;
         try {
           const resolved = await resolveBookSource(bookRoot);
+          root = resolved.root;
           sourceDir = resolved.sourceDir;
           dest = join(LIB_DEST, resolved.slug);
         } catch (err) {
@@ -35,6 +38,17 @@ function tomeLiveReload() {
           try {
             const target = await syncPath(changed, sourceDir, dest);
             if (!target) return; // not under the book source
+            // A synced chapter loses the build-time parent-asset rewrite, so
+            // re-apply it (INT-0009) before reloading — else `../assets/x` 404s.
+            if (/\.md(?:own)?$/i.test(target)) {
+              await prepareChapterParentAssets({
+                root,
+                sourceDir,
+                stagedTome: dest,
+                sourceFile: changed,
+                stagedFile: target,
+              });
+            }
             logger.info(`synced ${changed} → reloading`);
             const hot = server.hot ?? server.ws;
             hot?.send?.({ type: 'full-reload' });

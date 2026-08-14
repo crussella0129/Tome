@@ -99,6 +99,10 @@ test.describe('Tome reader', () => {
   // T-002 clause 4
   test('test_dark_theme_active', async ({ page }) => {
     await page.goto('/');
+    // Wait for the sidebar island to hydrate before clicking, so the toggle's
+    // handler is attached (avoids the `client:idle` race — T-208). TocSidebar's
+    // onMount adds `js-nav` to the body once running.
+    await page.waitForSelector('body.js-nav');
     await page.getByRole('button', { name: 'Switch colour theme' }).click();
     await expect(page.locator('body')).toHaveClass(/theme-terminal-dark/);
     const bg = await page.evaluate(

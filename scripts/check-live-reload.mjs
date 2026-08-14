@@ -2,8 +2,11 @@
 // Copies fixtures/handbook into a temp MUTABLE book, runs `astro dev` against it,
 // confirms the reader serves the original chapter, edits the source on disk, and
 // polls until the reader reflects the edit — proving live reload without a
-// restart. A `finally` block always stops dev, restores src/content/books to HEAD
-// (predev overwrote it), and removes the temp book.
+// restart. The handbook chapter references a parent-relative image, so the gate
+// also confirms that image still resolves after the edit (INT-0009: the synced
+// chapter is re-rewritten to the tome-private staged asset, not the broken
+// `../assets/…`). A `finally` block always stops dev, restores src/content/books
+// to HEAD (predev overwrote it), and removes the temp book.
 import { execSync } from 'node:child_process';
 import { cpSync, rmSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,6 +17,12 @@ const root = process.cwd();
 const BOOK_DIR = 'src/content/books';
 const URL = 'http://localhost:4321/first';
 const MARKER = 'LIVE RELOAD CONFIRMED';
+// The handbook fixture's first.md references a parent-relative image
+// (`../assets/parent-plate.svg`). After a live edit, the synced chapter must be
+// re-rewritten to the tome-private staged asset (INT-0009), or Astro throws
+// ImageNotFound. These two literals appear together only in the *rewritten* src.
+const PARENT_DIR = '__tome_parent_assets__';
+const PARENT_ASSET = 'parent-plate.svg';
 
 async function getText(url) {
   try {
@@ -69,7 +78,19 @@ async function main() {
       throw new Error('the edit did not appear in the reader within the timeout');
     }
 
-    console.log('check-live-reload: OK — the live edit appeared in the reader with no restart.');
+    // INT-0009: the parent-relative image still resolves — the synced chapter was
+    // re-rewritten to the tome-private staged asset, not the broken `../assets/…`.
+    const served = await getText(URL);
+    if (!(served.includes(PARENT_DIR) && served.includes(PARENT_ASSET))) {
+      throw new Error(
+        'the parent-relative image did not resolve after the live edit ' +
+          `(no ${PARENT_DIR}/…/${PARENT_ASSET} in the served page)`,
+      );
+    }
+
+    console.log(
+      'check-live-reload: OK — the live edit appeared and the parent image resolved, no restart.',
+    );
     return 0;
   } catch (err) {
     console.error(`check-live-reload: FAIL — ${err instanceof Error ? err.message : err}`);
