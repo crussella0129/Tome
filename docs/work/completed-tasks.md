@@ -237,4 +237,4 @@
 - **Completed:** 2026-08-14T22:56:42Z
 - **Files modified:** e2e/reader.spec.ts
 - **EARS verified:** `test_dark_theme_active` now awaits the sidebar hydration signal `body.js-nav` (set in `TocSidebar.onMount`) before clicking "Switch colour theme", so the toggle's handler is always attached before the click — eliminating the `client:idle` race that intermittently reddened the run. Assertion unchanged (body gains `theme-terminal-dark` + the warm-dark background). Playwright 9/9 green. INT-0001's acceptance is unchanged (stays realized).
-- **Commit:** PENDING
+- **Commit:** `128ef8b05b7f4082bdcfc5618abaca531c72c957`
