@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "check:external": "node scripts/check-external-build.mjs",
     "check:livereload": "node scripts/check-live-reload.mjs",
-    "check:multibook": "node scripts/check-multibook.mjs"
+    "check:multibook": "node scripts/check-multibook.mjs",
+    "check:search": "node scripts/check-search.mjs"
   },
   "dependencies": {
     "@astrojs/solid-js": "^7.0.2",

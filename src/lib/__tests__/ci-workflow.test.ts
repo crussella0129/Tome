@@ -20,6 +20,8 @@ describe('CI workflow', () => {
     expect(ci).toMatch(/check-external-build\.mjs/);
     // The multi-book (Bibliotheca) render is gated too (T-022).
     expect(ci).toMatch(/check-multibook\.mjs/);
+    // The search index + query path is gated too (T-025).
+    expect(ci).toMatch(/check-search\.mjs/);
     // Dependencies installed reproducibly.
     expect(ci).toMatch(/npm ci/);
     // Actions are on the non-deprecated (Node 24) majors — no @v4 (Node 20).
