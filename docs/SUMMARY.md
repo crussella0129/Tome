@@ -10,6 +10,7 @@
   - [INT-0007 — Parent-relative external assets](intents/INT-0007-parent-relative-external-assets.md)
   - [INT-0008 — In-book search](intents/INT-0008-in-book-search.md)
   - [INT-0009 — Live-reload parent-relative assets](intents/INT-0009-live-reload-parent-assets.md)
+  - [INT-0010 — In-page reader navigation](intents/INT-0010-in-page-reader-navigation.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -24,3 +25,4 @@
 - [Sprint 9](sprints/s9/sprint-meta.md)
 - [Sprint 10](sprints/s10/sprint-meta.md)
 - [Sprint 11](sprints/s11/sprint-meta.md)
+- [Sprint 12](sprints/s12/sprint-meta.md)
