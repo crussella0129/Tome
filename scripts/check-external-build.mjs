@@ -10,7 +10,7 @@
 // target is pristine, then strictly restores tracked content and removes only
 // fixture residue within the target after each case.
 import { execFileSync, execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 
@@ -19,7 +19,11 @@ const BOOK_DIR = 'src/content/books';
 const dist = join(root, 'dist');
 
 function build(env = {}) {
-  execSync('npm run build', { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } });
+  execSync('npm run build', {
+    cwd: root,
+    stdio: 'inherit',
+    env: { ...process.env, ...env },
+  });
 }
 
 function verifyHandbookInBrowser() {
@@ -33,7 +37,14 @@ function verifyHandbookInBrowser() {
 function contentStatus() {
   return execFileSync(
     'git',
-    ['status', '--porcelain=v1', '--untracked-files=all', '--ignored=matching', '--', BOOK_DIR],
+    [
+      'status',
+      '--porcelain=v1',
+      '--untracked-files=all',
+      '--ignored=matching',
+      '--',
+      BOOK_DIR,
+    ],
     { cwd: root, encoding: 'utf8' },
   ).trim();
 }
@@ -48,13 +59,21 @@ function requirePristineContent() {
 }
 
 function restoreSample() {
-  execFileSync('git', ['restore', '--source=HEAD', '--worktree', '--', BOOK_DIR], {
+  execFileSync(
+    'git',
+    ['restore', '--source=HEAD', '--worktree', '--', BOOK_DIR],
+    {
+      cwd: root,
+      stdio: 'ignore',
+    },
+  );
+  execFileSync('git', ['clean', '-fdqx', '--', BOOK_DIR], {
     cwd: root,
     stdio: 'ignore',
   });
-  execFileSync('git', ['clean', '-fdqx', '--', BOOK_DIR], { cwd: root, stdio: 'ignore' });
   const status = contentStatus();
-  if (status) throw new Error(`sample restoration left content residue:\n${status}`);
+  if (status)
+    throw new Error(`sample restoration left content residue:\n${status}`);
 }
 
 function fail(message) {
@@ -66,13 +85,28 @@ function message(error) {
 }
 
 function requireRoute(slug, label) {
-  if (!existsSync(join(dist, slug, 'index.html'))) fail(`${label}: dist/${slug}/ was not generated`);
+  if (!existsSync(join(dist, slug, 'index.html')))
+    fail(`${label}: dist/${slug}/ was not generated`);
 }
 function requireAbsent(slug, label) {
-  if (existsSync(join(dist, slug, 'index.html'))) fail(`${label}: dist/${slug}/ is still present`);
+  if (existsSync(join(dist, slug, 'index.html')))
+    fail(`${label}: dist/${slug}/ is still present`);
 }
 function readRoute(slug) {
   return readFileSync(join(dist, slug, 'index.html'), 'utf8');
+}
+
+function requireOptimizedAsset(slug, basename, label) {
+  const escaped = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = readRoute(slug).match(
+    new RegExp(`src="(/_astro/${escaped}\\.[^"]+\\.svg)"`),
+  );
+  if (!match)
+    fail(`${label}: ${basename} did not render as an optimized /_astro/ asset`);
+  const emitted = join(dist, match[1].slice(1));
+  if (!existsSync(emitted) || statSync(emitted).size === 0) {
+    fail(`${label}: optimized asset ${match[1]} is missing or empty`);
+  }
 }
 
 // Each case: a fixture book + its assertions on the built dist/.
@@ -84,9 +118,12 @@ const CASES = [
     check() {
       requireRoute('first', 'handbook');
       requireAbsent('getting-started', 'handbook'); // sample replaced
-      if (!/src="\/_astro\/plate\.[^"]+\.svg"/.test(readRoute('first'))) {
-        fail('handbook: the relative image did not render as an optimized /_astro/ asset');
-      }
+      requireOptimizedAsset('first', 'plate', 'handbook in-source image');
+      requireOptimizedAsset(
+        'first',
+        'parent-plate',
+        'handbook parent-relative image',
+      );
     },
   },
   {
@@ -97,7 +134,9 @@ const CASES = [
       requireRoute('details/deep', 'docs-book'); // nested from detected source
       requireAbsent('getting-started', 'docs-book'); // sample replaced
       if (!readRoute('').includes('>docs-book<')) {
-        fail('docs-book: the directory-name title "docs-book" is not shown in the sidebar');
+        fail(
+          'docs-book: the directory-name title "docs-book" is not shown in the sidebar',
+        );
       }
     },
   },
@@ -137,7 +176,9 @@ try {
   requirePristineContent();
   for (const fixtureCase of CASES) runCase(fixtureCase);
 
-  console.log('check-external-build: all external books rendered; rebuilding default …');
+  console.log(
+    'check-external-build: all external books rendered; rebuilding default …',
+  );
   build();
   requirePristineContent();
 } catch (error) {

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="96" viewBox="0 0 260 96" role="img" aria-label="A parent-held plate">
+  <rect width="260" height="96" rx="8" fill="#d7c5a3" />
+  <path d="M22 48h216M130 20v56" stroke="#3f3528" stroke-width="3" />
+  <circle cx="130" cy="48" r="18" fill="none" stroke="#7a2d26" stroke-width="4" />
+</svg>
