@@ -9,6 +9,7 @@
   - [INT-0006 — Browser-verified external books](intents/INT-0006-browser-verified-external-books.md)
   - [INT-0007 — Parent-relative external assets](intents/INT-0007-parent-relative-external-assets.md)
   - [INT-0008 — In-book search](intents/INT-0008-in-book-search.md)
+  - [INT-0009 — Live-reload parent-relative assets](intents/INT-0009-live-reload-parent-assets.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -22,3 +23,4 @@
 - [Sprint 8](sprints/s8/sprint-meta.md)
 - [Sprint 9](sprints/s9/sprint-meta.md)
 - [Sprint 10](sprints/s10/sprint-meta.md)
+- [Sprint 11](sprints/s11/sprint-meta.md)
