@@ -25,8 +25,8 @@ zero-JS-by-default otherwise.
    heading `id`s), **server-rendered** so the links work without JS; a chapter with
    no such headings renders no rail.
 2. As the reader scrolls, the rail marks the section currently in view as active
-   (scroll-synced via `IntersectionObserver`), honoring `prefers-reduced-motion`;
-   this scroll-sync is the rail's only client JavaScript.
+   (scroll-synced from the headings' live positions), honoring
+   `prefers-reduced-motion`; this scroll-sync is the rail's only client JavaScript.
 3. Keyboard shortcuts move between chapters — a next-chapter key and a
    previous-chapter key (arrow keys and `j`/`k`) — following the same prev/next as
    the pager and using the adaptive URL; they do **not** fire while the reader is
@@ -62,6 +62,10 @@ documentation readers provide them).
 - Scope is H2/H3 section headings; deeper nesting (H4+) and cross-chapter navigation
   remain the sidebar's job. Keyboard nav is guarded against inputs and the open
   search dialog.
+- Scroll-sync is driven by a passive, rAF-throttled `scroll` listener rather than an
+  `IntersectionObserver`: measurement showed IO misses fast jump-scrolls that skip
+  its thin trigger band. The active section is chosen by the pure `activeHeadingSlug`
+  from the headings' live `getBoundingClientRect` positions.
 
 ## Transition history
 
