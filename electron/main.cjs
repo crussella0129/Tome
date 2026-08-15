@@ -13,6 +13,8 @@ const SCHEME = 'app';
 const HOST = 'tome';
 const ORIGIN = `${SCHEME}://${HOST}`;
 const DIST_ROOT = path.join(__dirname, '..', 'dist');
+// Windows takes the .ico; Linux takes the .png. macOS uses the app bundle icon.
+const ICON = path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 
 // Must run before `app.ready`. `standard` gives the scheme an origin/host so URL
 // parsing and same-origin fetch work; `secure` marks it a secure context;
@@ -66,6 +68,7 @@ function createWindow(resolveDistPath, contentTypeFor) {
     height: 820,
     minWidth: 480,
     backgroundColor: '#f4ecd8', // parchment — avoids a white flash before paint
+    icon: ICON,
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
@@ -92,6 +95,9 @@ function createWindow(resolveDistPath, contentTypeFor) {
 }
 
 app.whenReady().then(async () => {
+  // Group the window under Tome's own taskbar identity (and icon) on Windows.
+  if (process.platform === 'win32') app.setAppUserModelId('com.tome.desktop');
+
   const mod = await import(pathToFileURL(path.join(__dirname, '..', 'scripts', 'dist-resolve.mjs')).href);
   const { resolveDistPath, contentTypeFor } = mod;
 
