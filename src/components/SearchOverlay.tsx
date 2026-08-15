@@ -9,11 +9,14 @@ import {
 } from 'solid-js';
 import { search, type SearchHit } from '../lib/search';
 import type { SearchRecord } from '../lib/search-index';
+import { searchScopeCopy } from '../lib/search-copy';
 import styles from './SearchOverlay.module.css';
 
 interface SearchOverlayProps {
   /** Injected records bypass the lazy fetch (used by tests). Production omits it. */
   records?: SearchRecord[];
+  /** True when the library holds more than one tome; drives honest scope copy. */
+  libraryWide?: boolean;
 }
 
 const INDEX_URL = `${import.meta.env.BASE_URL ?? '/'}search-index.json`;
@@ -36,6 +39,7 @@ export default function SearchOverlay(props: SearchOverlayProps) {
   let dialogEl: HTMLDivElement | undefined;
 
   const results = createMemo<SearchHit[]>(() => (open() ? search(query(), records()) : []));
+  const copy = () => searchScopeCopy(props.libraryWide ?? false);
 
   const loadIndex = async () => {
     if (loaded()) return;
@@ -136,7 +140,7 @@ export default function SearchOverlay(props: SearchOverlayProps) {
         aria-keyshortcuts="/"
       >
         <span aria-hidden="true" class={styles.triggerIcon}>⌕</span>
-        <span class={styles.triggerLabel}>Search the library</span>
+        <span class={styles.triggerLabel}>{copy().trigger}</span>
         <kbd class={styles.kbd}>/</kbd>
       </button>
 
@@ -147,7 +151,7 @@ export default function SearchOverlay(props: SearchOverlayProps) {
             class={styles.dialog}
             role="dialog"
             aria-modal="true"
-            aria-label="Search the library"
+            aria-label={copy().dialogLabel}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={onDialogKey}
           >
@@ -185,9 +189,7 @@ export default function SearchOverlay(props: SearchOverlayProps) {
 
             <Show
               when={query().trim().length > 0}
-              fallback={
-                <p class={styles.hint}>Search every tome — titles, headings, and text.</p>
-              }
+              fallback={<p class={styles.hint}>{copy().hint}</p>}
             >
               <Show
                 when={results().length > 0}

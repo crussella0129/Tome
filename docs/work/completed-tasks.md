@@ -318,3 +318,11 @@
 - **Files modified:** src/content/books/marginalia/{SUMMARY.md,README.md,on-reading.md,on-machines.md,book.meta.json} (new tome), e2e/reader.spec.ts (namespaced under `/tome` + `test_reader_bibliotheca_default` + `test_reader_cross_tome_nav`), e2e/search.spec.ts (`test_search_across_tomes` + namespaced routes), e2e/electron.spec.ts (`test_electron_reader_offline` → Bibliotheca then into a tome), scripts/check-search.mjs (single-tome case now builds an explicit fixture, since the default is 2-tome)
 - **EARS verified:** default build emits `/` (Bibliotheca) + `/tome/*` + `/marginalia/*` (9 pages). `npm run test:e2e` 18/18 — incl. `test_reader_bibliotheca_default` (both tomes listed at `/`), `test_reader_cross_tome_nav` (switcher → sibling tome; Bibliotheca link → `/`), `test_search_across_tomes` (query "reading" returns hits tagged both "Tome" and "Marginalia"). `npm run check:electron` 6/6 (migrated reader-offline: Bibliotheca → into a tome, offline). Single-tome mode still covered by `check:external`. `astro check` 0 errors; `check:livereload` OK.
 - **Commit:** `b02000716349bb2d06d7980b1c0b0b6a68996cc0`
+
+## T-037 (sprint 15)
+- **Description:** Tome-count-aware search copy — the search UI reads library-wide with several tomes and does not imply multiple tomes with one
+- **Intent:** [INT-0014](../intents/INT-0014-discoverable-library.md)
+- **Completed:** 2026-08-15T19:33:30Z
+- **Files modified:** src/lib/search-copy.ts (new — pure `searchScopeCopy(libraryWide)`), src/lib/__tests__/search-copy.test.ts (new), src/components/SearchOverlay.tsx (`libraryWide` prop drives trigger/hint/dialog-label via the helper), src/layouts/BookLayout.astro + src/components/Bibliotheca.astro (pass `libraryWide`), src/components/__tests__/SearchOverlay.test.tsx (render library-wide)
+- **EARS verified:** `searchScopeCopy` unit suite — `test_search_copy_library_wide` (N>1 → "Search the library" / "every tome") and `test_search_copy_single_tome` (N=1 → "Search this tome", never "library"/"every tome"). Vitest 96/96; `astro check` 0 errors; `npm run test:e2e` 18/18 (the 2-tome default renders the library-wide copy; the search dialog is still named "Search the library"). BookLayout passes `libraryWide` from the switcher size; the Bibliotheca (multi only) passes true.
+- **Commit:** PENDING

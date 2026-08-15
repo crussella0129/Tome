@@ -34,7 +34,7 @@ const tomes = bibliothecaEntries(books).map((tome, i) => ({
         <h1 class="wordmark">{owner ?? 'Bibliotheca'}</h1>
         <p class="count">{tomes.length} {tomes.length === 1 ? 'tome' : 'tomes'} catalogued</p>
         <div class="masthead-search">
-          <SearchOverlay client:idle />
+          <SearchOverlay libraryWide={books.length > 1} client:idle />
         </div>
       </header>
 

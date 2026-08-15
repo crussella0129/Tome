@@ -27,7 +27,9 @@ afterEach(cleanup);
 describe('SearchOverlay', () => {
   // T-024 clause 2: open, focus, type → adaptive result links.
   it('test_search_overlay_opens_and_lists: opens, focuses input, deep-links results', () => {
-    const { getByRole, queryByRole } = render(() => <SearchOverlay records={records} />);
+    const { getByRole, queryByRole } = render(() => (
+      <SearchOverlay records={records} libraryWide={true} />
+    ));
     expect(queryByRole('dialog')).toBeNull(); // closed initially
 
     fireEvent.click(getByRole('button', { name: /search the library/i }));
@@ -44,7 +46,9 @@ describe('SearchOverlay', () => {
 
   // T-024 clause 1 + designed states.
   it('test_search_overlay_escape_closes: Escape closes and restores focus; states never blank', () => {
-    const { getByRole, queryByRole, getByText } = render(() => <SearchOverlay records={records} />);
+    const { getByRole, queryByRole, getByText } = render(() => (
+      <SearchOverlay records={records} libraryWide={true} />
+    ));
     const trigger = getByRole('button', { name: /search the library/i });
     fireEvent.click(trigger);
     const input = getByRole('combobox') as HTMLInputElement;

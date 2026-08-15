@@ -48,7 +48,7 @@ const hasRail = headings.length > 0;
       />
       <main class="content">
         <div class="searchbar">
-          <SearchOverlay client:idle />
+          <SearchOverlay libraryWide={(books?.length ?? 0) > 1} client:idle />
         </div>
         <slot />
       </main>
