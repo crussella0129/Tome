@@ -55,9 +55,9 @@ if (!single.some((r) => r.url === '/first')) fail('single: no record with root u
 if (single.some((r) => r.url.startsWith('/handbook/'))) {
   fail('single: URLs should be root, not namespaced under the tome slug');
 }
-const nested = search('nested', single);
-if (!nested.length || !nested[0].url.startsWith('/section/nested')) {
-  fail(`single: query "nested" did not resolve to /section/nested (got ${nested[0]?.url})`);
+const singleNested = search('nested', single);
+if (!singleNested.length || !singleNested[0].url.startsWith('/section/nested')) {
+  fail(`single: query "nested" did not resolve to /section/nested (got ${singleNested[0]?.url})`);
 }
 console.log('check-search: OK — single-tome index emitted, root URLs, query resolves.');
 
