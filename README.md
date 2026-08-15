@@ -26,7 +26,11 @@ npm run check:electron # desktop-shell end-to-end gate (Playwright + Electron)
 
 ## View a book
 
-By default Tome renders the bundled sample book under `src/content/books/tome/`.
+By default Tome renders a bundled sample **library** of two tomes — *Tome* (the
+guide you're reading) and *Marginalia* (a short companion) — under
+`src/content/books/`. Because there are two, the site opens on the **Bibliotheca**
+(the library shelf); pick a tome to start reading, and use the sidebar switcher to
+cross between them. A single tome (see below) opens straight into the reader.
 
 To view **any** mdBook, point `TOME_BOOK` at its root directory (the folder that
 contains `book.toml` and a `src/SUMMARY.md`) — a prebuild step copies that book
@@ -186,6 +190,11 @@ built output. It is configured securely — context isolation on, Node integrati
 off, sandbox on — and the protocol serves only files resolved **inside** `dist/`.
 Internal links stay in the window; external `http`/`https` links open in your OS
 default browser. The main process is a single small file under `electron/`.
+
+Zoom is handled so it can't break the layout: an accidental trackpad pinch or
+Ctrl-wheel gesture is neutralized (it would otherwise shrink the viewport past a
+responsive breakpoint and collapse the reader into the mobile drawer), while
+deliberate keyboard zoom — including the native **Ctrl+0** reset — still works.
 
 The app icon is a "T" in the reader's display font, and it **follows your system
 theme** — the near-black tile in dark mode, the ink-on-parchment tile in light mode —

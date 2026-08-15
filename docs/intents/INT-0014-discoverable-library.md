@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0014
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 15 build plan (T-036, T-037)](../sprints/s15/sprint-plans/build-plan.md)
-- **Completion evidence:** none
+- **Completion evidence:** [T-036 completion (Sprint 15)](../work/completed-tasks.md#t-036-sprint-15), [T-037 completion (Sprint 15)](../work/completed-tasks.md#t-037-sprint-15)
 - **Code evidence:** [second bundled tome "Marginalia"](../../src/content/books/marginalia/SUMMARY.md), [tome-count-aware search copy](../../src/lib/search-copy.ts)
 - **Test evidence:** [Sprint 15 test report](../sprints/s15/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [README — View a book](../../README.md#view-a-book)
 
 ## Intent
 
@@ -75,3 +75,12 @@ library shelf, which is the correct mental model for a *Bibliotheca of Tomes*.
   search/electron E2E migrated to the multi-tome default) and T-037 (tome-count-
   aware search copy), covering all four criteria.
 - 2026-08-15: `planned → active` — Sprint 15 Build Phase implementing T-036.
+- 2026-08-15: `active → realized` — T-036 shipped a curated second bundled tome
+  ("Marginalia"), so the default build is a navigable 2-tome Bibliotheca (`/` lists
+  both tomes, chapters namespaced, the sidebar switcher crosses between them and
+  links back to the library) with the reader/search/electron E2E migrated to the
+  multi-tome default, and T-037 made the search copy honest (library-wide for many,
+  "this tome" for one). Single-tome mode stays covered by `check:external`. Proven
+  by `test_reader_bibliotheca_default`, `test_reader_cross_tome_nav`,
+  `test_search_across_tomes`, the `searchScopeCopy` unit tests, and the migrated
+  electron offline path.

@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0013
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 15 build plan (T-034, T-035)](../sprints/s15/sprint-plans/build-plan.md)
-- **Completion evidence:** none
+- **Completion evidence:** [T-034 completion (Sprint 15)](../work/completed-tasks.md#t-034-sprint-15), [T-035 completion (Sprint 15)](../work/completed-tasks.md#t-035-sprint-15)
 - **Code evidence:** [shell zoom hardening](../../electron/main.cjs), [responsive scaling sweep](../../e2e/scaling.spec.ts)
 - **Test evidence:** [Sprint 15 test report](../sprints/s15/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [README — Desktop app (zoom)](../../README.md#desktop-app)
 
 ## Intent
 
@@ -77,3 +77,11 @@ features land.
   reset on load, disable pinch, snap back accidental wheel/pinch zoom, Ctrl+0
   reset) and T-035 (browser responsive scaling sweep), covering all four criteria.
 - 2026-08-15: `planned → active` — Sprint 15 Build Phase began with T-034.
+- 2026-08-15: `active → realized` — T-034 hardened the shell (open at 100%, disable
+  pinch via `setVisualZoomLevelLimits(1,1)`, snap back accidental wheel/pinch zoom
+  on `zoom-changed`; deliberate keyboard zoom + native Ctrl+0 retained), and T-035
+  added a browser responsive sweep (widths 480→2560 over the reader/Bibliotheca/
+  search: no horizontal overflow, dialog within the viewport, correct layout mode
+  per breakpoint). Proven by `test_electron_zoom_locked` + the scaling sweep;
+  OS DPI ruled out as a factor. Ctrl+0 reset and deliberate-zoom reachability are
+  covered by construction / transitively (test critique C-001/C-002).
