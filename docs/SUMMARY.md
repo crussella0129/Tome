@@ -11,6 +11,7 @@
   - [INT-0008 — In-book search](intents/INT-0008-in-book-search.md)
   - [INT-0009 — Live-reload parent-relative assets](intents/INT-0009-live-reload-parent-assets.md)
   - [INT-0010 — In-page reader navigation](intents/INT-0010-in-page-reader-navigation.md)
+  - [INT-0011 — Richer content rendering](intents/INT-0011-richer-content-rendering.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -26,3 +27,4 @@
 - [Sprint 10](sprints/s10/sprint-meta.md)
 - [Sprint 11](sprints/s11/sprint-meta.md)
 - [Sprint 12](sprints/s12/sprint-meta.md)
+- [Sprint 13](sprints/s13/sprint-meta.md)
