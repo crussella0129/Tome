@@ -5,9 +5,9 @@
 - **State:** active
 - **Work evidence:** [Sprint 14 build plan (T-032–T-033)](../sprints/s14/sprint-plans/build-plan.md)
 - **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
-- **Documentation evidence:** none
+- **Code evidence:** [shared dist resolver](../../scripts/dist-resolve.mjs), [Electron main (app:// protocol + secure window + external links)](../../electron/main.cjs)
+- **Test evidence:** [Sprint 14 test report](../sprints/s14/sprint-tests/test-report.md)
+- **Documentation evidence:** [README — Desktop app](../../README.md#desktop-app)
 
 ## Intent
 
