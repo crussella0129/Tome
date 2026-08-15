@@ -60,7 +60,16 @@ test.describe('Tome desktop shell', () => {
   test('test_electron_secure_config', async () => {
     const prefs = await app.evaluate(async ({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0];
-      return win.webContents.getLastWebPreferences();
+      // getLastWebPreferences exists at runtime but is missing from this
+      // Electron version's WebContents typings.
+      const wc = win.webContents as unknown as {
+        getLastWebPreferences(): {
+          contextIsolation?: boolean;
+          nodeIntegration?: boolean;
+          sandbox?: boolean;
+        } | null;
+      };
+      return wc.getLastWebPreferences();
     });
     expect(prefs?.contextIsolation).toBe(true);
     expect(prefs?.nodeIntegration).toBe(false);
@@ -74,6 +83,40 @@ test.describe('Tome desktop shell', () => {
         typeof (globalThis as Record<string, unknown>).process === 'undefined',
     );
     expect(rendererLocked).toBe(true);
+  });
+
+  // Revision — the app icon follows the system theme (dark ↔ light).
+  test('test_electron_icon_follows_theme', async () => {
+    const setTheme = (source: 'dark' | 'light' | 'system') =>
+      app.evaluate(async ({ nativeTheme }, s) => {
+        nativeTheme.themeSource = s;
+      }, source);
+    // `nativeTheme` fires 'updated' asynchronously, so poll for the swap.
+    const iconPath = () =>
+      app.evaluate(
+        async ({ BrowserWindow }) =>
+          (BrowserWindow.getAllWindows()[0] as unknown as { tomeIconPath: string }).tomeIconPath,
+      );
+
+    await setTheme('dark');
+    await expect.poll(iconPath).toMatch(/icon-dark\.(ico|png)$/);
+    const darkIcon = await iconPath();
+
+    await setTheme('light');
+    await expect.poll(iconPath).toMatch(/icon-light\.(ico|png)$/);
+    const lightIcon = await iconPath();
+
+    expect(darkIcon).not.toBe(lightIcon);
+
+    // Both variant assets are real, loadable images.
+    const bothLoad = await app.evaluate(
+      async ({ nativeImage }, paths) => paths.every((p) => !nativeImage.createFromPath(p).isEmpty()),
+      [darkIcon, lightIcon],
+    );
+    expect(bothLoad).toBe(true);
+
+    // Restore automatic (system-following) behavior for later tests.
+    await setTheme('system');
   });
 
   // Criterion 2 — external http(s) links open in the OS browser, not in-app;

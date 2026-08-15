@@ -187,6 +187,17 @@ off, sandbox on — and the protocol serves only files resolved **inside** `dist
 Internal links stay in the window; external `http`/`https` links open in your OS
 default browser. The main process is a single small file under `electron/`.
 
+The app icon is a "T" in the reader's display font, and it **follows your system
+theme** — the near-black tile in dark mode, the ink-on-parchment tile in light mode —
+swapping live if you change the OS theme. Force one with `TOME_ICON`:
+
+```bash
+TOME_ICON=dark npm run electron:start   # or: light | auto (default = follow system)
+```
+
+The two icon variants are generated from the font by `node scripts/make-icon.mjs`
+into `electron/assets/` (a multi-size `.ico` for Windows, a `.png` for Linux).
+
 To package a **specific** book into the app, build it in first, then launch:
 
 ```bash

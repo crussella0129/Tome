@@ -4,17 +4,24 @@
 // assets, `/fonts/…`, and `/search-index.json` all load with no dev server and no
 // network. Internal navigation stays in-app; external http(s) links open in the
 // OS browser. CommonJS main; the ESM resolver is loaded via dynamic import.
-const { app, BrowserWindow, protocol, shell } = require('electron');
+const { app, BrowserWindow, protocol, shell, nativeTheme } = require('electron');
 const { readFile } = require('node:fs/promises');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { resolveIconVariant, iconBasename } = require('./icon-variant.cjs');
 
 const SCHEME = 'app';
 const HOST = 'tome';
 const ORIGIN = `${SCHEME}://${HOST}`;
 const DIST_ROOT = path.join(__dirname, '..', 'dist');
-// Windows takes the .ico; Linux takes the .png. macOS uses the app bundle icon.
-const ICON = path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+
+// The app icon follows the system theme (dark → the near-black "T", light → the
+// ink-on-parchment "T"). `TOME_ICON=dark|light` forces one; `auto` (default)
+// follows the OS. Windows takes the .ico; Linux the .png (macOS uses the bundle).
+function currentIconPath() {
+  const variant = resolveIconVariant(process.env.TOME_ICON, nativeTheme.shouldUseDarkColors);
+  return path.join(__dirname, 'assets', iconBasename(variant, process.platform));
+}
 
 // Must run before `app.ready`. `standard` gives the scheme an origin/host so URL
 // parsing and same-origin fetch work; `secure` marks it a secure context;
@@ -68,7 +75,7 @@ function createWindow(resolveDistPath, contentTypeFor) {
     height: 820,
     minWidth: 480,
     backgroundColor: '#f4ecd8', // parchment — avoids a white flash before paint
-    icon: ICON,
+    icon: currentIconPath(),
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
@@ -76,6 +83,9 @@ function createWindow(resolveDistPath, contentTypeFor) {
       sandbox: true,
     },
   });
+  // `win.tomeIconPath` mirrors the icon currently applied — read by the
+  // theme-swap E2E; harmless in production.
+  win.tomeIconPath = currentIconPath();
 
   // New windows / window.open: never open in-app; external http(s) -> OS browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -89,6 +99,16 @@ function createWindow(resolveDistPath, contentTypeFor) {
     event.preventDefault();
     handleExternal(url);
   });
+
+  // Swap the icon live when the OS theme flips (a no-op when TOME_ICON forces one).
+  const onThemeChange = () => {
+    if (win.isDestroyed()) return;
+    const p = currentIconPath();
+    win.setIcon(p);
+    win.tomeIconPath = p;
+  };
+  nativeTheme.on('updated', onThemeChange);
+  win.on('closed', () => nativeTheme.removeListener('updated', onThemeChange));
 
   win.loadURL(`${ORIGIN}/`);
   return win;
