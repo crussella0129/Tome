@@ -10,12 +10,14 @@ import {
 } from '../book';
 
 describe('library (bundled book)', () => {
-  // T-019 clause 1: books() returns one entry per tome dir with slug/title/toc/routes.
-  it('test_books_library: exposes the bundled sample as the tome "tome"', () => {
+  // T-019 clause 1 / INT-0014: books() returns one entry per tome dir. The
+  // default library ships two tomes (sorted by slug): "marginalia" and "tome".
+  it('test_books_library: exposes the two bundled tomes (marginalia + tome)', () => {
     const lib = books();
-    expect(lib.map((b) => b.slug)).toEqual(['tome']);
+    expect(lib.map((b) => b.slug)).toEqual(['marginalia', 'tome']);
+    expect(lib.find((b) => b.slug === 'marginalia')!.title).toBe('Marginalia');
 
-    const tome = lib[0]!;
+    const tome = lib.find((b) => b.slug === 'tome')!;
     expect(tome.title).toBe('Tome'); // from book.meta.json
     expect(tome.toc.nodes.length).toBeGreaterThan(0);
 
@@ -38,7 +40,7 @@ describe('library (bundled book)', () => {
 
   // T-005 clause 4: the pager's prev/next data, now per-tome.
   it('test_pager_prev_next: neighbours are linked, ends are open', () => {
-    const routes = books()[0]!.chapters;
+    const routes = books().find((b) => b.slug === 'tome')!.chapters;
     const first = routes[0]!;
     const last = routes[routes.length - 1]!;
 
