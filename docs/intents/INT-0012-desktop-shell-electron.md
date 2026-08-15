@@ -2,9 +2,9 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0012
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 14 build plan (T-032–T-033)](../sprints/s14/sprint-plans/build-plan.md)
-- **Completion evidence:** none
+- **Completion evidence:** [T-032 completion (Sprint 14)](../work/completed-tasks.md#t-032-sprint-14), [T-033 completion (Sprint 14)](../work/completed-tasks.md#t-033-sprint-14)
 - **Code evidence:** [shared dist resolver](../../scripts/dist-resolve.mjs), [Electron main (app:// protocol + secure window + external links)](../../electron/main.cjs)
 - **Test evidence:** [Sprint 14 test report](../sprints/s14/sprint-tests/test-report.md)
 - **Documentation evidence:** [README — Desktop app](../../README.md#desktop-app)
@@ -75,3 +75,14 @@ confirmed in research: Electron launches here and Playwright's `_electron` drive
   README), covering all four acceptance criteria.
 - 2026-08-15: `planned → active` — Sprint 14 Build Phase began implementing T-032–T-033
   against the locked plans.
+- 2026-08-15: `active → realized` — T-032–T-033 delivered all four criteria: a native
+  Electron shell renders the built `dist/` fully offline via a secure `app://tome/`
+  protocol (a shared pure `resolveDistPath` maps root-absolute routes/assets/the search
+  index into `dist/`, refusing any path that escapes it), in a window with context
+  isolation on, Node integration off, and sandbox on; internal navigation stays in-app
+  while external `http(s)` links open in the OS browser and other schemes are denied.
+  Proven by `resolveDistPath` unit tests + a Playwright-`_electron` E2E (offline chapter
+  + sidebar, in-app `search-index.json` fetch, secure `webPreferences`, external-link
+  routing); the `serve-dist` extraction was verified regression-free by the browser
+  suite (15/15). Opening an arbitrary local library and signed installers remain the
+  next intent(s).
