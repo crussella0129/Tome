@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0010
-- **State:** planned
+- **State:** realized
 - **Work evidence:** [Sprint 12 build plan (T-026–T-028)](../sprints/s12/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
-- **Documentation evidence:** none
+- **Completion evidence:** [T-026–T-028 completion (Sprint 12)](../work/completed-tasks.md#t-026-sprint-12)
+- **Code evidence:** [on-this-page rail](../../src/components/OnThisPage.tsx), [keyboard chapter nav](../../src/components/ReaderKeys.tsx), [chapter wiring](../../src/pages/[...slug].astro), [layout rail column](../../src/layouts/BookLayout.astro)
+- **Test evidence:** [Sprint 12 test report](../sprints/s12/sprint-tests/test-report.md)
+- **Documentation evidence:** [README — Reading a chapter](../../README.md#reading-a-chapter)
 
 ## Intent
 
@@ -76,3 +76,14 @@ documentation readers provide them).
   T-028 (E2E + README), covering all four criteria.
 - 2026-08-14: `planned → active` — Sprint 12 Build Phase began implementing
   T-026–T-028 against the locked plans.
+- 2026-08-14: criterion 2 mechanism corrected from `IntersectionObserver` to a
+  passive scroll listener (measurement showed IO misses fast jump-scrolls); the
+  outcome ("scroll-synced active section") is unchanged — a factual correction, not
+  a scope change.
+- 2026-08-14: `active → realized` — T-026–T-028 delivered all four criteria: a
+  server-rendered "on this page" rail (H2/H3 `#slug` links, no rail when a chapter
+  has none), scroll-synced active highlighting (pure `activeHeadingSlug` + a scroll
+  listener), guarded keyboard chapter nav (arrows/`j`·`k`, stood down in inputs and
+  the open search dialog), all proven by 81 unit + 12 E2E; regression gates
+  (external/multibook/search/live-reload) green. Also fixed a latent multi-tome
+  Pager link bug while wiring keyboard nav.
