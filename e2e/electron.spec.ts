@@ -28,15 +28,19 @@ test.describe('Tome desktop shell', () => {
     await app?.close();
   });
 
-  // Criterion 1 + 4 — a chapter renders offline via the app:// protocol.
+  // Criterion 1 + 4 — the library, then a chapter, render offline via app://.
   test('test_electron_reader_offline', async () => {
     // Loaded through the custom protocol, not http/file.
     expect(page.url()).toContain(`${ORIGIN}/`);
 
-    // The chapter heading is rendered from the built HTML.
-    await expect(page.getByRole('heading', { level: 1, name: 'Introduction' })).toBeVisible();
+    // The default library opens the Bibliotheca listing both bundled tomes.
+    await expect(page.locator('a[href="/tome"]')).toBeVisible();
+    await expect(page.locator('a[href="/marginalia"]')).toBeVisible();
 
-    // The sidebar table of contents is present with chapter links.
+    // Into a tome: its chapter heading + sidebar TOC render, still offline.
+    await page.locator('a[href="/tome"]').click();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('heading', { level: 1, name: 'Introduction' })).toBeVisible();
     const nav = page.getByRole('navigation', { name: 'Table of contents' });
     await expect(nav.getByRole('link', { name: 'Getting Started' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'About' })).toBeVisible();

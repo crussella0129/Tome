@@ -2,7 +2,7 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0014
-- **State:** planned
+- **State:** active
 - **Work evidence:** [Sprint 15 build plan (T-036, T-037)](../sprints/s15/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
@@ -74,3 +74,4 @@ library shelf, which is the correct mental model for a *Bibliotheca of Tomes*.
   bundled sample tome making the default a 2-tome Bibliotheca, with the reader/
   search/electron E2E migrated to the multi-tome default) and T-037 (tome-count-
   aware search copy), covering all four criteria.
+- 2026-08-15: `planned → active` — Sprint 15 Build Phase implementing T-036.

@@ -310,3 +310,11 @@
 - **Files modified:** electron/main.cjs (per-load `setVisualZoomLevelLimits(1,1)` + a `zoom-changed` → `setZoomFactor(1)` snap-back), e2e/electron.spec.ts (`test_electron_zoom_locked`), plus Sprint 15 scaffold (INT-0013, INT-0014, research report, build/test plans, critique, sprint-meta, SUMMARY)
 - **EARS verified:** `npm run check:electron` 6/6. `test_electron_zoom_locked` — the window opens at `getZoomFactor()` 1; after `setZoomFactor(1.5)` + emitting the `zoom-changed` event a Ctrl-wheel/pinch fires, the shell snaps it back to 1. `setVisualZoomLevelLimits(1,1)` disables pinch/visual zoom on each load; deliberate keyboard zoom (Ctrl +/-/0, incl. the native Ctrl+0 reset) is untouched because it does not emit `zoom-changed`. `astro check` 0 errors. All prior electron tests (reader offline, search index, secure config, icon theme, external link) still green.
 - **Commit:** `39ca3b652b83bbf45c76898de51aa66e57965960`
+
+## T-036 (sprint 15)
+- **Description:** Second curated sample tome ("Marginalia") → the default build is a 2-tome Bibliotheca; reader/search/electron E2E migrated to the multi-tome default
+- **Intent:** [INT-0014](../intents/INT-0014-discoverable-library.md)
+- **Completed:** 2026-08-15T19:24:00Z
+- **Files modified:** src/content/books/marginalia/{SUMMARY.md,README.md,on-reading.md,on-machines.md,book.meta.json} (new tome), e2e/reader.spec.ts (namespaced under `/tome` + `test_reader_bibliotheca_default` + `test_reader_cross_tome_nav`), e2e/search.spec.ts (`test_search_across_tomes` + namespaced routes), e2e/electron.spec.ts (`test_electron_reader_offline` → Bibliotheca then into a tome), scripts/check-search.mjs (single-tome case now builds an explicit fixture, since the default is 2-tome)
+- **EARS verified:** default build emits `/` (Bibliotheca) + `/tome/*` + `/marginalia/*` (9 pages). `npm run test:e2e` 18/18 — incl. `test_reader_bibliotheca_default` (both tomes listed at `/`), `test_reader_cross_tome_nav` (switcher → sibling tome; Bibliotheca link → `/`), `test_search_across_tomes` (query "reading" returns hits tagged both "Tome" and "Marginalia"). `npm run check:electron` 6/6 (migrated reader-offline: Bibliotheca → into a tome, offline). Single-tome mode still covered by `check:external`. `astro check` 0 errors; `check:livereload` OK.
+- **Commit:** PENDING

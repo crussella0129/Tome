@@ -4,10 +4,47 @@ import { test, expect } from '@playwright/test';
 const PARCHMENT = 'rgb(243, 233, 210)'; // #f3e9d2
 const WARM_DARK = 'rgb(22, 19, 14)'; //   #16130e
 
+// The default library now ships two tomes (INT-0014), so `/` is the Bibliotheca
+// and the sample "Tome" chapters are namespaced under `/tome`.
+const TOME = '/tome';
+
 test.describe('Tome reader', () => {
+  // INT-0014 #1 — the default `/` is the Bibliotheca, listing both bundled tomes.
+  test('test_reader_bibliotheca_default', async ({ page }) => {
+    await page.goto('/');
+    // Both tomes are catalogued as links to their entry points.
+    await expect(page.locator('a[href="/tome"]')).toBeVisible();
+    await expect(page.locator('a[href="/marginalia"]')).toBeVisible();
+    await expect(page.getByText('Marginalia', { exact: true })).toBeVisible();
+    await expect(page.getByText('Tome', { exact: true })).toBeVisible();
+    // The masthead wordmark (the library owner / "Bibliotheca").
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  });
+
+  // INT-0014 #2 — cross-tome navigation: the switcher opens a sibling tome and the
+  // Bibliotheca link returns to `/` (all SSR'd links, no JS required).
+  test('test_reader_cross_tome_nav', async ({ page }) => {
+    await page.goto(TOME);
+    const nav = page.getByRole('navigation', { name: 'Table of contents' });
+    await expect(nav.getByRole('link', { name: 'Bibliotheca' })).toHaveAttribute('href', '/');
+
+    // Switch to the sibling tome via the switcher.
+    await nav.getByRole('link', { name: 'Marginalia' }).click();
+    await expect(page).toHaveURL(/\/marginalia$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Colophon' })).toBeVisible();
+
+    // The Bibliotheca link returns to the library shelf.
+    await page
+      .getByRole('navigation', { name: 'Table of contents' })
+      .getByRole('link', { name: 'Bibliotheca' })
+      .click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('a[href="/tome"]')).toBeVisible();
+  });
+
   // T-005 clause 1
   test('test_reader_renders_chapter_and_toc', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(TOME);
 
     // Sidebar lists the sample book's chapters.
     const nav = page.getByRole('navigation', { name: 'Table of contents' });
@@ -24,7 +61,7 @@ test.describe('Tome reader', () => {
 
   // T-005 clause 2
   test('test_chapter_code_block_styled', async ({ page }) => {
-    await page.goto('/getting-started');
+    await page.goto(`${TOME}/getting-started`);
     const pre = page.locator('.tome-prose pre').first();
     await expect(pre).toBeVisible();
 
@@ -39,7 +76,7 @@ test.describe('Tome reader', () => {
 
   // T-005 clause 3
   test('test_chapter_prose_elements_styled', async ({ page }) => {
-    await page.goto('/getting-started');
+    await page.goto(`${TOME}/getting-started`);
     // h2 carries the sacred underline rule.
     const h2 = page.locator('.tome-prose h2').first();
     await expect(h2).toBeVisible();
@@ -52,7 +89,7 @@ test.describe('Tome reader', () => {
     await expect(page.locator('.tome-prose code').first()).toBeVisible();
 
     // A table (in /components) is a bordered sacred panel; links render too.
-    await page.goto('/components');
+    await page.goto(`${TOME}/components`);
     await expect(page.locator('.tome-prose a').first()).toBeVisible();
     const th = page.locator('.tome-prose table th').first();
     await expect(th).toBeVisible();
@@ -60,7 +97,7 @@ test.describe('Tome reader', () => {
     expect(parseFloat(thBorder)).toBeGreaterThan(0);
 
     // A block quote (in /components/panels) has the accent rule.
-    await page.goto('/components/panels');
+    await page.goto(`${TOME}/components/panels`);
     const quote = page.locator('.tome-prose blockquote').first();
     await expect(quote).toBeVisible();
     const quoteBorder = await quote.evaluate(
@@ -71,7 +108,7 @@ test.describe('Tome reader', () => {
 
   // T-007 clause 1 (criterion 5 — images)
   test('test_chapter_image_styled', async ({ page }) => {
-    await page.goto('/components/panels');
+    await page.goto(`${TOME}/components/panels`);
     const img = page.locator('.tome-prose img').first();
     await expect(img).toBeVisible();
     // Rendered as a bordered plate, and the asset actually loaded.
@@ -88,7 +125,7 @@ test.describe('Tome reader', () => {
 
   // T-002 clause 3
   test('test_paper_theme_active', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(TOME);
     await expect(page.locator('body')).toHaveClass(/theme-ink-paper/);
     const bg = await page.evaluate(
       () => getComputedStyle(document.body).backgroundColor,
@@ -98,7 +135,7 @@ test.describe('Tome reader', () => {
 
   // T-002 clause 4
   test('test_dark_theme_active', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(TOME);
     // Wait for the sidebar island to hydrate before clicking, so the toggle's
     // handler is attached (avoids the `client:idle` race — T-208). TocSidebar's
     // onMount adds `js-nav` to the body once running.
@@ -114,7 +151,7 @@ test.describe('Tome reader', () => {
   // T-008 clause 1 (criterion 6 — honour prefers-reduced-motion)
   test('test_reduced_motion_honored', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto('/');
+    await page.goto(TOME);
     // A token-transitioned control (`.transition-token`) in the sidebar.
     const btn = page.getByRole('button', { name: 'Switch colour theme' });
     await expect(btn).toBeVisible();
@@ -131,7 +168,7 @@ test.describe('Tome reader', () => {
 
   // T-004 clause 4
   test('test_sidebar_focus_visible', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(TOME);
     await page.keyboard.press('Tab'); // first focusable is a sidebar anchor
     const focused = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;
@@ -153,7 +190,7 @@ test.describe('Tome reader', () => {
 
   // INT-0010 criterion 1/4 — the "on this page" rail lists sections; anchors land.
   test('test_reader_on_this_page_anchor', async ({ page }) => {
-    await page.goto('/components/panels');
+    await page.goto(`${TOME}/components/panels`);
     await page.waitForSelector('body.js-nav');
     const rail = page.getByRole('navigation', { name: 'On this page' });
     await expect(rail).toBeVisible();
@@ -166,19 +203,19 @@ test.describe('Tome reader', () => {
   // INT-0010 criterion 3/4 — an arrow key moves to the next chapter; a key typed
   // in the open search field does not.
   test('test_reader_keyboard_next_chapter', async ({ page }) => {
-    await page.goto('/getting-started');
+    await page.goto(`${TOME}/getting-started`);
     await page.waitForSelector('html[data-reader-keys="true"]');
     await page.keyboard.press('ArrowRight');
-    await expect(page).toHaveURL(/\/components$/);
+    await expect(page).toHaveURL(/\/tome\/components$/);
 
     // Guard: "/" opens search; ArrowRight in its field must not navigate.
-    await page.goto('/getting-started');
+    await page.goto(`${TOME}/getting-started`);
     await page.waitForSelector('html[data-reader-keys="true"]');
     await page.waitForSelector('html[data-search-ready="true"]');
     await page.keyboard.press('/');
     await expect(page.getByRole('dialog', { name: /search/i })).toBeVisible();
     await page.getByRole('combobox').press('ArrowRight');
-    await expect(page).toHaveURL(/\/getting-started$/);
+    await expect(page).toHaveURL(/\/tome\/getting-started$/);
   });
 
   // INT-0010 criterion 2 — the active section is scroll-synced (a short viewport
@@ -186,7 +223,7 @@ test.describe('Tome reader', () => {
   // stops being active once scrolled to the end.
   test('test_reader_on_this_page_scrollspy', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 420 });
-    await page.goto('/components/panels');
+    await page.goto(`${TOME}/components/panels`);
     await page.waitForSelector('html[data-on-this-page="true"]'); // rail scroll-sync live
     const rail = page.getByRole('navigation', { name: 'On this page' });
     const first = rail.getByRole('link', { name: 'Panels', exact: true });
@@ -197,7 +234,7 @@ test.describe('Tome reader', () => {
 
   // INT-0011 criterion 1/4 — admonitions render as titled sacred blocks.
   test('test_reader_admonition_rendered', async ({ page }) => {
-    await page.goto('/getting-started');
+    await page.goto(`${TOME}/getting-started`);
     const tip = page.locator('.admonition.admonition-tip');
     await expect(tip).toBeVisible();
     await expect(tip.locator('.admonition-title')).toHaveText('Tip');
@@ -208,7 +245,7 @@ test.describe('Tome reader', () => {
 
   // INT-0011 criterion 2 — footnotes link both ways and are styled sacredly.
   test('test_reader_footnote_links', async ({ page }) => {
-    await page.goto('/getting-started');
+    await page.goto(`${TOME}/getting-started`);
     const ref = page.locator('sup a[data-footnote-ref]').first();
     await expect(ref).toHaveAttribute('href', '#user-content-fn-spine');
 
@@ -237,7 +274,7 @@ test.describe('Tome reader', () => {
 
   // INT-0011 criterion 3 — print media hides the app chrome.
   test('test_reader_print_hides_chrome', async ({ page }) => {
-    await page.goto('/getting-started');
+    await page.goto(`${TOME}/getting-started`);
     await page.emulateMedia({ media: 'print' });
     const display = (sel: string) =>
       page.locator(sel).first().evaluate((el) => getComputedStyle(el).display);

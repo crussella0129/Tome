@@ -1,8 +1,10 @@
 // Search build gate: proves the search index is emitted end to end and that the
 // real scorer resolves a query against it — for a single-tome build (root URLs)
-// and a two-tome build (namespaced URLs). Imports the pure `search` from the TS
-// source (Node 24 strips the type-only import). src/content/books/ is restored to
-// HEAD after the multi build and on any failure, so the gate is idempotent.
+// and a two-tome build (namespaced URLs). Both modes are exercised with explicit
+// fixtures (the shipped default is now a two-tome library). Imports the pure
+// `search` from the TS source (Node 24 strips the type-only import).
+// src/content/books/ is restored to HEAD after the builds and on any failure, so
+// the gate is idempotent.
 //
 // NOTE: restores src/content/books/ via `git checkout` + `git clean` — intended
 // to run on a CLEAN tree (CI always is); uncommitted edits there are discarded.
@@ -45,18 +47,17 @@ function readIndex() {
   return JSON.parse(readFileSync(INDEX, 'utf8'));
 }
 
-// 1. Single-tome build → root URLs, index covers the sample, query resolves.
-console.log('check-search: building the single-tome sample …');
-build();
+// 1. Single-tome build (one external fixture) → root URLs, query resolves.
+console.log('check-search: building a single tome (fixtures/handbook) …');
+build({ TOME_BOOK: 'fixtures/handbook' });
 const single = readIndex();
-const gs = single.find((r) => r.url === '/getting-started');
-if (!gs) fail('single: no record with url /getting-started');
-if (!gs.headings.some((h) => h.slug === 'the-summary-is-the-spine')) {
-  fail('single: getting-started record is missing the expected heading slug');
+if (!single.some((r) => r.url === '/first')) fail('single: no record with root url /first');
+if (single.some((r) => r.url.startsWith('/handbook/'))) {
+  fail('single: URLs should be root, not namespaced under the tome slug');
 }
-const panels = search('panels', single);
-if (!panels.length || !panels[0].url.startsWith('/components/panels')) {
-  fail(`single: query "panels" did not resolve to /components/panels (got ${panels[0]?.url})`);
+const nested = search('nested', single);
+if (!nested.length || !nested[0].url.startsWith('/section/nested')) {
+  fail(`single: query "nested" did not resolve to /section/nested (got ${nested[0]?.url})`);
 }
 console.log('check-search: OK — single-tome index emitted, root URLs, query resolves.');
 
