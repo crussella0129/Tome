@@ -185,3 +185,40 @@
   height: auto;
   border: 1px solid var(--theme-border);
 }
+
+/* Admonitions (GitHub-style callouts) — one sacred panel form; the title plus a
+   restrained accent distinguish the type (no ink-on-paper rainbow). */
+.tome-prose .admonition {
+  margin-block: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--theme-window-background);
+  border: 1px solid var(--theme-border);
+  border-left: 3px solid var(--theme-text-subdued);
+  border-radius: var(--radius-md);
+}
+
+.tome-prose .admonition > * + * {
+  margin-top: var(--space-3);
+}
+
+.tome-prose .admonition-title {
+  margin: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--theme-text-subdued);
+}
+
+/* Attention types wear the rubric/amber focus accent; note/tip stay subdued. */
+.tome-prose .admonition-important,
+.tome-prose .admonition-warning,
+.tome-prose .admonition-caution {
+  border-left-color: var(--theme-focused-foreground);
+}
+
+.tome-prose .admonition-important > .admonition-title,
+.tome-prose .admonition-warning > .admonition-title,
+.tome-prose .admonition-caution > .admonition-title {
+  color: var(--theme-focused-foreground);
+}

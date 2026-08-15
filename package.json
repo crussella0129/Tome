@@ -20,6 +20,7 @@
     "check:search": "node scripts/check-search.mjs"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.2.2",
     "@astrojs/solid-js": "^7.0.2",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.2.0",
@@ -27,7 +28,8 @@
     "mdast-util-from-markdown": "^2.0.3",
     "smol-toml": "^1.8.0",
     "solid-js": "^1.9.14",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

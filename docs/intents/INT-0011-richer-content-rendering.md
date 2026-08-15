@@ -70,3 +70,5 @@ outcomes already delivered.
 - 2026-08-15: `proposed → planned` — Sprint 13 plans T-029 (admonitions remark plugin
   + styling), T-030 (footnote styling + rail filter + print stylesheet), and T-031
   (sample + E2E + README), covering all four criteria.
+- 2026-08-15: `planned → active` — Sprint 13 Build Phase began implementing
+  T-029–T-031 against the locked plans.
