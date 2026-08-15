@@ -13,6 +13,8 @@
   - [INT-0010 — In-page reader navigation](intents/INT-0010-in-page-reader-navigation.md)
   - [INT-0011 — Richer content rendering](intents/INT-0011-richer-content-rendering.md)
   - [INT-0012 — Desktop shell (Electron)](intents/INT-0012-desktop-shell-electron.md)
+  - [INT-0013 — Resilient scaling & zoom](intents/INT-0013-resilient-scaling-zoom.md)
+  - [INT-0014 — Discoverable library (Bibliotheca by default)](intents/INT-0014-discoverable-library.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -30,3 +32,4 @@
 - [Sprint 12](sprints/s12/sprint-meta.md)
 - [Sprint 13](sprints/s13/sprint-meta.md)
 - [Sprint 14](sprints/s14/sprint-meta.md)
+- [Sprint 15](sprints/s15/sprint-meta.md)

@@ -110,6 +110,18 @@ function createWindow(resolveDistPath, contentTypeFor) {
   nativeTheme.on('updated', onThemeChange);
   win.on('closed', () => nativeTheme.removeListener('updated', onThemeChange));
 
+  // Accidental pinch / Ctrl-wheel zoom must not silently shrink the viewport and
+  // collapse the desktop layout into the mobile drawer. Disable pinch (visual)
+  // zoom on each load, and snap any accidental mouse-wheel/pinch page zoom back to
+  // 100%. Deliberate keyboard zoom (Ctrl +/-/0) is unaffected — it does not emit
+  // 'zoom-changed' — so accessibility zoom and the native Ctrl+0 reset still work.
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  });
+  win.webContents.on('zoom-changed', () => {
+    win.webContents.setZoomFactor(1);
+  });
+
   win.loadURL(`${ORIGIN}/`);
   return win;
 }

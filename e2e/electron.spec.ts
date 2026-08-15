@@ -119,6 +119,25 @@ test.describe('Tome desktop shell', () => {
     await setTheme('system');
   });
 
+  // INT-0013 #1 — accidental zoom is neutralized so the layout can't collapse.
+  test('test_electron_zoom_locked', async () => {
+    // The window opens at 100%.
+    const initial = await app.evaluate(async ({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+    );
+    expect(initial).toBeCloseTo(1, 2);
+
+    // A stuck zoom followed by the same event an accidental wheel/pinch fires is
+    // snapped back to 1 by the shell's 'zoom-changed' handler.
+    const afterAccidental = await app.evaluate(async ({ BrowserWindow }) => {
+      const wc = BrowserWindow.getAllWindows()[0].webContents;
+      wc.setZoomFactor(1.5);
+      wc.emit('zoom-changed', {}, 'in'); // the event a Ctrl-wheel / pinch emits
+      return wc.getZoomFactor();
+    });
+    expect(afterAccidental).toBe(1);
+  });
+
   // Criterion 2 — external http(s) links open in the OS browser, not in-app;
   // other schemes are denied; internal navigation stays in the window.
   test('test_electron_external_link', async () => {
