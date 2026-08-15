@@ -4,8 +4,16 @@ Tome reads a book directory and turns it into a reader. The three pieces it
 cares about:
 
 1. `book.toml` — the book's metadata (optional for the viewer).
-2. `src/SUMMARY.md` — the table of contents. This is the spine.
+2. `src/SUMMARY.md` — the table of contents. This is the spine.[^spine]
 3. The chapter Markdown files linked from the summary.
+
+> [!TIP]
+> `book.toml` is optional — point Tome at any folder that has a `SUMMARY.md` and
+> it will read the book, auto-detecting the source directory.
+
+> [!WARNING]
+> A book without a `SUMMARY.md` cannot be read; the build stops with a clear
+> error listing the paths it tried.
 
 ## The summary is the spine
 
@@ -37,3 +45,6 @@ console.log(toc.nodes.length);
 
 Give it a `SUMMARY.md` string and it hands back the navigation model the sidebar
 renders. That is the whole contract.
+
+[^spine]: mdBook calls this file the *summary*; Tome renders it as the sidebar
+    table of contents.

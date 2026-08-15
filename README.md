@@ -145,3 +145,24 @@ Two in-chapter navigation aids appear while reading:
 - **Keyboard chapter navigation** — press **`→`** or **`j`** for the next
   chapter, **`←`** or **`k`** for the previous one. The shortcuts stand down while
   you're typing in a field or the search overlay is open.
+
+## Content rendering
+
+Beyond standard Markdown, Tome renders:
+
+- **Admonitions / callouts** — GitHub-style alerts. Start a blockquote with
+  `> [!NOTE]` (or `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`) and it becomes a titled,
+  sacred-styled panel. Rendered at build time by a small remark plugin — no client JS.
+
+  ```markdown
+  > [!WARNING]
+  > A book without a SUMMARY.md cannot be read.
+  ```
+
+- **Footnotes** — standard GFM footnotes (`text[^1]` … `[^1]: note`) render with a
+  reference → note → back-reference chain, styled as a quiet apparatus at the foot of
+  the chapter. (The auto "Footnotes" heading is kept out of the "on this page" rail.)
+
+- **Print / PDF** — a print stylesheet hides the sidebar, the on-this-page rail, the
+  search field, and the pager, so the browser's **Print / Save as PDF** yields a clean
+  ink-on-white chapter.
