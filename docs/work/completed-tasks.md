@@ -333,4 +333,4 @@
 - **Completed:** 2026-08-15T19:36:00Z
 - **Files modified:** e2e/scaling.spec.ts (new), playwright.config.ts (`scaling.spec.ts` added to `testMatch`)
 - **EARS verified:** `npm run test:e2e` 21/21 (18 prior + 3 new). `test_scaling_no_overflow` — across widths 480→2560 on the Bibliotheca and a reader chapter, `documentElement.scrollWidth ≤ innerWidth`. `test_scaling_dialog_in_viewport` — with search open at every width the dialog's rect stays within the viewport and the document does not overflow. `test_scaling_layout_mode` — stacked below 769px, two columns at ≥769px, three columns with the rail at ≥1024px (asserted via sidebar/content bounding boxes + the rail's computed display). Together with the Electron `test_electron_zoom_locked`, criterion 4's sweep runs in both the browser and the shell. `astro check` 0 errors.
-- **Commit:** PENDING
+- **Commit:** `f18ef1d14cfea9cd9d8b8eb2c95eaae0f9ba811b`
