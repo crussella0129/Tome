@@ -1,19 +1,21 @@
 ---
-import { chapterUrl } from '../lib/paths';
+import { chapterUrlIn } from '../lib/paths';
 import type { ChapterNode } from '../lib/summary.types';
 
 interface Props {
   prev?: ChapterNode;
   next?: ChapterNode;
+  /** Namespace prefix for the links; `''` in a single-tome library. */
+  bookSlug?: string;
 }
 
-const { prev, next } = Astro.props;
+const { prev, next, bookSlug = '' } = Astro.props;
 ---
 
 <nav class="pager" aria-label="Chapter navigation">
   {
     prev ? (
-      <a class="pager-link prev" href={chapterUrl(prev.href!)} rel="prev">
+      <a class="pager-link prev" href={chapterUrlIn(bookSlug, prev.href!)} rel="prev">
         <span class="dir">← Previous</span>
         <span class="title">{prev.title}</span>
       </a>
@@ -23,7 +25,7 @@ const { prev, next } = Astro.props;
   }
   {
     next ? (
-      <a class="pager-link next" href={chapterUrl(next.href!)} rel="next">
+      <a class="pager-link next" href={chapterUrlIn(bookSlug, next.href!)} rel="next">
         <span class="dir">Next →</span>
         <span class="title">{next.title}</span>
       </a>

@@ -150,4 +150,48 @@ test.describe('Tome reader', () => {
     expect(focused?.outlineStyle).not.toBe('none');
     expect(parseFloat(focused?.outlineWidth ?? '0')).toBeGreaterThan(0);
   });
+
+  // INT-0010 criterion 1/4 — the "on this page" rail lists sections; anchors land.
+  test('test_reader_on_this_page_anchor', async ({ page }) => {
+    await page.goto('/components/panels');
+    await page.waitForSelector('body.js-nav');
+    const rail = page.getByRole('navigation', { name: 'On this page' });
+    await expect(rail).toBeVisible();
+    const link = rail.getByRole('link', { name: 'Figures' });
+    await expect(link).toHaveAttribute('href', '#figures');
+    await link.click();
+    await expect(page).toHaveURL(/#figures$/);
+  });
+
+  // INT-0010 criterion 3/4 — an arrow key moves to the next chapter; a key typed
+  // in the open search field does not.
+  test('test_reader_keyboard_next_chapter', async ({ page }) => {
+    await page.goto('/getting-started');
+    await page.waitForSelector('html[data-reader-keys="true"]');
+    await page.keyboard.press('ArrowRight');
+    await expect(page).toHaveURL(/\/components$/);
+
+    // Guard: "/" opens search; ArrowRight in its field must not navigate.
+    await page.goto('/getting-started');
+    await page.waitForSelector('html[data-reader-keys="true"]');
+    await page.waitForSelector('html[data-search-ready="true"]');
+    await page.keyboard.press('/');
+    await expect(page.getByRole('dialog', { name: /search/i })).toBeVisible();
+    await page.getByRole('combobox').press('ArrowRight');
+    await expect(page).toHaveURL(/\/getting-started$/);
+  });
+
+  // INT-0010 criterion 2 — the active section is scroll-synced (a short viewport
+  // forces the chapter to scroll): the first section is active at the top and
+  // stops being active once scrolled to the end.
+  test('test_reader_on_this_page_scrollspy', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await page.goto('/components/panels');
+    await page.waitForSelector('html[data-on-this-page="true"]'); // rail scroll-sync live
+    const rail = page.getByRole('navigation', { name: 'On this page' });
+    const first = rail.getByRole('link', { name: 'Panels', exact: true });
+    await expect(first).toHaveAttribute('aria-current', 'true'); // top → first active
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(first).not.toHaveAttribute('aria-current', 'true'); // scrolled → moved on
+  });
 });

@@ -3,6 +3,7 @@ import '../styles/tokens.css';
 import InitTheme from '../components/init-theme.astro';
 import TocSidebar, { type SwitcherBook } from '../components/TocSidebar';
 import SearchOverlay from '../components/SearchOverlay';
+import OnThisPage, { type Heading } from '../components/OnThisPage';
 import { DEFAULT_THEME } from '../styles/theme';
 import type { BookToc } from '../lib/summary.types';
 
@@ -16,10 +17,13 @@ interface Props {
   books?: SwitcherBook[];
   /** The active tome's slug, marked in the switcher. */
   activeBook?: string;
+  /** The chapter's H2/H3 headings for the "on this page" rail. */
+  headings?: Heading[];
 }
 
-const { toc, activeSlug, title, bookSlug = '', books, activeBook } = Astro.props;
+const { toc, activeSlug, title, bookSlug = '', books, activeBook, headings = [] } = Astro.props;
 const bookTitle = toc.title ?? 'Tome';
+const hasRail = headings.length > 0;
 ---
 
 <!doctype html>
@@ -32,7 +36,7 @@ const bookTitle = toc.title ?? 'Tome';
   </head>
   <body class={DEFAULT_THEME.className}>
     <InitTheme />
-    <div class="app">
+    <div class:list={['app', { 'has-rail': hasRail }]}>
       <TocSidebar
         toc={toc}
         activeSlug={activeSlug}
@@ -48,6 +52,13 @@ const bookTitle = toc.title ?? 'Tome';
         </div>
         <slot />
       </main>
+      {
+        hasRail && (
+          <aside class="rail-col">
+            <OnThisPage headings={headings} client:idle />
+          </aside>
+        )
+      }
     </div>
   </body>
 </html>
@@ -72,6 +83,10 @@ const bookTitle = toc.title ?? 'Tome';
     margin-bottom: var(--space-6);
   }
 
+  .rail-col {
+    display: none;
+  }
+
   @media (min-width: 48.0625rem) {
     .app {
       grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
@@ -79,6 +94,19 @@ const bookTitle = toc.title ?? 'Tome';
 
     .content {
       padding: var(--space-10) var(--space-8);
+    }
+  }
+
+  /* Wide viewports gain the "on this page" rail as a third column. */
+  @media (min-width: 64rem) {
+    .app.has-rail {
+      grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr) minmax(11rem, 15rem);
+    }
+
+    .rail-col {
+      display: block;
+      padding: var(--space-10) var(--space-6) var(--space-10) 0;
+      min-width: 0;
     }
   }
 </style>

@@ -3,7 +3,10 @@ import type { MarkdownInstance } from 'astro';
 import BookLayout from '../layouts/BookLayout.astro';
 import Pager from '../components/Pager.astro';
 import Bibliotheca from '../components/Bibliotheca.astro';
+import ReaderKeys from '../components/ReaderKeys';
 import { books, tomePages, bibliothecaEntries, isContentKeyFor } from '../lib/book';
+import { chapterUrlIn } from '../lib/paths';
+import type { Heading } from '../components/OnThisPage';
 import { resolveOwner } from '../../scripts/library-config.mjs';
 
 // Every chapter's Markdown, keyed by path. Importers are lazy; each generated
@@ -29,6 +32,7 @@ const switcher = multi
   : undefined;
 
 let Content: MarkdownInstance<Record<string, unknown>>['Content'] | undefined;
+let headings: Heading[] = [];
 if (page.kind === 'chapter') {
   const entry = Object.entries(contentModules).find(([key]) =>
     isContentKeyFor(key, page.book.slug, page.route.chapter.href!),
@@ -38,8 +42,22 @@ if (page.kind === 'chapter') {
       `Tome: no Markdown found for "${page.book.slug}/${page.route.chapter.href}"`,
     );
   }
-  Content = (await entry[1]()).Content;
+  const mod = await entry[1]();
+  Content = mod.Content;
+  // The chapter's section headings (H2/H3) for the "on this page" rail.
+  headings = (mod.getHeadings?.() ?? []).filter((h) => h.depth >= 2 && h.depth <= 3);
 }
+
+// Adaptive prev/next chapter URLs for the pager + keyboard navigation.
+const navBookSlug = page.kind === 'chapter' && multi ? page.book.slug : '';
+const prevUrl =
+  page.kind === 'chapter' && page.route.prev
+    ? chapterUrlIn(navBookSlug, page.route.prev.href!)
+    : undefined;
+const nextUrl =
+  page.kind === 'chapter' && page.route.next
+    ? chapterUrlIn(navBookSlug, page.route.next.href!)
+    : undefined;
 ---
 
 {
@@ -54,11 +72,13 @@ if (page.kind === 'chapter') {
         books={switcher}
         activeBook={page.book.slug}
         title={page.route.chapter.title}
+        headings={headings}
       >
         <article class="tome-prose">
           <Content />
         </article>
-        <Pager prev={page.route.prev} next={page.route.next} />
+        <Pager prev={page.route.prev} next={page.route.next} bookSlug={navBookSlug} />
+        <ReaderKeys prevUrl={prevUrl} nextUrl={nextUrl} client:idle />
       </BookLayout>
     )
   )
