@@ -194,4 +194,58 @@ test.describe('Tome reader', () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await expect(first).not.toHaveAttribute('aria-current', 'true'); // scrolled → moved on
   });
+
+  // INT-0011 criterion 1/4 — admonitions render as titled sacred blocks.
+  test('test_reader_admonition_rendered', async ({ page }) => {
+    await page.goto('/getting-started');
+    const tip = page.locator('.admonition.admonition-tip');
+    await expect(tip).toBeVisible();
+    await expect(tip.locator('.admonition-title')).toHaveText('Tip');
+    await expect(page.locator('.admonition.admonition-warning .admonition-title')).toHaveText(
+      'Warning',
+    );
+  });
+
+  // INT-0011 criterion 2 — footnotes link both ways and are styled sacredly.
+  test('test_reader_footnote_links', async ({ page }) => {
+    await page.goto('/getting-started');
+    const ref = page.locator('sup a[data-footnote-ref]').first();
+    await expect(ref).toHaveAttribute('href', '#user-content-fn-spine');
+
+    // Sacred styling applied (C-001): the footnotes section is set off with a top
+    // border, and the reference renders superscript.
+    const borderTop = await page
+      .locator('section.footnotes')
+      .evaluate((el) => getComputedStyle(el).borderTopWidth);
+    expect(parseFloat(borderTop)).toBeGreaterThan(0);
+    // The ref renders raised (superscript). Tailwind's reset uses relative
+    // positioning (`top: -0.5em`) rather than `vertical-align`.
+    const top = await page
+      .locator('sup')
+      .first()
+      .evaluate((el) => parseFloat(getComputedStyle(el).top));
+    expect(top).toBeLessThan(0);
+
+    // The ref jumps to the note; the note's back-reference points back to the ref.
+    await ref.click();
+    await expect(page).toHaveURL(/#user-content-fn-spine$/);
+    await expect(page.locator('a.data-footnote-backref').first()).toHaveAttribute(
+      'href',
+      '#user-content-fnref-spine',
+    );
+  });
+
+  // INT-0011 criterion 3 — print media hides the app chrome.
+  test('test_reader_print_hides_chrome', async ({ page }) => {
+    await page.goto('/getting-started');
+    await page.emulateMedia({ media: 'print' });
+    const display = (sel: string) =>
+      page.locator(sel).first().evaluate((el) => getComputedStyle(el).display);
+    expect(await display('nav[aria-label="Table of contents"]')).toBe('none');
+    expect(await display('.searchbar')).toBe('none');
+    expect(await display('.rail-col')).toBe('none');
+    expect(await display('.pager')).toBe('none');
+    // The chapter itself remains visible.
+    expect(await display('article.tome-prose')).not.toBe('none');
+  });
 });

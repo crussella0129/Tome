@@ -5,6 +5,7 @@ import solid from '@astrojs/solid-js';
 import tailwindcss from '@tailwindcss/vite';
 import { resolveBookSource, syncPath } from './scripts/book-source.mjs';
 import { prepareChapterParentAssets } from './scripts/parent-assets.mjs';
+import remarkAlerts from './scripts/remark-alerts.mjs';
 
 const LIB_DEST = 'src/content/books';
 
@@ -77,6 +78,8 @@ export default defineConfig({
     // layer. Code renders as plain <pre><code>, styled monochrome in ink by
     // prose.css — the sacred / ink-on-paper look.
     syntaxHighlight: false,
+    // GitHub-style admonitions (`> [!NOTE]` …) → titled sacred blocks.
+    remarkPlugins: [remarkAlerts],
   },
   vite: {
     plugins: [tailwindcss()],

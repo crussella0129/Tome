@@ -1,0 +1,40 @@
+/* Print — hide the app chrome so a chapter exports cleanly to paper/PDF via the
+   browser's Print. Screen rendering is untouched; these rules apply only in print. */
+@media print {
+  /* Drop the reading grid; the chapter flows full-width. */
+  .app {
+    display: block;
+  }
+
+  /* Hide every navigational surface: the sidebar (and its theme toggle), the
+     search field, the "on this page" rail, and the chapter pager. */
+  nav[aria-label='Table of contents'],
+  .searchbar,
+  .rail-col,
+  .pager {
+    display: none !important;
+  }
+
+  .content {
+    padding: 0;
+  }
+
+  /* Ink on white, links in ink (URLs aren't useful on paper). */
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .tome-prose a {
+    color: #000;
+  }
+
+  /* Keep cohesive blocks from splitting across pages. */
+  .tome-prose .admonition,
+  .tome-prose figure,
+  .tome-prose pre,
+  .tome-prose table,
+  .tome-prose blockquote {
+    break-inside: avoid;
+  }
+}

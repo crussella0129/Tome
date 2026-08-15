@@ -44,8 +44,11 @@ if (page.kind === 'chapter') {
   }
   const mod = await entry[1]();
   Content = mod.Content;
-  // The chapter's section headings (H2/H3) for the "on this page" rail.
-  headings = (mod.getHeadings?.() ?? []).filter((h) => h.depth >= 2 && h.depth <= 3);
+  // The chapter's section headings (H2/H3) for the "on this page" rail. The GFM
+  // footnotes section injects an H2 "Footnotes" (id `footnote-label`) — drop it.
+  headings = (mod.getHeadings?.() ?? []).filter(
+    (h) => h.depth >= 2 && h.depth <= 3 && h.slug !== 'footnote-label',
+  );
 }
 
 // Adaptive prev/next chapter URLs for the pager + keyboard navigation.
