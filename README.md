@@ -15,11 +15,13 @@ the search overlay, and the in-chapter navigation aids).
 npm install
 npm run dev            # http://localhost:4321
 npm run build          # static site in dist/
+npm run electron       # build, then open the desktop app
 npm test               # unit + integration (Vitest)
 npm run test:e2e       # end-to-end (Playwright)
 npm run check:external # external single-book build gate
 npm run check:multibook # two-tome Bibliotheca build gate
 npm run check:search   # search index + query build gate
+npm run check:electron # desktop-shell end-to-end gate (Playwright + Electron)
 ```
 
 ## View a book
@@ -166,3 +168,35 @@ Beyond standard Markdown, Tome renders:
 - **Print / PDF** — a print stylesheet hides the sidebar, the on-this-page rail, the
   search field, and the pager, so the browser's **Print / Save as PDF** yields a clean
   ink-on-white chapter.
+
+## Desktop app
+
+Tome ships a native **Electron** desktop shell that renders the built library
+entirely **offline** — the Bibliotheca, the reader, search, and in-page navigation
+all work with no dev server and no network.
+
+```bash
+npm run electron        # runs `astro build`, then opens the app
+npm run electron:start  # opens the app against an existing dist/ (no rebuild)
+```
+
+The window loads `dist/` through a custom `app://tome/` protocol that maps
+root-absolute URLs (routes, `/_astro/…`, `/fonts/…`, `/search-index.json`) onto the
+built output. It is configured securely — context isolation on, Node integration
+off, sandbox on — and the protocol serves only files resolved **inside** `dist/`.
+Internal links stay in the window; external `http`/`https` links open in your OS
+default browser. The main process is a single small file under `electron/`.
+
+To package a **specific** book into the app, build it in first, then launch:
+
+```bash
+TOME_BOOK=/path/to/your/mdbook npm run electron
+```
+
+`npm run check:electron` proves the shell end to end (a chapter renders offline and
+the search index is reachable) with Playwright driving a real Electron window.
+
+> [!NOTE]
+> This is the desktop shell itself. Opening an arbitrary local library from within
+> the app (rebuilding against a chosen folder) and producing signed installers are
+> planned follow-ups.
