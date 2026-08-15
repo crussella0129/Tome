@@ -309,4 +309,4 @@
 - **Completed:** 2026-08-15T19:15:24Z
 - **Files modified:** electron/main.cjs (per-load `setVisualZoomLevelLimits(1,1)` + a `zoom-changed` → `setZoomFactor(1)` snap-back), e2e/electron.spec.ts (`test_electron_zoom_locked`), plus Sprint 15 scaffold (INT-0013, INT-0014, research report, build/test plans, critique, sprint-meta, SUMMARY)
 - **EARS verified:** `npm run check:electron` 6/6. `test_electron_zoom_locked` — the window opens at `getZoomFactor()` 1; after `setZoomFactor(1.5)` + emitting the `zoom-changed` event a Ctrl-wheel/pinch fires, the shell snaps it back to 1. `setVisualZoomLevelLimits(1,1)` disables pinch/visual zoom on each load; deliberate keyboard zoom (Ctrl +/-/0, incl. the native Ctrl+0 reset) is untouched because it does not emit `zoom-changed`. `astro check` 0 errors. All prior electron tests (reader offline, search index, secure config, icon theme, external link) still green.
-- **Commit:** PENDING
+- **Commit:** `39ca3b652b83bbf45c76898de51aa66e57965960`
