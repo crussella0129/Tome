@@ -326,3 +326,11 @@
 - **Files modified:** src/lib/search-copy.ts (new — pure `searchScopeCopy(libraryWide)`), src/lib/__tests__/search-copy.test.ts (new), src/components/SearchOverlay.tsx (`libraryWide` prop drives trigger/hint/dialog-label via the helper), src/layouts/BookLayout.astro + src/components/Bibliotheca.astro (pass `libraryWide`), src/components/__tests__/SearchOverlay.test.tsx (render library-wide)
 - **EARS verified:** `searchScopeCopy` unit suite — `test_search_copy_library_wide` (N>1 → "Search the library" / "every tome") and `test_search_copy_single_tome` (N=1 → "Search this tome", never "library"/"every tome"). Vitest 96/96; `astro check` 0 errors; `npm run test:e2e` 18/18 (the 2-tome default renders the library-wide copy; the search dialog is still named "Search the library"). BookLayout passes `libraryWide` from the switcher size; the Bibliotheca (multi only) passes true.
 - **Commit:** `527065c9e5901dc2b3e2c994302db995916aa14c`
+
+## T-035 (sprint 15)
+- **Description:** Responsive scaling sweep — a browser width-matrix guard against overflow, dialog clipping, and wrong layout mode
+- **Intent:** [INT-0013](../intents/INT-0013-resilient-scaling-zoom.md)
+- **Completed:** 2026-08-15T19:36:00Z
+- **Files modified:** e2e/scaling.spec.ts (new), playwright.config.ts (`scaling.spec.ts` added to `testMatch`)
+- **EARS verified:** `npm run test:e2e` 21/21 (18 prior + 3 new). `test_scaling_no_overflow` — across widths 480→2560 on the Bibliotheca and a reader chapter, `documentElement.scrollWidth ≤ innerWidth`. `test_scaling_dialog_in_viewport` — with search open at every width the dialog's rect stays within the viewport and the document does not overflow. `test_scaling_layout_mode` — stacked below 769px, two columns at ≥769px, three columns with the rail at ≥1024px (asserted via sidebar/content bounding boxes + the rail's computed display). Together with the Electron `test_electron_zoom_locked`, criterion 4's sweep runs in both the browser and the shell. `astro check` 0 errors.
+- **Commit:** PENDING

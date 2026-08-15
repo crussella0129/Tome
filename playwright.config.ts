@@ -10,7 +10,7 @@ export default defineConfig({
   testDir: './e2e',
   testMatch: externalBookMode
     ? '**/external-book.spec.ts'
-    : ['**/reader.spec.ts', '**/search.spec.ts'],
+    : ['**/reader.spec.ts', '**/search.spec.ts', '**/scaling.spec.ts'],
   fullyParallel: !externalBookMode,
   workers: externalBookMode ? 1 : undefined,
   forbidOnly: !!process.env.CI,
