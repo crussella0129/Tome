@@ -14,6 +14,7 @@
 @import './fonts.css';
 @import './paper.css';
 @import './prose.css';
+@import './print.css';
 
 /* ------------------------------------------------------------------ */
 /* Tailwind @theme — expose the semantic tokens as utilities so island  */
