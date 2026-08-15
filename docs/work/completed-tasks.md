@@ -325,4 +325,4 @@
 - **Completed:** 2026-08-15T19:33:30Z
 - **Files modified:** src/lib/search-copy.ts (new — pure `searchScopeCopy(libraryWide)`), src/lib/__tests__/search-copy.test.ts (new), src/components/SearchOverlay.tsx (`libraryWide` prop drives trigger/hint/dialog-label via the helper), src/layouts/BookLayout.astro + src/components/Bibliotheca.astro (pass `libraryWide`), src/components/__tests__/SearchOverlay.test.tsx (render library-wide)
 - **EARS verified:** `searchScopeCopy` unit suite — `test_search_copy_library_wide` (N>1 → "Search the library" / "every tome") and `test_search_copy_single_tome` (N=1 → "Search this tome", never "library"/"every tome"). Vitest 96/96; `astro check` 0 errors; `npm run test:e2e` 18/18 (the 2-tome default renders the library-wide copy; the search dialog is still named "Search the library"). BookLayout passes `libraryWide` from the switcher size; the Bibliotheca (multi only) passes true.
-- **Commit:** PENDING
+- **Commit:** `527065c9e5901dc2b3e2c994302db995916aa14c`
