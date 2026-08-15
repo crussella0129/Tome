@@ -5,8 +5,8 @@
 - **State:** active
 - **Work evidence:** [Sprint 15 build plan (T-034, T-035)](../sprints/s15/sprint-plans/build-plan.md)
 - **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Code evidence:** [shell zoom hardening](../../electron/main.cjs), [responsive scaling sweep](../../e2e/scaling.spec.ts)
+- **Test evidence:** [Sprint 15 test report](../sprints/s15/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent

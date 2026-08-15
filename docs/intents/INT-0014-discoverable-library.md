@@ -5,8 +5,8 @@
 - **State:** active
 - **Work evidence:** [Sprint 15 build plan (T-036, T-037)](../sprints/s15/sprint-plans/build-plan.md)
 - **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Code evidence:** [second bundled tome "Marginalia"](../../src/content/books/marginalia/SUMMARY.md), [tome-count-aware search copy](../../src/lib/search-copy.ts)
+- **Test evidence:** [Sprint 15 test report](../sprints/s15/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
