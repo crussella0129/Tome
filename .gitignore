@@ -5,6 +5,9 @@ dist/
 .astro/
 # Fetched at build time (not redistributed) by scripts/fetch-fonts.mjs
 public/fonts/
+# Local terminal font produced by scripts/make-terminal-font.py (unpublished licence — never commit the binary)
+build/
+*.ttf
 # Test / build output
 coverage/
 test-results/

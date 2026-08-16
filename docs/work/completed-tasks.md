@@ -374,3 +374,11 @@
 - **Files modified:** README.md (showcase rewrite: centered banner + tagline + stack line; a hero reader screenshot; a Highlights gallery — Bibliotheca, search, content, dark; then Quickstart (with a collapsible "more commands"), Read any mdBook, the Bibliotheca, Search, Reading a chapter (+ the rail image, right-aligned), Content rendering, Desktop app + experimental Tauri; all prior accurate content preserved), src/lib/__tests__/readme-assets.test.ts (new)
 - **EARS verified:** `test_readme_assets_resolve` green — every `docs/assets/...` image referenced in the README (the banner + 6 screenshots) resolves on disk, so no broken images. The README opens with the hero + gallery and keeps the practical guide. The "beautiful/finished" quality is surfaced to the user for sign-off (not self-certified).
 - **Commit:** `ee680642791a3b00012372f4a60770b0f101b944`
+
+## T-043 (sprint 17)
+- **Description:** MekzantineMono as a local terminal font — a committed converter (woff2 → monospace TTF), installed per-user; the font binary not committed
+- **Intent:** [INT-0016](../intents/INT-0016-showcase-readme.md)
+- **Completed:** 2026-08-16T04:20:00Z
+- **Files modified:** scripts/make-terminal-font.py (new — fontTools: decompress woff2 → TTF, set `post.isFixedPitch=1` + monospace OS/2 PANOSE, rename family to "Mekzantine Mono" on both Windows+Mac name records, verify monospace), .gitignore (`build/` + `*.ttf` — never commit the font binary)
+- **EARS verified:** `python scripts/make-terminal-font.py` → `build/MekzantineMono.ttf` with `windows family='Mekzantine Mono', monospace=True` (uniform ASCII advance; the source's mis-set `isFixedPitch` flag corrected). Installed **per-user** (no admin, reversible): copied to `%LOCALAPPDATA%\Microsoft\Windows\Fonts` + an `HKCU\…\Fonts` value + `AddFontResource`/`WM_FONTCHANGE`, so it lists as "Mekzantine Mono" in the terminal font picker. `git check-ignore` confirms the TTF is not committable — only the script is. (Caveat: Mekzantine has no published licence; the binary stays local.)
+- **Commit:** PENDING
