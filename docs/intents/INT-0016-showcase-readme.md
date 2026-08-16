@@ -5,9 +5,9 @@
 - **State:** active
 - **Work evidence:** [Sprint 17 build plan (T-040–T-043)](../sprints/s17/sprint-plans/build-plan.md)
 - **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
-- **Documentation evidence:** none
+- **Code evidence:** [banner generator](../../scripts/make-banner.mjs), [screenshot generator](../../scripts/make-shots.mjs), [terminal-font converter](../../scripts/make-terminal-font.py)
+- **Test evidence:** [Sprint 17 test report](../sprints/s17/sprint-tests/test-report.md)
+- **Documentation evidence:** [the showcase README](../../README.md)
 
 ## Intent
 
