@@ -373,4 +373,4 @@
 - **Completed:** 2026-08-16T04:12:00Z
 - **Files modified:** README.md (showcase rewrite: centered banner + tagline + stack line; a hero reader screenshot; a Highlights gallery — Bibliotheca, search, content, dark; then Quickstart (with a collapsible "more commands"), Read any mdBook, the Bibliotheca, Search, Reading a chapter (+ the rail image, right-aligned), Content rendering, Desktop app + experimental Tauri; all prior accurate content preserved), src/lib/__tests__/readme-assets.test.ts (new)
 - **EARS verified:** `test_readme_assets_resolve` green — every `docs/assets/...` image referenced in the README (the banner + 6 screenshots) resolves on disk, so no broken images. The README opens with the hero + gallery and keeps the practical guide. The "beautiful/finished" quality is surfaced to the user for sign-off (not self-certified).
-- **Commit:** PENDING
+- **Commit:** `ee680642791a3b00012372f4a60770b0f101b944`
