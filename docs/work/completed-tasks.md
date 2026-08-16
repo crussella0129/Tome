@@ -381,4 +381,4 @@
 - **Completed:** 2026-08-16T04:20:00Z
 - **Files modified:** scripts/make-terminal-font.py (new — fontTools: decompress woff2 → TTF, set `post.isFixedPitch=1` + monospace OS/2 PANOSE, rename family to "Mekzantine Mono" on both Windows+Mac name records, verify monospace), .gitignore (`build/` + `*.ttf` — never commit the font binary)
 - **EARS verified:** `python scripts/make-terminal-font.py` → `build/MekzantineMono.ttf` with `windows family='Mekzantine Mono', monospace=True` (uniform ASCII advance; the source's mis-set `isFixedPitch` flag corrected). Installed **per-user** (no admin, reversible): copied to `%LOCALAPPDATA%\Microsoft\Windows\Fonts` + an `HKCU\…\Fonts` value + `AddFontResource`/`WM_FONTCHANGE`, so it lists as "Mekzantine Mono" in the terminal font picker. `git check-ignore` confirms the TTF is not committable — only the script is. (Caveat: Mekzantine has no published licence; the binary stays local.)
-- **Commit:** PENDING
+- **Commit:** `31db09b6371348ba78123558a1b6f951bf31327d`
