@@ -220,3 +220,19 @@ the search index is reachable) with Playwright driving a real Electron window.
 > This is the desktop shell itself. Opening an arbitrary local library from within
 > the app (rebuilding against a chosen folder) and producing signed installers are
 > planned follow-ups.
+
+### Platforms — experimental Tauri shell
+
+Electron is the shipping shell. An **experimental Tauri v2** shell lives under
+`src-tauri/` (Rust + the OS WebView2) as a smaller, native alternative — a ~9 MB
+binary vs Electron's bundled ~348 MB Chromium. It reuses the same `dist/` and, on
+Windows, renders identically (WebView2 is Chromium). It needs the Rust toolchain:
+
+```bash
+npm run build          # build dist/ first
+npm run tauri dev      # run the experimental Tauri shell
+```
+
+It is a spike (evaluated in `docs/sprints/s16/`); Electron remains the default and
+fallback. Cross-platform parity (Linux/WebKitGTK) and signed installers are the
+next steps before it could replace Electron.
