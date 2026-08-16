@@ -13,6 +13,8 @@
     "electron": "npm run build && electron electron/main.cjs",
     "electron:start": "electron electron/main.cjs",
     "tauri": "tauri",
+    "tauri:dev": "npm run build && tauri dev",
+    "tauri:build": "npm run build && tauri build",
     "check": "astro check",
     "test": "vitest run",
     "test:watch": "vitest",

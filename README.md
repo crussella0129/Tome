@@ -201,22 +201,26 @@ reader's display font, and it **follows your system theme** (force one with
 `TOME_ICON=dark|light|auto`).
 
 > [!NOTE]
-> Opening an arbitrary local library from within the app and producing signed installers are
-> planned follow-ups.
+> Opening an arbitrary local library from within the app is a planned follow-up.
 
-### Platforms — experimental Tauri shell
+### Also native — Tauri shell (Windows)
 
-Electron is the shipping shell. An **experimental Tauri v2** shell lives under `src-tauri/` (Rust +
-the OS WebView2) as a smaller, native alternative — a ~9 MB binary vs Electron's bundled ~348 MB
-Chromium — reusing the same `dist/`. On Windows it renders identically (WebView2 is Chromium).
+Electron is the shipping default. Alongside it, a **Tauri v2** shell under `src-tauri/` (Rust + the
+OS WebView2) is a smaller, native alternative — an **8.9 MB `app.exe`** vs Electron's bundled
+~348 MB Chromium — reusing the same `dist/`. On Windows it renders identically (WebView2 is
+Chromium), and it reaches Electron parity: the **"Tome" window** with a **theme-aware "T" icon**,
+the same **zoom hardening** (an accidental pinch / Ctrl-wheel can't collapse the layout), secure
+offline `dist/` loading, and external links routed to your OS browser.
 
 ```bash
-npm run build && npm run tauri dev   # needs the Rust toolchain
+npm run tauri:dev     # build the site, then run the native window (needs the Rust toolchain)
+npm run tauri:build   # produce a native Windows installer (NSIS + MSI, unsigned)
 ```
 
-It is a spike (evaluated in `docs/sprints/s16/`); Electron remains the default and fallback.
-Cross-platform parity (Linux/WebKitGTK) and signed installers are the next steps before it could
-replace Electron.
+`tauri:build` emits `Tome_0.1.0_x64-setup.exe` (NSIS, ~2 MB) and `Tome_0.1.0_x64_en-US.msi`
+(~3 MB) under `src-tauri/target/release/bundle/`. The port is verified in
+`docs/sprints/s18/`. Electron remains the default and fallback; cross-platform parity
+(Linux/WebKitGTK), code-signing, and the eventual default-switch are the documented next steps.
 
 ---
 

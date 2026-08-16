@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "tome",
+  "productName": "Tome",
   "version": "0.1.0",
-  "identifier": "com.tome.desktop.spike",
+  "identifier": "com.tome.desktop",
   "build": {
     "frontendDist": "../dist"
   },
