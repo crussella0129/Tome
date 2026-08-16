@@ -203,24 +203,35 @@ reader's display font, and it **follows your system theme** (force one with
 > [!NOTE]
 > Opening an arbitrary local library from within the app is a planned follow-up.
 
-### Also native — Tauri shell (Windows)
+### Also native — Tauri shell (Windows + Linux)
 
 Electron is the shipping default. Alongside it, a **Tauri v2** shell under `src-tauri/` (Rust + the
-OS WebView2) is a smaller, native alternative — an **8.9 MB `app.exe`** vs Electron's bundled
-~348 MB Chromium — reusing the same `dist/`. On Windows it renders identically (WebView2 is
-Chromium), and it reaches Electron parity: the **"Tome" window** with a **theme-aware "T" icon**,
-the same **zoom hardening** (an accidental pinch / Ctrl-wheel can't collapse the layout), secure
-offline `dist/` loading, and external links routed to your OS browser.
+OS webview) is a smaller, native alternative that reuses the same `dist/` and runs from **one
+codebase on both Windows (WebView2) and Linux (WebKitGTK)** — rendering identically to Chromium.
+It reaches Electron parity: the **"Tome" window** with a **theme-aware "T" icon**, the same
+**zoom hardening** (an accidental pinch / Ctrl-wheel can't collapse the layout), secure offline
+`dist/` loading, and external links routed to your OS browser.
+
+**Windows** — an **8.9 MB `app.exe`** (vs Electron's bundled ~348 MB Chromium):
 
 ```bash
 npm run tauri:dev     # build the site, then run the native window (needs the Rust toolchain)
 npm run tauri:build   # produce a native Windows installer (NSIS + MSI, unsigned)
 ```
 
-`tauri:build` emits `Tome_0.1.0_x64-setup.exe` (NSIS, ~2 MB) and `Tome_0.1.0_x64_en-US.msi`
-(~3 MB) under `src-tauri/target/release/bundle/`. The port is verified in
-`docs/sprints/s18/`. Electron remains the default and fallback; cross-platform parity
-(Linux/WebKitGTK), code-signing, and the eventual default-switch are the documented next steps.
+`tauri:build` emits `Tome_0.1.0_x64-setup.exe` (NSIS, ~2 MB) and `Tome_0.1.0_x64_en-US.msi` (~3 MB).
+
+**Linux** — a native **`.deb`** (~4 MB) plus an **AppImage**, built on Linux or WSL2
+(Ubuntu 22.04+, webkit2gtk-4.1):
+
+```bash
+scripts/build-linux.sh   # see the header for the one-time apt prerequisites
+```
+
+Both bundle under `src-tauri/target/release/bundle/`. The ports are verified in `docs/sprints/s18/`
+(Windows) and `docs/sprints/s19/` (Linux). Electron remains the default and fallback; `.rpm`
+packaging, code-signing, a Linux CI build, and the eventual default-switch are the documented
+next steps.
 
 ---
 
