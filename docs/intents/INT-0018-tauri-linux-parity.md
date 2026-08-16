@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0018
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 19 build plan](../sprints/s19/sprint-plans/build-plan.md) (T-047/T-048/T-049)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-047 completion (Sprint 19)](../work/completed-tasks.md#t-047-sprint-19), [T-048 completion (Sprint 19)](../work/completed-tasks.md#t-048-sprint-19), [T-049 completion (Sprint 19)](../work/completed-tasks.md#t-049-sprint-19)
+- **Code evidence:** [Linux build script](../../scripts/build-linux.sh), [Tauri shell (cross-platform, `src-tauri/src/lib.rs`)](../../src-tauri/src/lib.rs) — commits `8fd8943` (T-047), `e554cd9` (T-048), `cf5fdbd` (T-049)
 - **Test evidence:** [Sprint 19 test report](../sprints/s19/sprint-tests/test-report.md), [port verification](../sprints/s19/sprint-tests/port-verification.md) — all 4 criteria pass (proceed-with-caveats)
-- **Documentation evidence:** none
+- **Documentation evidence:** [README — Tauri shell (Windows + Linux)](../../README.md#also-native--tauri-shell-windows--linux)
 
 ## Intent
 
@@ -78,3 +78,11 @@ the last technical unknown between the two shells.
   (coexistence + docs); see the linked build plan.
 - 2026-08-16: `planned` → `active` at Sprint 19 Build Phase — implementation begun
   (T-047 first).
+- 2026-08-16: `active` → `realized` at Sprint 19 Loop Phase — all four acceptance
+  criteria pass (test report, proceed-with-caveats). The one Tauri codebase builds on
+  Linux (webkit2gtk-4.1) into a native `.deb` + AppImage and renders offline on WebKitGTK
+  (Bibliotheca + a chapter) with the "Tome" branding and zoom that can't collapse — no
+  shell code change was needed. Windows Tauri + Electron + all gates stayed green. The
+  render/branding/zoom are visual/behavioural and were surfaced to the user for the
+  merge-time sign-off. `.rpm`, code-signing, real-hardware/cross-DE coverage, a Linux CI
+  build, an automated WebDriver E2E, and the default-switch remain follow-on intents.
