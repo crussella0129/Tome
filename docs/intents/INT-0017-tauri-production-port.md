@@ -4,10 +4,10 @@
 - **Intent ID:** INT-0017
 - **State:** realized
 - **Work evidence:** [Sprint 18 build plan](../sprints/s18/sprint-plans/build-plan.md) (T-044/T-045/T-046)
-- **Completion evidence:** [Completed tasks](../work/completed-tasks.md) — T-044 (branding + icon set + scripts), T-045 (theme icon + zoom hardening), T-046 (package + verify + coexistence)
-- **Code evidence:** `src-tauri/tauri.conf.json`, `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml`, `src-tauri/icons/*` — commits `25c0371` (T-044), `259ec99` (T-045), `5ff9aab` (T-046)
-- **Test evidence:** [Sprint 18 test report](../sprints/s18/sprint-tests/test-report.md) — all 4 criteria pass (proceed-with-caveats)
-- **Documentation evidence:** [Port verification](../sprints/s18/sprint-tests/port-verification.md) + the README "Also native — Tauri shell (Windows)" section
+- **Completion evidence:** [T-044 completion (Sprint 18)](../work/completed-tasks.md#t-044-sprint-18), [T-045 completion (Sprint 18)](../work/completed-tasks.md#t-045-sprint-18), [T-046 completion (Sprint 18)](../work/completed-tasks.md#t-046-sprint-18)
+- **Code evidence:** [Tauri shell (`src-tauri/src/lib.rs`)](../../src-tauri/src/lib.rs), [Tauri config](../../src-tauri/tauri.conf.json), [Rust deps + WebView2 hook](../../src-tauri/Cargo.toml)
+- **Test evidence:** [Sprint 18 test report](../sprints/s18/sprint-tests/test-report.md), [port verification](../sprints/s18/sprint-tests/port-verification.md)
+- **Documentation evidence:** [README — Tauri shell](../../README.md#also-native--tauri-shell-windows)
 
 ## Intent
 
