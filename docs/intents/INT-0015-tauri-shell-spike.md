@@ -5,9 +5,9 @@
 - **State:** active
 - **Work evidence:** [Sprint 16 build plan (T-038, T-039)](../sprints/s16/sprint-plans/build-plan.md)
 - **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
-- **Documentation evidence:** none
+- **Code evidence:** [Tauri spike shell (`src-tauri/src/lib.rs`)](../../src-tauri/src/lib.rs), [Tauri config](../../src-tauri/tauri.conf.json)
+- **Test evidence:** [Sprint 16 test report](../sprints/s16/sprint-tests/test-report.md), [go/no-go recommendation](../sprints/s16/sprint-tests/go-no-go.md)
+- **Documentation evidence:** [README — experimental Tauri shell](../../README.md#platforms--experimental-tauri-shell)
 
 ## Intent
 
