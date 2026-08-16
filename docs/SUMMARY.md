@@ -15,6 +15,7 @@
   - [INT-0012 — Desktop shell (Electron)](intents/INT-0012-desktop-shell-electron.md)
   - [INT-0013 — Resilient scaling & zoom](intents/INT-0013-resilient-scaling-zoom.md)
   - [INT-0014 — Discoverable library (Bibliotheca by default)](intents/INT-0014-discoverable-library.md)
+  - [INT-0015 — Tauri desktop shell (feasibility spike)](intents/INT-0015-tauri-shell-spike.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -33,3 +34,4 @@
 - [Sprint 13](sprints/s13/sprint-meta.md)
 - [Sprint 14](sprints/s14/sprint-meta.md)
 - [Sprint 15](sprints/s15/sprint-meta.md)
+- [Sprint 16](sprints/s16/sprint-meta.md)
