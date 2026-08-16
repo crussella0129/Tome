@@ -6,7 +6,7 @@
 - **Work evidence:** [Sprint 19 build plan](../sprints/s19/sprint-plans/build-plan.md) (T-047/T-048/T-049)
 - **Completion evidence:** none
 - **Code evidence:** none
-- **Test evidence:** none
+- **Test evidence:** [Sprint 19 test report](../sprints/s19/sprint-tests/test-report.md), [port verification](../sprints/s19/sprint-tests/port-verification.md) — all 4 criteria pass (proceed-with-caveats)
 - **Documentation evidence:** none
 
 ## Intent
