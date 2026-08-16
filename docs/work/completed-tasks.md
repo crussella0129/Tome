@@ -357,4 +357,4 @@
 - **Completed:** 2026-08-16T03:52:25Z
 - **Files modified:** scripts/make-banner.mjs (new — renders the wordmark via headless Chromium with the real woff2 base64-embedded, same technique as make-icon.mjs), docs/assets/banner.png (new — 2400×760 @2x, ~14.7 KB), package.json (`assets:banner` + `assets:shots` scripts), plus Sprint 17 scaffold (INT-0016, research report, build/test plans, critique, sprint-meta, SUMMARY)
 - **EARS verified:** `node scripts/make-banner.mjs` renders the "TOME" wordmark in the Mekzantine display font, a rubric-red rule, a mono-set tagline ("an ink-on-old-paper mdBook reader"), and a printed-page frame — ink `#2b2018` on parchment `#f3e9d2`, type baked into the raster (no font/CSS dependency), so it renders on GitHub. Verified visually (rendered inline; surfaced to the user). Only a rendered image is committed — the woff2 binaries stay git-ignored.
-- **Commit:** PENDING
+- **Commit:** `93e492ecdc8cda60f2a4eb93175b968a42947b1c`
