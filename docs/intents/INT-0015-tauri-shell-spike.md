@@ -2,9 +2,9 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0015
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 16 build plan (T-038, T-039)](../sprints/s16/sprint-plans/build-plan.md)
-- **Completion evidence:** none
+- **Completion evidence:** [T-038 completion (Sprint 16)](../work/completed-tasks.md#t-038-sprint-16), [T-039 completion (Sprint 16)](../work/completed-tasks.md#t-039-sprint-16)
 - **Code evidence:** [Tauri spike shell (`src-tauri/src/lib.rs`)](../../src-tauri/src/lib.rs), [Tauri config](../../src-tauri/tauri.conf.json)
 - **Test evidence:** [Sprint 16 test report](../sprints/s16/sprint-tests/test-report.md), [go/no-go recommendation](../sprints/s16/sprint-tests/go-no-go.md)
 - **Documentation evidence:** [README — experimental Tauri shell](../../README.md#platforms--experimental-tauri-shell)
@@ -85,3 +85,14 @@ a full port, per the user's explicit "spike-first" choice.
   (build/launch verification, aesthetic screenshot, recorded go/no-go, isolation),
   covering all four criteria.
 - 2026-08-16: `planned → active` — Sprint 16 Build Phase began with T-038.
+- 2026-08-16: `active → realized` — the spike delivered all four criteria and a
+  recorded **GO**: an isolated `src-tauri/` Tauri v2 app loads the built `dist/`
+  offline in a native WebView2 window, resolves Astro's directory routes **natively**
+  (no custom protocol — the top risk retired), and renders the ink-on-paper
+  aesthetic pixel-identical to Chromium, at **8.6 MB** (vs Electron's 348 MB) and
+  ~37 MB RAM; internal navigation stays in-app and external `http(s)` routes to the
+  OS browser (secure by default). Isolation confirmed (vitest 96, astro 0,
+  check:electron 6, browser e2e 21, four gates green). The gating caveat is
+  Linux/WebKitGTK parity, unverified here. A full Tauri port (parity: theme icon,
+  zoom lock, launch scripts, signed installers; + Linux verification) is the
+  follow-on intent this GO unlocks; Electron stays the default + fallback meanwhile.
