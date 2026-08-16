@@ -421,4 +421,4 @@
 - **Completed:** 2026-08-16T18:05:00Z
 - **Files modified:** docs/sprints/s19/sprint-tests/port-verification.md (new — Linux build/launch evidence + coexistence table + follow-ups), README.md (the Tauri section extended from "(Windows)" to "(Windows + Linux)": one codebase on WebView2 + WebKitGTK, the `scripts/build-linux.sh` → `.deb` (~4 MB) + AppImage, and the shifted next-steps — `.rpm`/signing/CI/default-switch)
 - **EARS verified:** all Linux support is additive / already `cfg`-gated (the only committed source change is `scripts/build-linux.sh` + README + docs; `src-tauri/` source is unchanged since INT-0017), so the shared shell still builds clean on Windows and nothing regressed: **`cargo build` + `cargo clippy` (Windows target) clean / 0 warnings; Vitest 97/97; `astro check` 0 errors; `check:external`/`check:livereload`/`check:multibook`/`check:search` PASS; `check:electron` 6/6; browser `test:e2e` 21/21.** The README now documents the Linux build; `.rpm`, code-signing, a Linux CI build, and the default-switch are the documented follow-ups.
-- **Commit:** PENDING
+- **Commit:** `cf5fdbd84076a298ab5c28f4ac82d398edf0c2b2`
