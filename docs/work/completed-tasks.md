@@ -366,3 +366,11 @@
 - **Files modified:** scripts/make-shots.mjs (new — spawns serve-dist, drives dist/ with Playwright reusing the e2e hydration signals), docs/assets/shots/{bibliotheca,reader,search,content,dark,rail}.png (new, 2× DPI)
 - **EARS verified:** `node scripts/make-shots.mjs` (after `astro build`) captured six distinct, current shots of the 2-tome default: the **Bibliotheca** shelf; the **reader** (sidebar + TOMES switcher + Bibliotheca link + a chapter + both admonitions + the on-this-page rail); **library-wide search** (query "reading" → results tagged across both Marginalia and Tome); **rich content** (a code panel + the "TOME · PIPELINE" figure on Panels & Tables); the **warm-dark theme**; and a focused **on-this-page rail**. Verified visually (rendered inline; surfaced to the user). Reproducible via `npm run assets:shots`.
 - **Commit:** `ca8f134af29757fe462014fdaddd6e89a66d9513`
+
+## T-042 (sprint 17)
+- **Description:** README rewritten into a showcase — hero banner, reader hero shot, a 2×2 feature gallery, then the polished practical guide
+- **Intent:** [INT-0016](../intents/INT-0016-showcase-readme.md)
+- **Completed:** 2026-08-16T04:12:00Z
+- **Files modified:** README.md (showcase rewrite: centered banner + tagline + stack line; a hero reader screenshot; a Highlights gallery — Bibliotheca, search, content, dark; then Quickstart (with a collapsible "more commands"), Read any mdBook, the Bibliotheca, Search, Reading a chapter (+ the rail image, right-aligned), Content rendering, Desktop app + experimental Tauri; all prior accurate content preserved), src/lib/__tests__/readme-assets.test.ts (new)
+- **EARS verified:** `test_readme_assets_resolve` green — every `docs/assets/...` image referenced in the README (the banner + 6 screenshots) resolves on disk, so no broken images. The README opens with the hero + gallery and keeps the practical guide. The "beautiful/finished" quality is surfaced to the user for sign-off (not self-certified).
+- **Commit:** PENDING

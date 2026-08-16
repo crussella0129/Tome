@@ -1,40 +1,87 @@
-# Tome
+<p align="center">
+  <img src="docs/assets/banner.png" alt="TOME — an ink-on-old-paper mdBook reader" width="820">
+</p>
 
-An [mdBook](https://github.com/rust-lang/mdBook) viewer that renders a book's
-source through the [sacred computer](https://github.com/internet-development/www-sacred)
-component vocabulary (from Internet Development Studio), re-skinned into an
-**ink-on-old-paper** aesthetic and set in Mekzantine.
+<p align="center">
+  <em>An <a href="https://github.com/rust-lang/mdBook">mdBook</a> reader rendered through the
+  <a href="https://github.com/internet-development/www-sacred">sacred computer</a> component
+  vocabulary — re-inked onto old paper, set in Mekzantine.</em>
+</p>
 
-Built with Astro + SolidJS + TypeScript + Tailwind v4 — zero JavaScript by
-default, with only a few small islands hydrated (the table-of-contents sidebar,
-the search overlay, and the in-chapter navigation aids).
+<p align="center">
+  <strong>Astro · SolidJS · TypeScript · Tailwind v4</strong>
+  &nbsp;·&nbsp; zero-JS by default
+  &nbsp;·&nbsp; library-wide search
+  &nbsp;·&nbsp; native offline desktop shell
+</p>
 
-## Develop
+---
+
+**Tome** turns any mdBook's source — a `SUMMARY.md` and its chapter Markdown — into a
+fast, static reader with an ink-on-old-paper, sacred-terminal aesthetic. It reads one
+book or a whole **Bibliotheca** of them, ships almost no JavaScript (a handful of tiny
+islands hydrate on idle), and runs as a native, fully-offline desktop app.
+
+<p align="center">
+  <img src="docs/assets/shots/reader.png" alt="The Tome reader — sidebar, chapter, and the on-this-page rail" width="900">
+</p>
+<p align="center"><sub>The reader — a spine parsed from <code>SUMMARY.md</code>, a tome switcher, GitHub-style admonitions, and an “on this page” rail.</sub></p>
+
+## Highlights
+
+<table>
+<tr>
+<td width="50%" valign="top">
+  <img src="docs/assets/shots/bibliotheca.png" alt="The Bibliotheca" width="100%"><br>
+  <sub><b>A library, not just a book.</b> Point Tome at several mdBooks and <code>/</code> becomes the Bibliotheca — the library shelf.</sub>
+</td>
+<td width="50%" valign="top">
+  <img src="docs/assets/shots/search.png" alt="Library-wide search" width="100%"><br>
+  <sub><b>Library-wide search.</b> Press <kbd>/</kbd> to rank results across every tome — each hit tagged with its book.</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+  <img src="docs/assets/shots/content.png" alt="Rich content rendering" width="100%"><br>
+  <sub><b>Rich content, faithfully rendered.</b> Code panels, figures, tables, admonitions, and footnotes — all in the sacred idiom.</sub>
+</td>
+<td width="50%" valign="top">
+  <img src="docs/assets/shots/dark.png" alt="The warm-dark theme" width="100%"><br>
+  <sub><b>Two themes.</b> Ink-on-old-paper by day, a warm amber-phosphor terminal by night.</sub>
+</td>
+</tr>
+</table>
+
+## Quickstart
 
 ```bash
 npm install
-npm run dev            # http://localhost:4321
-npm run build          # static site in dist/
-npm run electron       # build, then open the desktop app
-npm test               # unit + integration (Vitest)
-npm run test:e2e       # end-to-end (Playwright)
-npm run check:external # external single-book build gate
-npm run check:multibook # two-tome Bibliotheca build gate
-npm run check:search   # search index + query build gate
-npm run check:electron # desktop-shell end-to-end gate (Playwright + Electron)
+npm run dev        # http://localhost:4321 — the bundled sample library
+npm run build      # static site in dist/
+npm run electron   # build, then open the native desktop app
 ```
 
-## View a book
+<details>
+<summary>More commands (tests &amp; build gates)</summary>
 
-By default Tome renders a bundled sample **library** of two tomes — *Tome* (the
-guide you're reading) and *Marginalia* (a short companion) — under
-`src/content/books/`. Because there are two, the site opens on the **Bibliotheca**
-(the library shelf); pick a tome to start reading, and use the sidebar switcher to
-cross between them. A single tome (see below) opens straight into the reader.
+```bash
+npm test                # unit + integration (Vitest)
+npm run test:e2e        # end-to-end (Playwright)
+npm run check:external  # external single-book build gate
+npm run check:multibook # two-tome Bibliotheca build gate
+npm run check:search    # search index + query build gate
+npm run check:electron  # desktop-shell end-to-end gate (Playwright + Electron)
+```
+</details>
 
-To view **any** mdBook, point `TOME_BOOK` at its root directory (the folder that
-contains `book.toml` and a `src/SUMMARY.md`) — a prebuild step copies that book
-into the reader:
+By default Tome renders a bundled sample **library** of two tomes — *Tome* (this guide)
+and *Marginalia* (a short companion). Because there are two, the site opens on the
+**Bibliotheca**; pick a tome to read, and use the sidebar switcher to cross between them.
+
+## Read any mdBook
+
+Point `TOME_BOOK` at a book's root (the folder with `book.toml` and a `src/SUMMARY.md`) —
+a prebuild step copies it into the reader:
 
 ```bash
 TOME_BOOK=/path/to/your/mdbook npm run build
@@ -42,52 +89,30 @@ TOME_BOOK=/path/to/your/mdbook npm run build
 TOME_BOOK=/path/to/your/mdbook npm run dev
 ```
 
-The book's chapters, nesting, prefix/suffix, drafts, and separators come from
+The book's chapters, nesting, prefix/suffix, drafts, and separators all come from
 `SUMMARY.md`. When `TOME_BOOK` is unset, the committed sample renders unchanged.
 
-### Books without a `book.toml`
-
-`book.toml` is **optional**. If it declares `[book].src`, that source is used
-(and must contain `SUMMARY.md`). Otherwise Tome auto-detects the source by looking
-for `SUMMARY.md` in this order:
-
-1. `src/` (the mdBook default)
-2. `docs/` (common for docs-first repos)
-3. the root itself
-
-So a config-less book whose source lives in `docs/` — for example a Sprint-Loops
-Project Book — loads directly:
+**No `book.toml`? No problem.** It's optional. If it declares `[book].src`, that source
+is used; otherwise Tome auto-detects `SUMMARY.md` in `src/`, then `docs/`, then the root:
 
 ```bash
 TOME_BOOK=/path/to/CubiKan npm run dev   # detects docs/, no book.toml needed
 ```
 
-The title is taken from `book.toml` (`[book].title`) when present, otherwise the
-**book root's directory name** (e.g. `CubiKan`), otherwise the `SUMMARY.md`
-heading. If no `SUMMARY.md` is found in any candidate location, the build stops
-with a clear error listing the paths it tried.
+The title is taken from `book.toml` (`[book].title`), else the book root's directory name,
+else the `SUMMARY.md` heading. If no `SUMMARY.md` is found, the build stops with a clear
+error listing the paths it tried.
 
-> Note: loading external books overwrites the content library
-> `src/content/books/` at build time (a deploy-time action). Leave `TOME_BOOK` /
-> `TOME_BOOKS` unset for normal development so the sample stays pristine.
+**Live reload.** During `npm run dev` with `TOME_BOOK` set, Tome watches the book's source
+and re-syncs changed files into the reader — edit a chapter on disk and it updates with no
+restart. (A dev-only integration; it has no effect on `npm run build`.)
 
-### Live reload
-
-During `npm run dev` with `TOME_BOOK` set, Tome watches the book's source and
-re-syncs changed files into the reader — **edit a chapter on disk and the reader
-updates with no restart**:
-
-```bash
-TOME_BOOK=/path/to/CubiKan npm run dev   # then edit CubiKan/docs/*.md live
-```
-
-This is a dev-only Astro integration (`astro:server:setup`); it has no effect on
-`npm run build`.
+> Note: loading external books overwrites the content library `src/content/books/` at build
+> time. Leave `TOME_BOOK`/`TOME_BOOKS` unset for normal development so the sample stays pristine.
 
 ## The Bibliotheca — a library of books
 
-Tome can present **several books** at once. Point `TOME_BOOKS` at multiple book
-roots (comma-separated), or list them in a committed `tome.config.toml`:
+Point `TOME_BOOKS` at multiple roots (comma-separated), or list them in `tome.config.toml`:
 
 ```bash
 TOME_BOOKS=/path/to/rust-book,/path/to/CubiKan npm run build
@@ -108,131 +133,92 @@ slug  = "cubikan"      # optional — the URL segment (defaults to the directory
 
 **Routing is adaptive:**
 
-- **One book** → its chapters sit at the root (`/`, `/getting-started`, …). A
-  single book is the whole site, exactly as before.
-- **Several books** → each is namespaced under its slug (`/rust-book/…`,
-  `/cubikan/…`), `/` becomes the **Bibliotheca** (a library index listing every
-  tome), and the sidebar gains a book switcher for jumping between them.
+- **One book** → its chapters sit at the root (`/`, `/getting-started`, …); the book is the whole site.
+- **Several books** → each is namespaced under its slug (`/rust-book/…`), `/` becomes the
+  **Bibliotheca** (a library index), and the sidebar gains a switcher for jumping between tomes.
 
-Precedence is `TOME_BOOKS` / `TOME_BOOK` (env) → `tome.config.toml` → the bundled
-sample. Colliding slugs are de-duplicated (`guide`, `guide-2`). The Bibliotheca
-masthead reads *“The Bibliotheca of &lt;owner&gt;”*, where `owner` defaults to your
-OS login name — override it with the `owner` key or the `TOME_OWNER` env var.
-
-The `check:multibook` gate builds a two-tome library from the fixtures and
-asserts the namespaced routes, the Bibliotheca index, and the sidebar switcher.
+Precedence is `TOME_BOOKS`/`TOME_BOOK` (env) → `tome.config.toml` → the bundled sample.
+Colliding slugs are de-duplicated (`guide`, `guide-2`). The masthead reads *“The Bibliotheca of
+&lt;owner&gt;”*, where `owner` defaults to your OS login name (override with the `owner` key or
+`TOME_OWNER`).
 
 ## Search
 
-Every page has a library-wide search. Press **`/`** (or click the search field)
-to open a keyboard-first overlay: type to rank results across every tome —
-titles and headings above body text — and open one to jump straight to that
-chapter, deep-linking to the matching heading.
+Every page has a **library-wide** search. Press <kbd>/</kbd> (or click the field) to open a
+keyboard-first overlay: type to rank results across every tome — titles and headings above
+body text — and open one to jump straight to that chapter, deep-linking to the matching heading.
 
-Search is built from a static index emitted at build time
-(`dist/search-index.json`) covering each chapter's title, headings, and text. The
-reader fetches it lazily on first open, so a page ships no search data until you
-ask for it — the overlay is the only search JavaScript, hydrated when idle. In a
-multi-tome library, results link to `/<tome>/<chapter>`; with a single tome, to
-`/<chapter>`.
-
-The `check:search` gate builds the site (single- and multi-tome) and asserts the
-index is emitted with the right coverage and adaptive URLs, and that a real query
-resolves to the expected chapter.
+It's built from a static index emitted at build time (`dist/search-index.json`) covering each
+chapter's title, headings, and text. The reader fetches it lazily on first open, so a page ships
+no search data until you ask — the overlay is the only search JavaScript, hydrated when idle.
 
 ## Reading a chapter
 
-Two in-chapter navigation aids appear while reading:
+<img src="docs/assets/shots/rail.png" alt="The on-this-page rail" align="right" width="240">
 
-- **On this page** — on wide viewports, a rail beside the chapter lists its
-  section headings (H2/H3) as links. It is server-rendered (the links work with
-  no JavaScript) and, once hydrated, highlights the section you're currently
-  scrolled to.
-- **Keyboard chapter navigation** — press **`→`** or **`j`** for the next
-  chapter, **`←`** or **`k`** for the previous one. The shortcuts stand down while
-  you're typing in a field or the search overlay is open.
+Two in-chapter aids appear while reading:
+
+- **On this page** — on wide viewports, a rail lists the chapter's section headings (H2/H3).
+  It's server-rendered (the links work with no JavaScript) and, once hydrated, highlights the
+  section you're scrolled to.
+- **Keyboard navigation** — <kbd>→</kbd>/<kbd>j</kbd> for the next chapter, <kbd>←</kbd>/<kbd>k</kbd>
+  for the previous. The shortcuts stand down while you're typing or the search overlay is open.
+
+<br clear="right">
 
 ## Content rendering
 
 Beyond standard Markdown, Tome renders:
 
-- **Admonitions / callouts** — GitHub-style alerts. Start a blockquote with
-  `> [!NOTE]` (or `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`) and it becomes a titled,
-  sacred-styled panel. Rendered at build time by a small remark plugin — no client JS.
-
-  ```markdown
-  > [!WARNING]
-  > A book without a SUMMARY.md cannot be read.
-  ```
-
-- **Footnotes** — standard GFM footnotes (`text[^1]` … `[^1]: note`) render with a
-  reference → note → back-reference chain, styled as a quiet apparatus at the foot of
-  the chapter. (The auto "Footnotes" heading is kept out of the "on this page" rail.)
-
-- **Print / PDF** — a print stylesheet hides the sidebar, the on-this-page rail, the
-  search field, and the pager, so the browser's **Print / Save as PDF** yields a clean
-  ink-on-white chapter.
+- **Admonitions / callouts** — GitHub-style alerts. Start a blockquote with `> [!NOTE]` (or
+  `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`) and it becomes a titled, sacred-styled panel.
+  Rendered at build time by a small remark plugin — no client JS.
+- **Footnotes** — GFM footnotes render with a reference → note → back-reference chain, styled as
+  a quiet apparatus at the foot of the chapter. (The auto “Footnotes” heading is kept out of the rail.)
+- **Print / PDF** — a print stylesheet hides the sidebar, rail, search, and pager, so the
+  browser's **Print / Save as PDF** yields a clean ink-on-white chapter.
 
 ## Desktop app
 
-Tome ships a native **Electron** desktop shell that renders the built library
-entirely **offline** — the Bibliotheca, the reader, search, and in-page navigation
-all work with no dev server and no network.
+Tome ships a native **Electron** shell that renders the built library entirely **offline** — the
+Bibliotheca, the reader, search, and in-page navigation all work with no dev server and no network.
 
 ```bash
 npm run electron        # runs `astro build`, then opens the app
 npm run electron:start  # opens the app against an existing dist/ (no rebuild)
 ```
 
-The window loads `dist/` through a custom `app://tome/` protocol that maps
-root-absolute URLs (routes, `/_astro/…`, `/fonts/…`, `/search-index.json`) onto the
-built output. It is configured securely — context isolation on, Node integration
-off, sandbox on — and the protocol serves only files resolved **inside** `dist/`.
-Internal links stay in the window; external `http`/`https` links open in your OS
-default browser. The main process is a single small file under `electron/`.
+The window loads `dist/` through a custom `app://tome/` protocol that maps root-absolute URLs
+(routes, `/_astro/…`, `/fonts/…`, `/search-index.json`) onto the built output. It's configured
+securely — context isolation on, Node integration off, sandbox on — and the protocol serves only
+files resolved **inside** `dist/`. Internal links stay in the window; external `http`/`https` links
+open in your OS browser.
 
-Zoom is handled so it can't break the layout: an accidental trackpad pinch or
-Ctrl-wheel gesture is neutralized (it would otherwise shrink the viewport past a
-responsive breakpoint and collapse the reader into the mobile drawer), while
-deliberate keyboard zoom — including the native **Ctrl+0** reset — still works.
-
-The app icon is a "T" in the reader's display font, and it **follows your system
-theme** — the near-black tile in dark mode, the ink-on-parchment tile in light mode —
-swapping live if you change the OS theme. Force one with `TOME_ICON`:
-
-```bash
-TOME_ICON=dark npm run electron:start   # or: light | auto (default = follow system)
-```
-
-The two icon variants are generated from the font by `node scripts/make-icon.mjs`
-into `electron/assets/` (a multi-size `.ico` for Windows, a `.png` for Linux).
-
-To package a **specific** book into the app, build it in first, then launch:
-
-```bash
-TOME_BOOK=/path/to/your/mdbook npm run electron
-```
-
-`npm run check:electron` proves the shell end to end (a chapter renders offline and
-the search index is reachable) with Playwright driving a real Electron window.
+Zoom can't break the layout: an accidental trackpad pinch / Ctrl-wheel gesture is neutralized
+(it would otherwise collapse the reader into the mobile drawer), while deliberate keyboard zoom —
+including the native <kbd>Ctrl+0</kbd> reset — still works. The **app icon** is a “T” in the
+reader's display font, and it **follows your system theme** (force one with
+`TOME_ICON=dark|light|auto`).
 
 > [!NOTE]
-> This is the desktop shell itself. Opening an arbitrary local library from within
-> the app (rebuilding against a chosen folder) and producing signed installers are
+> Opening an arbitrary local library from within the app and producing signed installers are
 > planned follow-ups.
 
 ### Platforms — experimental Tauri shell
 
-Electron is the shipping shell. An **experimental Tauri v2** shell lives under
-`src-tauri/` (Rust + the OS WebView2) as a smaller, native alternative — a ~9 MB
-binary vs Electron's bundled ~348 MB Chromium. It reuses the same `dist/` and, on
-Windows, renders identically (WebView2 is Chromium). It needs the Rust toolchain:
+Electron is the shipping shell. An **experimental Tauri v2** shell lives under `src-tauri/` (Rust +
+the OS WebView2) as a smaller, native alternative — a ~9 MB binary vs Electron's bundled ~348 MB
+Chromium — reusing the same `dist/`. On Windows it renders identically (WebView2 is Chromium).
 
 ```bash
-npm run build          # build dist/ first
-npm run tauri dev      # run the experimental Tauri shell
+npm run build && npm run tauri dev   # needs the Rust toolchain
 ```
 
-It is a spike (evaluated in `docs/sprints/s16/`); Electron remains the default and
-fallback. Cross-platform parity (Linux/WebKitGTK) and signed installers are the
-next steps before it could replace Electron.
+It is a spike (evaluated in `docs/sprints/s16/`); Electron remains the default and fallback.
+Cross-platform parity (Linux/WebKitGTK) and signed installers are the next steps before it could
+replace Electron.
+
+---
+
+<p align="center"><sub>The brand banner and screenshots are generated from the reader's own font and build —
+<code>npm run assets:banner</code> · <code>npm run assets:shots</code>.</sub></p>
