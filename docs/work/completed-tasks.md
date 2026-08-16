@@ -365,4 +365,4 @@
 - **Completed:** 2026-08-16T04:05:00Z
 - **Files modified:** scripts/make-shots.mjs (new — spawns serve-dist, drives dist/ with Playwright reusing the e2e hydration signals), docs/assets/shots/{bibliotheca,reader,search,content,dark,rail}.png (new, 2× DPI)
 - **EARS verified:** `node scripts/make-shots.mjs` (after `astro build`) captured six distinct, current shots of the 2-tome default: the **Bibliotheca** shelf; the **reader** (sidebar + TOMES switcher + Bibliotheca link + a chapter + both admonitions + the on-this-page rail); **library-wide search** (query "reading" → results tagged across both Marginalia and Tome); **rich content** (a code panel + the "TOME · PIPELINE" figure on Panels & Tables); the **warm-dark theme**; and a focused **on-this-page rail**. Verified visually (rendered inline; surfaced to the user). Reproducible via `npm run assets:shots`.
-- **Commit:** PENDING
+- **Commit:** `ca8f134af29757fe462014fdaddd6e89a66d9513`
