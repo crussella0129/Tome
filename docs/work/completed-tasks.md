@@ -358,3 +358,11 @@
 - **Files modified:** scripts/make-banner.mjs (new — renders the wordmark via headless Chromium with the real woff2 base64-embedded, same technique as make-icon.mjs), docs/assets/banner.png (new — 2400×760 @2x, ~14.7 KB), package.json (`assets:banner` + `assets:shots` scripts), plus Sprint 17 scaffold (INT-0016, research report, build/test plans, critique, sprint-meta, SUMMARY)
 - **EARS verified:** `node scripts/make-banner.mjs` renders the "TOME" wordmark in the Mekzantine display font, a rubric-red rule, a mono-set tagline ("an ink-on-old-paper mdBook reader"), and a printed-page frame — ink `#2b2018` on parchment `#f3e9d2`, type baked into the raster (no font/CSS dependency), so it renders on GitHub. Verified visually (rendered inline; surfaced to the user). Only a rendered image is committed — the woff2 binaries stay git-ignored.
 - **Commit:** `93e492ecdc8cda60f2a4eb93175b968a42947b1c`
+
+## T-041 (sprint 17)
+- **Description:** Feature screenshots — a reproducible Playwright capture of the built reader for the README gallery
+- **Intent:** [INT-0016](../intents/INT-0016-showcase-readme.md)
+- **Completed:** 2026-08-16T04:05:00Z
+- **Files modified:** scripts/make-shots.mjs (new — spawns serve-dist, drives dist/ with Playwright reusing the e2e hydration signals), docs/assets/shots/{bibliotheca,reader,search,content,dark,rail}.png (new, 2× DPI)
+- **EARS verified:** `node scripts/make-shots.mjs` (after `astro build`) captured six distinct, current shots of the 2-tome default: the **Bibliotheca** shelf; the **reader** (sidebar + TOMES switcher + Bibliotheca link + a chapter + both admonitions + the on-this-page rail); **library-wide search** (query "reading" → results tagged across both Marginalia and Tome); **rich content** (a code panel + the "TOME · PIPELINE" figure on Panels & Tables); the **warm-dark theme**; and a focused **on-this-page rail**. Verified visually (rendered inline; surfaced to the user). Reproducible via `npm run assets:shots`.
+- **Commit:** PENDING
