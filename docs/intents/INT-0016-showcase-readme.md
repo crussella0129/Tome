@@ -2,9 +2,9 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0016
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 17 build plan (T-040–T-043)](../sprints/s17/sprint-plans/build-plan.md)
-- **Completion evidence:** none
+- **Completion evidence:** [T-040 completion (Sprint 17)](../work/completed-tasks.md#t-040-sprint-17), [T-041 completion (Sprint 17)](../work/completed-tasks.md#t-041-sprint-17), [T-042 completion (Sprint 17)](../work/completed-tasks.md#t-042-sprint-17), [T-043 completion (Sprint 17)](../work/completed-tasks.md#t-043-sprint-17)
 - **Code evidence:** [banner generator](../../scripts/make-banner.mjs), [screenshot generator](../../scripts/make-shots.mjs), [terminal-font converter](../../scripts/make-terminal-font.py)
 - **Test evidence:** [Sprint 17 test report](../sprints/s17/sprint-tests/test-report.md)
 - **Documentation evidence:** [the showcase README](../../README.md)
@@ -79,3 +79,11 @@ with the app icon) keeps it GitHub-safe and respects the font's unclear licence
   T-041 (feature screenshots), T-042 (README showcase rewrite), and T-043
   (MekzantineMono terminal font), covering all four criteria.
 - 2026-08-16: `planned → active` — Sprint 17 Build Phase began with T-040.
+- 2026-08-16: `active → realized` — the README is a showcase: a Mekzantine brand
+  banner (T-040), a hero reader shot + a 2×2 feature gallery captured from the built
+  app (T-041), and a polished structure with every embedded image guarded by
+  `test_readme_assets_resolve` (T-042); plus a committed converter that makes the
+  monospace MekzantineMono installable as a terminal font, installed per-user with
+  the binary git-ignored (T-043). Reproducible via `npm run assets:banner` /
+  `assets:shots`. Isolation green (vitest 97, astro 0, check:electron 6, browser 21).
+  Font binaries stay uncommitted (unpublished licence).
