@@ -6,7 +6,7 @@
 - **Work evidence:** [Sprint 18 build plan](../sprints/s18/sprint-plans/build-plan.md) (T-044/T-045/T-046)
 - **Completion evidence:** none
 - **Code evidence:** none
-- **Test evidence:** none
+- **Test evidence:** [Sprint 18 test report](../sprints/s18/sprint-tests/test-report.md) — all 4 criteria pass (proceed-with-caveats)
 - **Documentation evidence:** none
 
 ## Intent
