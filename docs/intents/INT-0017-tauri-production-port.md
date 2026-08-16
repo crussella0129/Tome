@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0017
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 18 build plan](../sprints/s18/sprint-plans/build-plan.md) (T-044/T-045/T-046)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [Completed tasks](../work/completed-tasks.md) — T-044 (branding + icon set + scripts), T-045 (theme icon + zoom hardening), T-046 (package + verify + coexistence)
+- **Code evidence:** `src-tauri/tauri.conf.json`, `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml`, `src-tauri/icons/*` — commits `25c0371` (T-044), `259ec99` (T-045), `5ff9aab` (T-046)
 - **Test evidence:** [Sprint 18 test report](../sprints/s18/sprint-tests/test-report.md) — all 4 criteria pass (proceed-with-caveats)
-- **Documentation evidence:** none
+- **Documentation evidence:** [Port verification](../sprints/s18/sprint-tests/port-verification.md) + the README "Also native — Tauri shell (Windows)" section
 
 ## Intent
 
@@ -71,3 +71,10 @@ user's stated safety net) means this remains low-risk and reversible.
   T-046 (package + verify + coexistence); see the linked build plan.
 - 2026-08-16: `planned` → `active` at Sprint 18 Build Phase — implementation begun
   (T-044 first).
+- 2026-08-16: `active` → `realized` at Sprint 18 Loop Phase — all four acceptance
+  criteria pass (test report, proceed-with-caveats). The Tauri shell is a branded,
+  theme-aware, zoom-hardened, installable Windows app at Electron parity, coexisting
+  with Electron (still the default). The theme-icon and zoom-lock are visual/behavioural
+  and were surfaced to the user for the merge-time sign-off. Linux/WebKitGTK parity,
+  code-signing, an automated WebDriver E2E, and the default-switch (retiring Electron)
+  remain the documented follow-on intents — to be scoped by a future sprint's research.
