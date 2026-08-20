@@ -259,6 +259,10 @@ test.describe('scaling', () => {
       for (const width of SEARCH_TRIGGER_WIDTHS) {
         await page.setViewportSize({ width, height: HEIGHT });
         await page.goto(url);
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+        });
+        if (url === CHAPTER) await page.waitForSelector('body.js-nav');
 
         const trigger = page.locator('button[aria-haspopup="dialog"]');
         await expect(trigger).toBeVisible();
@@ -273,20 +277,67 @@ test.describe('scaling', () => {
           const rootStyle = getComputedStyle(root);
           const hostStyle = getComputedStyle(host);
           const labelStyle = getComputedStyle(label);
+          const rootFontSize = Number.parseFloat(
+            getComputedStyle(document.documentElement).fontSize,
+          );
+          const expectedMaxWidth = 26 * rootFontSize;
           const hostContentWidth =
             host.clientWidth -
             Number.parseFloat(hostStyle.paddingLeft) -
             Number.parseFloat(hostStyle.paddingRight);
           const textRange = document.createRange();
           textRange.selectNodeContents(label);
+          const toRect = (element: Element) => {
+            const box = element.getBoundingClientRect();
+            return {
+              x: box.x,
+              y: box.y,
+              width: box.width,
+              height: box.height,
+              right: box.right,
+              bottom: box.bottom,
+            };
+          };
+          const adjacentCandidates: Array<[string, Element | null]> =
+            host.matches('.masthead-search')
+              ? [
+                  ['catalog count', document.querySelector('.count')],
+                  ['tome shelf', document.querySelector('.shelf')],
+                ]
+              : [
+                  [
+                    'table of contents',
+                    document.querySelector(
+                      'nav[aria-label="Table of contents"]',
+                    ),
+                  ],
+                  ['on-this-page rail', document.querySelector('.rail-col')],
+                  ['chapter prose', document.querySelector('.tome-prose')],
+                ];
 
           return {
-            rootWidth: root.getBoundingClientRect().width,
+            root: toRect(root),
             triggerWidth: button.getBoundingClientRect().width,
-            expectedWidth: Math.min(
-              Number.parseFloat(rootStyle.maxWidth),
-              hostContentWidth,
-            ),
+            computedMaxWidth: Number.parseFloat(rootStyle.maxWidth),
+            expectedMaxWidth,
+            expectedWidth: Math.min(expectedMaxWidth, hostContentWidth),
+            adjacent: adjacentCandidates.flatMap(([name, element]) => {
+              if (!element || element.getClientRects().length === 0) return [];
+              const rect = toRect(element);
+              if (rect.width === 0 || rect.height === 0) return [];
+              return [{ name, rect }];
+            }),
+            triggerParts: [
+              button.querySelector('span[aria-hidden="true"]')!,
+              label,
+              button.querySelector('kbd')!,
+            ].map(toRect),
+            hostContentLeft:
+              host.getBoundingClientRect().x +
+              Number.parseFloat(hostStyle.paddingLeft),
+            hostContentRight:
+              host.getBoundingClientRect().right -
+              Number.parseFloat(hostStyle.paddingRight),
             labelWhiteSpace: labelStyle.whiteSpace,
             labelLineCount: textRange.getClientRects().length,
             scrollWidth: document.documentElement.scrollWidth,
@@ -296,13 +347,44 @@ test.describe('scaling', () => {
 
         const label = `${url} @ ${width}px`;
         expect(
-          Math.abs(geometry.rootWidth - geometry.triggerWidth),
+          Math.abs(geometry.computedMaxWidth - geometry.expectedMaxWidth),
+          `${label}: root maximum resolves from the independent 26rem contract`,
+        ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE);
+        expect(
+          Math.abs(geometry.root.width - geometry.triggerWidth),
           `${label}: root and trigger widths match`,
         ).toBeLessThanOrEqual(1);
         expect(
-          Math.abs(geometry.rootWidth - geometry.expectedWidth),
+          Math.abs(geometry.root.width - geometry.expectedWidth),
           `${label}: root fills host up to 26rem`,
         ).toBeLessThanOrEqual(1);
+        expect(
+          geometry.root.x,
+          `${label}: root starts inside its host content box`,
+        ).toBeGreaterThanOrEqual(geometry.hostContentLeft - SUBPIXEL_TOLERANCE);
+        expect(
+          geometry.root.right,
+          `${label}: root ends inside its host content box`,
+        ).toBeLessThanOrEqual(geometry.hostContentRight + SUBPIXEL_TOLERANCE);
+        for (const adjacent of geometry.adjacent) {
+          const overlapWidth =
+            Math.min(geometry.root.right, adjacent.rect.right) -
+            Math.max(geometry.root.x, adjacent.rect.x);
+          const overlapHeight =
+            Math.min(geometry.root.bottom, adjacent.rect.bottom) -
+            Math.max(geometry.root.y, adjacent.rect.y);
+          expect(
+            overlapWidth > 0 && overlapHeight > 0,
+            `${label}: search does not overlap ${adjacent.name}`,
+          ).toBe(false);
+        }
+        for (let index = 1; index < geometry.triggerParts.length; index += 1) {
+          expect(
+            geometry.triggerParts[index - 1].right -
+              geometry.triggerParts[index].x,
+            `${label}: adjacent trigger affordances do not overlap`,
+          ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE);
+        }
         expect(
           geometry.labelWhiteSpace,
           `${label}: trigger copy stays on one line`,
@@ -382,25 +464,25 @@ test.describe('scaling', () => {
           `${label}: rendered close target height is at least 32px within subpixel tolerance`,
         ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE);
         expect(
-          geometry.input.right,
+          geometry.input.right - geometry.close.x,
           `${label}: input and close target do not overlap`,
-        ).toBeLessThanOrEqual(geometry.close.x + 1);
+        ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE);
         expect(
           geometry.dialog.x,
           `${label}: dialog left edge in viewport`,
-        ).toBeGreaterThanOrEqual(-1);
+        ).toBeGreaterThanOrEqual(-SUBPIXEL_TOLERANCE);
         expect(
           geometry.dialog.right,
           `${label}: dialog right edge in viewport`,
-        ).toBeLessThanOrEqual(size.width + 1);
+        ).toBeLessThanOrEqual(size.width + SUBPIXEL_TOLERANCE);
         expect(
           geometry.dialog.y,
           `${label}: dialog top edge in viewport`,
-        ).toBeGreaterThanOrEqual(-1);
+        ).toBeGreaterThanOrEqual(-SUBPIXEL_TOLERANCE);
         expect(
           geometry.dialog.bottom,
           `${label}: dialog bottom edge in viewport`,
-        ).toBeLessThanOrEqual(size.height + 1);
+        ).toBeLessThanOrEqual(size.height + SUBPIXEL_TOLERANCE);
         for (const [name, control] of [
           ['input', geometry.input],
           ['close target', geometry.close],
@@ -408,19 +490,19 @@ test.describe('scaling', () => {
           expect(
             control.x,
             `${label}: ${name} starts inside dialog`,
-          ).toBeGreaterThanOrEqual(geometry.dialog.x - 1);
+          ).toBeGreaterThanOrEqual(geometry.dialog.x - SUBPIXEL_TOLERANCE);
           expect(
             control.right,
             `${label}: ${name} ends inside dialog`,
-          ).toBeLessThanOrEqual(geometry.dialog.right + 1);
+          ).toBeLessThanOrEqual(geometry.dialog.right + SUBPIXEL_TOLERANCE);
           expect(
             control.y,
             `${label}: ${name} top is inside dialog`,
-          ).toBeGreaterThanOrEqual(geometry.dialog.y - 1);
+          ).toBeGreaterThanOrEqual(geometry.dialog.y - SUBPIXEL_TOLERANCE);
           expect(
             control.bottom,
             `${label}: ${name} bottom is inside dialog`,
-          ).toBeLessThanOrEqual(geometry.dialog.bottom + 1);
+          ).toBeLessThanOrEqual(geometry.dialog.bottom + SUBPIXEL_TOLERANCE);
         }
         expect(
           geometry.scrollWidth,
@@ -451,9 +533,9 @@ test.describe('scaling', () => {
             `${label}: decorative icon is visible`,
           ).not.toBeNull();
           expect(
-            geometry.icon!.right,
+            geometry.icon!.right - geometry.input.x,
             `${label}: icon and input do not overlap`,
-          ).toBeLessThanOrEqual(geometry.input.x + 1);
+          ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE);
         }
 
         await page.getByRole('button', { name: 'Close search' }).click();
