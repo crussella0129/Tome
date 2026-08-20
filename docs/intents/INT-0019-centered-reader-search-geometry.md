@@ -2,11 +2,11 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0019
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 20 build plan (T-050–T-051)](../sprints/s20/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
-- **Test evidence:** none
+- **Completion evidence:** [T-050 completion](../work/completed-tasks.md#t-050-sprint-20), [T-051 completion](../work/completed-tasks.md#t-051-sprint-20)
+- **Code evidence:** [centered reader stack](../../src/layouts/BookLayout.astro), [responsive shared search](../../src/components/SearchOverlay.module.css), [geometry regression suite](../../e2e/scaling.spec.ts)
+- **Test evidence:** [Sprint 20 test report](../sprints/s20/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
@@ -81,3 +81,10 @@ that nothing overflows or clips, so both visually compressed states can pass.
   element-geometry E2E coverage for all four acceptance criteria.
 - 2026-08-20: `planned → active` — Sprint 20 Build Phase began with T-050,
   keeping the locked reader/search geometry and test thresholds unchanged.
+- 2026-08-20: `active → realized` — T-050 and T-051 center the complete
+  measure-bounded reader stack and give the shared search control a host-filling,
+  narrow-safe geometry contract. Chromium proves all four acceptance criteria
+  across both hosts, wide headed/unheaded pages, 320/480, and the exact grid
+  edges; the final independent Test critique is clean and GitHub Actions run
+  32334993225 is green on exact implementation head
+  `3830b71eb2c3cab0ce3aa3f4f25aa456cbfe8d9a`.
