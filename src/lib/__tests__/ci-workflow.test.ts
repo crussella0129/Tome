@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ci = readFileSync(join(process.cwd(), '.github/workflows/ci.yml'), 'utf8');
+const ci = readFileSync(
+  join(process.cwd(), '.github/workflows/ci.yml'),
+  'utf8',
+);
 
 describe('CI workflow', () => {
   // T-009 clause 1
@@ -25,9 +28,10 @@ describe('CI workflow', () => {
     // Dependencies installed reproducibly.
     expect(ci).toMatch(/npm ci/);
     // Actions are on the non-deprecated (Node 24) majors — no @v4 (Node 20).
-    expect(ci).toMatch(/actions\/checkout@v5/);
-    expect(ci).toMatch(/actions\/setup-node@v5/);
-    const uploadArtifactActions = ci.match(/actions\/upload-artifact@[^\s]+/g) ?? [];
+    expect(ci).toMatch(/actions\/checkout@v7/);
+    expect(ci).toMatch(/actions\/setup-node@v7/);
+    const uploadArtifactActions =
+      ci.match(/actions\/upload-artifact@[^\s]+/g) ?? [];
     expect(uploadArtifactActions).toEqual(['actions/upload-artifact@v7']);
     expect(ci).toMatch(
       /- name: Upload Playwright report\s+uses: actions\/upload-artifact@v7\s+if: \$\{\{ !cancelled\(\) \}\}\s+with:\s+name: playwright-report\s+path: playwright-report\/\s+retention-days: 30/,
