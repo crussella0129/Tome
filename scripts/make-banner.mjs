@@ -5,7 +5,7 @@
 // scripts/make-icon.mjs. Regenerate with:
 //
 //   node scripts/make-banner.mjs
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -55,7 +55,10 @@ const monoUri = `data:font/woff2;base64,${(await readFile(MONO)).toString('base6
 await mkdir(dirname(OUT), { recursive: true });
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
+const page = await browser.newPage({
+  viewport: { width: W, height: H },
+  deviceScaleFactor: 2,
+});
 try {
   await page.setContent(html(displayUri, monoUri), { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);

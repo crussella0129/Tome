@@ -3,6 +3,9 @@
 
 .root {
   display: block;
+  width: 100%;
+  max-width: 26rem;
+  min-width: 0;
 }
 
 /* Trigger: looks like a search field, acts as a button. */
@@ -29,6 +32,7 @@
 }
 
 .triggerIcon {
+  flex: none;
   font-size: var(--text-lg);
   line-height: 1;
   color: var(--theme-focused-foreground);
@@ -36,10 +40,15 @@
 
 .triggerLabel {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   letter-spacing: 0.04em;
 }
 
 .kbd {
+  flex: none;
   font: inherit;
   font-size: var(--text-2xs);
   padding: 0 var(--space-2);
@@ -60,6 +69,12 @@
   padding: var(--space-8) var(--space-4);
   background: color-mix(in srgb, var(--theme-background) 55%, transparent);
   animation: fade var(--duration-fast) var(--motion-ease-out);
+}
+
+/* `.content` is normally below the mobile sidebar's stacking context. Lift it
+   only while search is modal so the backdrop and its controls own the viewport. */
+:global(main.content):has(.backdrop) {
+  z-index: var(--z-overlay);
 }
 
 .dialog {
@@ -122,6 +137,21 @@
 .close:hover {
   color: var(--theme-text);
   border-color: var(--theme-border);
+}
+
+@media (max-width: 24rem) {
+  .backdrop {
+    padding: var(--space-4) var(--space-2);
+  }
+
+  .field {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .fieldIcon {
+    display: none;
+  }
 }
 
 .hint,
