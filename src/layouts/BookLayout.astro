@@ -47,10 +47,12 @@ const hasRail = headings.length > 0;
         client:idle
       />
       <main class="content">
-        <div class="searchbar">
-          <SearchOverlay libraryWide={(books?.length ?? 0) > 1} client:idle />
+        <div class="reading-column">
+          <div class="searchbar">
+            <SearchOverlay libraryWide={(books?.length ?? 0) > 1} client:idle />
+          </div>
+          <slot />
         </div>
-        <slot />
       </main>
       {
         hasRail && (
@@ -75,6 +77,13 @@ const hasRail = headings.length > 0;
     z-index: var(--z-page);
     padding: var(--space-8) var(--space-6);
     min-width: 0;
+  }
+
+  .reading-column {
+    width: 100%;
+    max-width: var(--measure);
+    min-width: 0;
+    margin-inline: auto;
   }
 
   .searchbar {

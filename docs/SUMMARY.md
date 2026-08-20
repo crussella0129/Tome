@@ -19,6 +19,8 @@
   - [INT-0016 — Showcase README with the Mekzantine brand](intents/INT-0016-showcase-readme.md)
   - [INT-0017 — Tauri desktop shell (production port)](intents/INT-0017-tauri-production-port.md)
   - [INT-0018 — Tauri desktop shell (Linux / WebKitGTK parity)](intents/INT-0018-tauri-linux-parity.md)
+  - [INT-0019 — Centered reader and resilient search geometry](intents/INT-0019-centered-reader-search-geometry.md)
+  - [INT-0020 — Native library folder management](intents/INT-0020-native-library-folder-management.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -41,3 +43,4 @@
 - [Sprint 17](sprints/s17/sprint-meta.md)
 - [Sprint 18](sprints/s18/sprint-meta.md)
 - [Sprint 19](sprints/s19/sprint-meta.md)
+- [Sprint 20](sprints/s20/sprint-meta.md)
