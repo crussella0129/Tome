@@ -19,6 +19,7 @@ const NARROW_SEARCH_SIZES = [
   { width: 320, height: 360 },
   { width: 480, height: 360 },
 ];
+const SUBPIXEL_TOLERANCE = 0.01;
 
 test.describe('scaling', () => {
   test('test_scaling_no_overflow', async ({ page }) => {
@@ -340,7 +341,6 @@ test.describe('scaling', () => {
           const dialog = field.closest<HTMLElement>('[role="dialog"]')!;
           const fieldStyle = getComputedStyle(field);
           const iconStyle = getComputedStyle(icon);
-          const closeStyle = getComputedStyle(close);
           const toRect = (element: Element) => {
             if (element.getClientRects().length === 0) return null;
             const box = element.getBoundingClientRect();
@@ -357,8 +357,6 @@ test.describe('scaling', () => {
           return {
             input: toRect(combobox)!,
             close: toRect(close)!,
-            closeComputedWidth: Number.parseFloat(closeStyle.width),
-            closeComputedHeight: Number.parseFloat(closeStyle.height),
             icon: toRect(icon),
             iconDisplay: iconStyle.display,
             fieldGap: Number.parseFloat(fieldStyle.columnGap),
@@ -376,13 +374,13 @@ test.describe('scaling', () => {
           `${label}: query input remains usable`,
         ).toBeGreaterThanOrEqual(192);
         expect(
-          geometry.closeComputedWidth,
-          `${label}: close target width`,
-        ).toBeGreaterThanOrEqual(32);
+          32 - geometry.close.width,
+          `${label}: rendered close target width is at least 32px within subpixel tolerance`,
+        ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE);
         expect(
-          geometry.closeComputedHeight,
-          `${label}: close target height`,
-        ).toBeGreaterThanOrEqual(32);
+          32 - geometry.close.height,
+          `${label}: rendered close target height is at least 32px within subpixel tolerance`,
+        ).toBeLessThanOrEqual(SUBPIXEL_TOLERANCE);
         expect(
           geometry.input.right,
           `${label}: input and close target do not overlap`,
@@ -403,6 +401,27 @@ test.describe('scaling', () => {
           geometry.dialog.bottom,
           `${label}: dialog bottom edge in viewport`,
         ).toBeLessThanOrEqual(size.height + 1);
+        for (const [name, control] of [
+          ['input', geometry.input],
+          ['close target', geometry.close],
+        ] as const) {
+          expect(
+            control.x,
+            `${label}: ${name} starts inside dialog`,
+          ).toBeGreaterThanOrEqual(geometry.dialog.x - 1);
+          expect(
+            control.right,
+            `${label}: ${name} ends inside dialog`,
+          ).toBeLessThanOrEqual(geometry.dialog.right + 1);
+          expect(
+            control.y,
+            `${label}: ${name} top is inside dialog`,
+          ).toBeGreaterThanOrEqual(geometry.dialog.y - 1);
+          expect(
+            control.bottom,
+            `${label}: ${name} bottom is inside dialog`,
+          ).toBeLessThanOrEqual(geometry.dialog.bottom + 1);
+        }
         expect(
           geometry.scrollWidth,
           `${label}: no horizontal overflow`,
