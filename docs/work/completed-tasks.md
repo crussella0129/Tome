@@ -445,4 +445,4 @@
 - **Completed:** 2026-09-06T05:22:25Z
 - **Files modified:** scripts/fixture-gate.mjs, fixtures/empty-library.toml, src/lib/__tests__/fixture-gate.test.ts, docs/intents/INT-0021-safe-consistent-fixture-verification.md, docs/sprints/s21/sprint-meta.md, docs/sprints/s21/sprint-plans/build-plan.md, docs/sprints/s21/sprint-plans/test-plan.md, docs/work/tasks.md, docs/work/completed-tasks.md.
 - **EARS verified:** Targeted Vitest passed 17/17 with zero skips, using real temporary Git repositories: tracked/staged/untracked/ignored refusal before action or cleanup; success and sync/async failure restoration with outside sentinels intact; forced index-lock restoration failure with both causes preserved; real loader and default build environment isolation; child/default-build failure propagation; beforeRestore ordering and retention when shutdown fails. Prettier and Node syntax checks pass. Isolated Astro check reports 0 errors, 0 warnings, 0 hints after tightening inferred environment types.
-- **Commit:** PENDING
+- **Commit:** `0a080afdf22ed145d5020678db03ee8cf183dfb9`
