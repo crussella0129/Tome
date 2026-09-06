@@ -1,0 +1,2 @@
+# Fixture checks use the restored sample for default builds. Intentionally no
+# [[book]] entries: a developer's manifest must not select the test library.

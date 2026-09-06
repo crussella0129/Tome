@@ -2,7 +2,7 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0021
-- **State:** planned
+- **State:** active
 - **Work evidence:** [T-053 and T-054 build plan](../sprints/s21/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
@@ -66,6 +66,10 @@ pass useful without changing the reader's public behavior.
   run serially in an isolated checkout because they share content and build output.
 - Guarding preserves local files but intentionally does not make the checks
   concurrent or permit editing the content tree while a check is running.
+- Live reload must own its dev process and verify it has stopped before
+  restoration. If that cannot be established, cleanup fails explicitly and
+  retains the fixture and temporary input for diagnosis; it cannot safely
+  restore under a running watcher.
 - The existing T-052 native library-management backlog remains separate.
 
 ## Transition history
@@ -74,3 +78,5 @@ pass useful without changing the reader's public behavior.
   user's requested refactoring pass.
 - 2026-09-06: `proposed → planned` — the user approved the T-053/T-054 build and
   test plans ("approve continue").
+- 2026-09-06: `planned → active` — finalized plans passed independent review;
+  Build began with T-053 shared lifecycle and preservation tests.

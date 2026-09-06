@@ -1,3 +1,5 @@
+Finalized - DO NOT EDIT
+
 # Sprint 21 Build Plan
 
 Approved by the user on 2026-09-06 ("approve continue").
