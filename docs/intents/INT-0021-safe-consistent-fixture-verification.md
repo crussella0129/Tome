@@ -2,8 +2,8 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0021
-- **State:** proposed
-- **Work evidence:** none
+- **State:** planned
+- **Work evidence:** [T-053 and T-054 build plan](../sprints/s21/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
 - **Test evidence:** none
@@ -72,3 +72,5 @@ pass useful without changing the reader's public behavior.
 
 - 2026-09-06: created as `proposed` during Sprint 21 research in response to the
   user's requested refactoring pass.
+- 2026-09-06: `proposed → planned` — the user approved the T-053/T-054 build and
+  test plans ("approve continue").

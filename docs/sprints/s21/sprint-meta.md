@@ -8,8 +8,8 @@
 - **Bundle version:** 0.22.0
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
-- **Summary:** Refactor duplicated fixture-check orchestration into a guarded shared lifecycle that preserves local books and reports failures consistently (approval pending).
-- **Intents:** [INT-0021](../../intents/INT-0021-safe-consistent-fixture-verification.md) — proposed; INT-0006 and INT-0009 remain realized compatibility boundaries.
+- **Summary:** Refactor fixture checks around a shared guard, isolated inputs, and strict cleanup.
+- **Intents:** [INT-0021](../../intents/INT-0021-safe-consistent-fixture-verification.md) — planned; INT-0006 and INT-0009 remain realized compatibility boundaries.
 - **Completion evidence:** (filled at Loop Phase)
 
 ## Progress
