@@ -1,0 +1,21 @@
+# Sprint 21 Meta
+
+- **Sprint number:** 21
+- **Book schema version:** 2
+- **Start timestamp:** 2026-09-06T04:54:18Z
+- **End timestamp:** (filled at Loop Phase)
+- **Model:** gpt-6
+- **Bundle version:** 0.22.0
+- **Exit status:** in-progress
+- **Token count:** (filled at Loop Phase if observable)
+- **Summary:** Refactor duplicated fixture-check orchestration into a guarded shared lifecycle that preserves local books and reports failures consistently (approval pending).
+- **Intents:** [INT-0021](../../intents/INT-0021-safe-consistent-fixture-verification.md) — proposed; INT-0006 and INT-0009 remain realized compatibility boundaries.
+- **Completion evidence:** (filled at Loop Phase)
+
+## Progress
+
+- [x] Inspect current state and converge the substrate to bundle 0.22.0.
+- [x] Research a bounded refactor and record baseline failures.
+- [ ] Obtain approval of the concrete build/test plans and finalize them.
+- [ ] Execute T-053 and T-054 with verification and task commits.
+- [ ] Complete Test/Loop evidence and the configured remote checkpoint.
