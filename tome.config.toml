@@ -2,7 +2,7 @@
 #
 # A shared, tracked template. For your OWN books, put the same entries in a
 # `tome.local.toml` beside this file instead (it is git-ignored and, when it
-# exists, wins over this one).
+# exists, wins over this one) — or let `npm run books:add -- <path>` write it.
 #
 # On `dev`/`build`, scripts/load-books.mjs reads the manifest and copies each
 # book into the generated, git-ignored library (src/content/library/). With one
