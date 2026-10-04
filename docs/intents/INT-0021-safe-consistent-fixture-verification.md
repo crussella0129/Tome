@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0021
-- **State:** active
+- **State:** realized
 - **Work evidence:** [T-053 and T-054 build plan](../sprints/s21/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-053 completion](../work/completed-tasks.md#t-053-sprint-21), [T-054 completion](../work/completed-tasks.md#t-054-sprint-21)
+- **Code evidence:** [shared fixture gate](../../scripts/fixture-gate.mjs), [migrated gates](../../scripts/check-live-reload.mjs), [real-CLI tests](../../src/lib/__tests__/fixture-commands.test.ts)
 - **Test evidence:** [Sprint 21 test report](../sprints/s21/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [README build-gate guidance](../../README.md)
 
 ## Intent
 
@@ -80,3 +80,10 @@ pass useful without changing the reader's public behavior.
   test plans ("approve continue").
 - 2026-09-06: `planned → active` — finalized plans passed independent review;
   Build began with T-053 shared lifecycle and preservation tests.
+- 2026-10-04: `active → realized` — T-053 extracted the guarded lifecycle and
+  T-054 migrated all four gates onto it. Real-CLI tests prove dirty refusal,
+  final-rebuild failure, and stop-before-restore ordering; all four production
+  gates passed in an isolated worktree with clean content afterward; CI run
+  37214164920 succeeded at `159810e`. Test critique: proceed-with-caveats
+  (per-CLI final-rebuild and environment-isolation proofs rest on the shared
+  module for three of four gates).

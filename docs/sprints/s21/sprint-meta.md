@@ -9,7 +9,7 @@
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Refactor fixture checks around a shared guard, isolated inputs, and strict cleanup.
-- **Intents:** [INT-0021](../../intents/INT-0021-safe-consistent-fixture-verification.md) — active; INT-0006 and INT-0009 remain realized compatibility boundaries.
+- **Intents:** [INT-0021](../../intents/INT-0021-safe-consistent-fixture-verification.md) — realized; INT-0006 and INT-0009 remain realized compatibility boundaries.
 - **Completion evidence:** (filled at Loop Phase)
 
 ## Progress
@@ -23,4 +23,4 @@
   worktree; Vitest 120/120, Playwright 25/25, Astro check clean. Resumed on
   2026-10-04 by claude-opus-5-5; an unplanned guard-bypass env var left
   uncommitted by the prior session was reverted before verification.
-- [ ] Complete Test/Loop evidence and the configured remote checkpoint.
+- [x] Complete Test/Loop evidence (critique proceed-with-caveats; CI 37214164920 green); remote checkpoint follows close.
