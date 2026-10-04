@@ -1,3 +1,5 @@
+Finalized - DO NOT EDIT
+
 # Sprint 22 Build Plan
 
 Approved by the user on 2026-10-04 (Plan Mode approval of the Sprint 22 plan).
