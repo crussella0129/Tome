@@ -139,8 +139,11 @@ test.describe('Tome reader', () => {
     // Wait for the sidebar island to hydrate before clicking, so the toggle's
     // handler is attached (avoids the `client:idle` race — T-208). TocSidebar's
     // onMount adds `js-nav` to the body once running.
-    await page.waitForSelector('body.js-nav');
-    await page.getByRole('button', { name: 'Switch colour theme' }).click();
+    await page.waitForSelector('html[data-theme-ready="true"]');
+    await page
+      .getByRole('radiogroup', { name: 'Colour theme' })
+      .getByRole('radio', { name: 'Dark' })
+      .click();
     await expect(page.locator('body')).toHaveClass(/theme-terminal-dark/);
     const bg = await page.evaluate(
       () => getComputedStyle(document.body).backgroundColor,
@@ -153,7 +156,9 @@ test.describe('Tome reader', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(TOME);
     // A token-transitioned control (`.transition-token`) in the sidebar.
-    const btn = page.getByRole('button', { name: 'Switch colour theme' });
+    const btn = page
+      .getByRole('radiogroup', { name: 'Colour theme' })
+      .getByRole('radio', { name: 'Light' });
     await expect(btn).toBeVisible();
     // Computed transition-duration is reported in seconds; the reduce media rule
     // collapses it to ~0. Take the max across the shorthand list.

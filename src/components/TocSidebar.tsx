@@ -1,7 +1,7 @@
 import { createSignal, onMount, createEffect, For, Show, Switch, Match } from 'solid-js';
 import type { BookToc, TocNode, ChapterNode } from '../lib/summary.types';
 import { chapterUrlIn, hrefToSlug } from '../lib/paths';
-import { THEMES, DEFAULT_THEME } from '../styles/theme';
+import ThemePicker from './ThemePicker';
 import styles from './TocSidebar.module.css';
 
 /** A tome in the sidebar switcher: a titled link to that tome's entry chapter. */
@@ -23,9 +23,7 @@ interface TocSidebarProps {
   activeBook?: string;
 }
 
-const THEME_CLASSES = THEMES.map((t) => t.className);
 const NAV_STORAGE_KEY = 'tome-nav-open';
-const THEME_STORAGE_KEY = 'tome-theme';
 
 /** One chapter row: a link (or a plain label for drafts), indented by depth. */
 function ChapterRow(props: {
@@ -108,15 +106,10 @@ export default function TocSidebar(props: TocSidebarProps) {
   // links work with no JS). On mount we narrow to the drawer default on small
   // viewports.
   const [open, setOpen] = createSignal(true);
-  const [theme, setTheme] = createSignal(DEFAULT_THEME.className);
 
   onMount(() => {
     // Enable drawer behaviour now that JS is running.
     document.body.classList.add('js-nav');
-
-    // Sync the theme signal to whatever init-theme applied pre-paint.
-    const applied = THEME_CLASSES.find((c) => document.body.classList.contains(c));
-    if (applied) setTheme(applied);
 
     // On narrow screens the nav starts collapsed; a saved preference wins.
     const saved = localStorage.getItem(NAV_STORAGE_KEY);
@@ -141,26 +134,7 @@ export default function TocSidebar(props: TocSidebarProps) {
     }
   });
 
-  // Apply theme changes to the body and persist them.
-  createEffect(() => {
-    if (typeof document === 'undefined') return;
-    const next = theme();
-    document.body.classList.remove(...THEME_CLASSES);
-    document.body.classList.add(next);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, next);
-    } catch {
-      /* non-fatal */
-    }
-  });
-
   const toggleOpen = () => setOpen((v) => !v);
-  const cycleTheme = () => {
-    const i = THEME_CLASSES.indexOf(theme());
-    setTheme(THEME_CLASSES[(i + 1) % THEME_CLASSES.length]!);
-  };
-  const currentThemeLabel = () =>
-    THEMES.find((t) => t.className === theme())?.label ?? DEFAULT_THEME.label;
 
   return (
     <nav
@@ -220,15 +194,7 @@ export default function TocSidebar(props: TocSidebarProps) {
       </div>
 
       <div class={styles.footer}>
-        <button
-          type="button"
-          class={`${styles.themeButton} transition-token`}
-          aria-label="Switch colour theme"
-          onClick={cycleTheme}
-        >
-          <span aria-hidden="true">◑</span>
-          <span>{currentThemeLabel()}</span>
-        </button>
+        <ThemePicker />
       </div>
     </nav>
   );

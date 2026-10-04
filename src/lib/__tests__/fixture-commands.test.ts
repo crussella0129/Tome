@@ -92,7 +92,9 @@ function alive(pid: number) {
   }
 }
 
-describe('fixture commands — real CLI failure and preservation paths', () => {
+// Each case spawns real CLIs (and npm builds) bounded by `run`'s 30s timeout;
+// Vitest's 5s default trips under full-suite load before that bound applies.
+describe('fixture commands — real CLI failure and preservation paths', { timeout: 30_000 }, () => {
   let root: string;
 
   beforeEach(() => {

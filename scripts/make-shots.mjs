@@ -75,8 +75,11 @@ try {
 
   // 5. The warm-dark theme.
   await page.goto(`${BASE}/tome/getting-started`);
-  await page.waitForSelector('body.js-nav');
-  await page.getByRole('button', { name: 'Switch colour theme' }).click();
+  await page.waitForSelector('html[data-theme-ready="true"]');
+  await page
+    .getByRole('radiogroup', { name: 'Colour theme' })
+    .getByRole('radio', { name: 'Dark' })
+    .click();
   await page.waitForSelector('body.theme-terminal-dark');
   await page.waitForTimeout(150);
   await shot('dark');

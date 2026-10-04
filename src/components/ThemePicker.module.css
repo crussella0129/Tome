@@ -1,0 +1,159 @@
+/* Theme picker — a three-segment sacred control plus the Black Door dialog.
+   Every colour is a --theme-* token, so the dialog is always drawn in the theme
+   that is active when it opens. Controls are at least 44×44 CSS px (2.75rem)
+   for fingers on a tablet at the table. */
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  background: var(--theme-background-modal);
+}
+
+.option {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--theme-text);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--theme-border);
+  cursor: pointer;
+}
+
+.option:last-child {
+  border-right: 0;
+}
+
+.option:hover {
+  background: var(--theme-focused-foreground-subdued);
+}
+
+.option[aria-checked='true'] {
+  color: var(--theme-focused-foreground);
+  background: var(--theme-focused-foreground-subdued);
+  font-weight: 700;
+}
+
+.current {
+  margin: 0;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--theme-text-subdued);
+}
+
+/* ---------------------------------------------------------------- */
+/* The Black Door                                                    */
+/* ---------------------------------------------------------------- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--theme-background) 72%, transparent);
+}
+
+.dialog {
+  width: min(100%, 26rem);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  color: var(--theme-text);
+  background: var(--theme-window-background);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+}
+
+.question {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  color: var(--theme-text);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.input {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  /* 16px keeps iOS Safari from zooming the page when the field is focused. */
+  font-size: max(1rem, var(--text-base));
+  color: var(--theme-text);
+  caret-color: var(--theme-focused-foreground);
+  background: var(--theme-background-input);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+}
+
+.reply {
+  min-height: 1.5em;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--theme-text-subdued);
+}
+
+.welcome {
+  color: var(--theme-focused-foreground);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.action {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--theme-text);
+  background: var(--theme-background-modal);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.action:hover {
+  border-color: var(--theme-focused-foreground);
+}
+
+.primary {
+  color: var(--theme-focused-foreground);
+  border-color: var(--theme-focused-foreground);
+  font-weight: 700;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

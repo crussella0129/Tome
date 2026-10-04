@@ -1,5 +1,5 @@
 /**
- * Canonical colour values for Tome's two shipped themes.
+ * Canonical colour values for Tome's shipped themes.
  *
  * These mirror the `--theme-background` / `--theme-text` tokens defined per
  * `body.theme-*` selector in `tokens.css`. `tokens.css` is the runtime source
@@ -18,6 +18,8 @@ export interface ThemeColors {
   readonly background: string;
   /** `--theme-text` — body ink. */
   readonly text: string;
+  /** Hidden themes are reached through the "Other" rite, never listed. */
+  readonly hidden?: boolean;
 }
 
 export const INK_PAPER: ThemeColors = {
@@ -34,10 +36,31 @@ export const TERMINAL_DARK: ThemeColors = {
   text: '#e8dcc2',
 };
 
+/**
+ * Blood letters cut into obsidian (INT-0022), unlocked by answering the Black
+ * Door's riddle. Ground and ink are the obsidian page and the crimson "ichor";
+ * see `docs/sprints/s22/sprint-research/palette-derivation.md`.
+ */
+export const SANGUINE_ATONEMENT: ThemeColors = {
+  className: 'theme-sanguine-atonement',
+  label: 'Sanguine Atonement',
+  background: '#0a0708',
+  text: '#ea5052',
+  hidden: true,
+};
+
 /** Every theme Tome ships, in display order. Default is the first. */
-export const THEMES: readonly ThemeColors[] = [INK_PAPER, TERMINAL_DARK];
+export const THEMES: readonly ThemeColors[] = [INK_PAPER, TERMINAL_DARK, SANGUINE_ATONEMENT];
 
 export const DEFAULT_THEME = INK_PAPER;
+
+/**
+ * The pre-paint restore table (`init-theme.astro`): every valid theme class
+ * mapped to its page ground, for `<meta name="theme-color">`.
+ */
+export const PREPAINT_THEMES: Readonly<Record<string, string>> = Object.fromEntries(
+  THEMES.map((theme) => [theme.className, theme.background]),
+);
 
 /** Parse a `#rrggbb` (or `#rgb`) string into 0–255 channels. */
 export function parseHex(hex: string): [number, number, number] {
