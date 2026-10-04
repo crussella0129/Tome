@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, screen } from '@solidjs/testing-library';
-import ThemePicker, { WELCOME_MS } from '../ThemePicker';
+import ThemePicker, { WELCOME_MS, POUR_MS, DRAIN_MS } from '../ThemePicker';
 import { INK_PAPER, TERMINAL_DARK, SANGUINE_ATONEMENT } from '../../styles/theme';
 import { THEME_STORAGE_KEY } from '../../lib/theme-state';
 
 beforeEach(() => {
   document.body.className = INK_PAPER.className;
+  document.querySelectorAll('[data-sanguine-wash]').forEach((node) => node.remove());
   localStorage.clear();
 });
 
@@ -79,7 +80,7 @@ describe('ThemePicker', () => {
 
     answer('Sanguine, my Brother');
     expect(screen.getByRole('status')).toHaveTextContent('Welcome home.');
-    vi.advanceTimersByTime(WELCOME_MS + 50);
+    vi.advanceTimersByTime(WELCOME_MS + POUR_MS + 400);
     expect(document.body).toHaveClass(SANGUINE_ATONEMENT.className);
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(SANGUINE_ATONEMENT.className);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -122,5 +123,44 @@ describe('ThemePicker', () => {
     expect(document.activeElement).toBe(radio('Other…'));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.body).toHaveClass(INK_PAPER.className);
+  });
+
+  it('test_theme_picker_wash_covers_then_clears: the theme changes beneath the wash, which then leaves', () => {
+    vi.useFakeTimers();
+    openDoor();
+    answer('sanguine');
+    vi.advanceTimersByTime(WELCOME_MS + 10);
+    const wash = document.querySelector('[data-sanguine-wash]');
+    expect(wash).not.toBeNull();
+    expect(wash).toHaveAttribute('aria-hidden', 'true');
+    expect(document.body).not.toHaveClass(SANGUINE_ATONEMENT.className); // still pouring
+    vi.advanceTimersByTime(POUR_MS + 400);
+    expect(document.body).toHaveClass(SANGUINE_ATONEMENT.className); // changed under cover
+    vi.advanceTimersByTime(DRAIN_MS + 400);
+    expect(document.querySelector('[data-sanguine-wash]')).toBeNull();
+  });
+
+  it('test_theme_picker_reduced_motion_skips_wash: the theme applies with no overlay', () => {
+    vi.useFakeTimers();
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+    try {
+      openDoor();
+      answer('Sanguine, my Sister');
+      vi.advanceTimersByTime(WELCOME_MS + 10);
+      expect(document.body).toHaveClass(SANGUINE_ATONEMENT.className);
+      expect(document.querySelector('[data-sanguine-wash]')).toBeNull();
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });

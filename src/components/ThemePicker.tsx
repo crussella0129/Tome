@@ -9,12 +9,56 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { INK_PAPER, TERMINAL_DARK, SANGUINE_ATONEMENT, DEFAULT_THEME } from '../styles/theme';
-import { applyTheme, appliedTheme, themeByClass, THEME_CHANGE_EVENT } from '../lib/theme-state';
+import {
+  applyTheme,
+  appliedTheme,
+  themeByClass,
+  prefersReducedMotion,
+  THEME_CHANGE_EVENT,
+} from '../lib/theme-state';
 import { matchRiddle, RIDDLE_QUESTION, RIDDLE_RESPONSES, type RiddleVerdict } from '../lib/riddle';
 import styles from './ThemePicker.module.css';
 
 /** How long the door's "Welcome home." stays up before the rite completes. */
 export const WELCOME_MS = 900;
+/** The wash pours down over the page, then drains away (see ThemePicker.module.css). */
+export const POUR_MS = 700;
+export const DRAIN_MS = 900;
+/** Slack before a missed `animationend` is assumed. */
+const SETTLE_MS = 300;
+
+/**
+ * The transformation (INT-0022 AC3): a wash of blood pours down over the page,
+ * the theme changes beneath it, and the wash drains away. Transform and
+ * opacity only; skipped entirely under reduced motion. Timeouts back up each
+ * `animationend`, so a missed event can never strand the overlay.
+ */
+function bleedInto(apply: () => void) {
+  if (prefersReducedMotion()) {
+    apply();
+    return;
+  }
+  const wash = document.createElement('div');
+  wash.className = styles.wash!;
+  wash.setAttribute('aria-hidden', 'true');
+  wash.dataset.sanguineWash = '';
+  let stage: 'pour' | 'drain' | 'gone' = 'pour';
+  const remove = () => {
+    if (stage === 'gone') return;
+    stage = 'gone';
+    wash.remove();
+  };
+  const drain = () => {
+    if (stage !== 'pour') return;
+    stage = 'drain';
+    apply();
+    wash.classList.add(styles.draining!);
+    setTimeout(remove, DRAIN_MS + SETTLE_MS);
+  };
+  wash.addEventListener('animationend', () => (stage === 'pour' ? drain() : remove()));
+  document.body.appendChild(wash);
+  setTimeout(drain, POUR_MS + SETTLE_MS);
+}
 
 type Choice = 'light' | 'dark' | 'other';
 
@@ -90,8 +134,8 @@ export default function ThemePicker() {
   const accept = () => {
     welcomeTimer = setTimeout(() => {
       setOpen(false);
-      setTheme(applyTheme(SANGUINE_ATONEMENT.className).className);
       radios[2]?.focus();
+      bleedInto(() => setTheme(applyTheme(SANGUINE_ATONEMENT.className).className));
     }, WELCOME_MS);
   };
 
@@ -147,7 +191,6 @@ export default function ThemePicker() {
               role="radio"
               class={`${styles.option} transition-token`}
               aria-checked={checked() === choice.id ? 'true' : 'false'}
-              aria-haspopup={choice.id === 'other' ? 'dialog' : undefined}
               tabindex={checked() === choice.id ? 0 : -1}
               onKeyDown={(e) => onRadioKey(e, i())}
               onClick={() => choose(choice.id)}

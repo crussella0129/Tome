@@ -246,3 +246,77 @@ test.describe('Sanguine Atonement', () => {
     expect(printed.animation).toBe('none');
   });
 });
+
+// ---------------------------------------------------------------------------
+// T-057 — the transformation, and Sanguine from first paint thereafter.
+// ---------------------------------------------------------------------------
+
+/** Record the body's theme the moment the document is parsed (pre-hydration). */
+async function watchFirstPaint(page: Page) {
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      (window as unknown as { __firstTheme: string }).__firstTheme = document.body.className;
+    });
+    // Note every wash that is ever mounted, however briefly.
+    new MutationObserver((records) => {
+      for (const r of records)
+        for (const n of r.addedNodes)
+          if (n instanceof HTMLElement && n.dataset.sanguineWash !== undefined)
+            (window as unknown as { __washes: number }).__washes =
+              ((window as unknown as { __washes?: number }).__washes ?? 0) + 1;
+    }).observe(document, { childList: true, subtree: true });
+  });
+}
+
+const firstTheme = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __firstTheme: string }).__firstTheme);
+const washes = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __washes?: number }).__washes ?? 0);
+
+test.describe('the rite', () => {
+  test('test_sanguine_wash_and_persistence', async ({ page }) => {
+    await watchFirstPaint(page);
+    await ready(page, READER);
+    await openDoor(page);
+    await speak(page, 'Sanguine, my Brother');
+    await expect(page.getByRole('status')).toHaveText('Welcome home.');
+
+    const wash = page.locator('[data-sanguine-wash]');
+    await expect(wash).toHaveCount(1, { timeout: 2_000 });
+    await expect(page.locator('body')).toHaveClass(new RegExp(SANGUINE), { timeout: 2_000 });
+    await expect(wash).toHaveCount(0, { timeout: 3_000 });
+    expect(await washes(page)).toBe(1);
+
+    // Persisted, and applied before any island hydrates.
+    await page.reload();
+    expect(await firstTheme(page)).toContain(SANGUINE);
+    await page.goto(LIBRARY);
+    expect(await firstTheme(page)).toContain(SANGUINE);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#0a0708');
+    await page.goto('/tome/about');
+    expect(await firstTheme(page)).toContain(SANGUINE);
+  });
+
+  test('test_sanguine_reduced_motion_no_wash', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await watchFirstPaint(page);
+    await ready(page, READER);
+    await openDoor(page);
+    await speak(page, 'sanguine');
+    await expect(page.locator('body')).toHaveClass(new RegExp(SANGUINE), { timeout: 2_000 });
+    expect(await washes(page)).toBe(0);
+  });
+
+  test('test_sanguine_exit_direct', async ({ page }) => {
+    await page.addInitScript((theme) => localStorage.setItem('tome-theme', theme), SANGUINE);
+    await watchFirstPaint(page);
+    await ready(page, READER);
+    await expect(option(page, 'Other…')).toHaveAttribute('aria-checked', 'true');
+    await option(page, 'Dark').click();
+    await expect(page.locator('body')).toHaveClass(/theme-terminal-dark/);
+    await expect(page.locator('body')).not.toHaveClass(new RegExp(SANGUINE));
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(await washes(page)).toBe(0);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#16130e');
+  });
+});
