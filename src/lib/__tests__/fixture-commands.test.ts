@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync } from "node:child_process";
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   cpSync,
   existsSync,
@@ -11,8 +11,8 @@ import {
   rmSync,
   symlinkSync,
   writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import {
   basename,
   dirname,
@@ -20,16 +20,16 @@ import {
   join,
   relative,
   resolve,
-} from "node:path";
-import { pathToFileURL } from "node:url";
+} from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const projectRoot = process.cwd();
-const contentPath = "src/content/books";
+const contentPath = 'src/content/books';
 const samplePath = `${contentPath}/sample/README.md`;
-const sample = "# Committed sample\n";
-const liveFixture = "# Active live fixture\n";
+const sample = '# Committed sample\n';
+const liveFixture = '# Active live fixture\n';
 const tempParent = resolve(tmpdir());
-const tempPrefix = "tome-fixture-commands-";
+const tempPrefix = 'tome-fixture-commands-';
 
 function write(root: string, path: string, contents: string) {
   const target = join(root, path);
@@ -39,30 +39,30 @@ function write(root: string, path: string, contents: string) {
 
 function git(root: string, ...args: string[]) {
   return execFileSync(
-    "git",
+    'git',
     [
-      "-c",
-      "core.autocrlf=false",
-      "-c",
-      "commit.gpgsign=false",
-      "-c",
-      "user.name=Fixture Command Test",
-      "-c",
-      "user.email=fixture-command@example.invalid",
+      '-c',
+      'core.autocrlf=false',
+      '-c',
+      'commit.gpgsign=false',
+      '-c',
+      'user.name=Fixture Command Test',
+      '-c',
+      'user.email=fixture-command@example.invalid',
       ...args,
     ],
-    { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
 }
 
 function status(root: string) {
   return git(
     root,
-    "status",
-    "--porcelain=v1",
-    "--untracked-files=all",
-    "--ignored=matching",
-    "--",
+    'status',
+    '--porcelain=v1',
+    '--untracked-files=all',
+    '--ignored=matching',
+    '--',
     contentPath,
   );
 }
@@ -72,7 +72,7 @@ function removeTemp(target: string, prefix: string) {
   const withinTemp = relative(tempParent, resolved);
   if (
     !withinTemp ||
-    withinTemp.startsWith("..") ||
+    withinTemp.startsWith('..') ||
     isAbsolute(withinTemp) ||
     !basename(resolved).startsWith(prefix)
   ) {
@@ -92,93 +92,93 @@ function alive(pid: number) {
   }
 }
 
-describe("fixture commands — real CLI failure and preservation paths", () => {
+describe('fixture commands — real CLI failure and preservation paths', () => {
   let root: string;
 
   beforeEach(() => {
     root = mkdtempSync(join(tempParent, tempPrefix));
     write(root, samplePath, sample);
-    write(root, `${contentPath}/sample/staged.txt`, "committed staged file\n");
+    write(root, `${contentPath}/sample/staged.txt`, 'committed staged file\n');
     write(
       root,
-      ".gitignore",
+      '.gitignore',
       `${contentPath}/ignored/\nnode_modules/\n.astro/\ndist/\n`,
     );
-    write(root, "outside/sentinel.txt", "outside must survive\n");
-    git(root, "init", "--quiet");
-    git(root, "add", "--", ".");
-    git(root, "commit", "--quiet", "-m", "Commit fixture sample");
+    write(root, 'outside/sentinel.txt', 'outside must survive\n');
+    git(root, 'init', '--quiet');
+    git(root, 'add', '--', '.');
+    git(root, 'commit', '--quiet', '-m', 'Commit fixture sample');
   });
 
   afterEach(() => {
-    const started = join(root, "server-started.json");
+    const started = join(root, 'server-started.json');
     if (existsSync(started)) {
-      const { pid, book } = JSON.parse(readFileSync(started, "utf8")) as {
+      const { pid, book } = JSON.parse(readFileSync(started, 'utf8')) as {
         pid: number;
         book: string;
       };
-      if (alive(pid)) process.kill(pid, "SIGKILL");
+      if (alive(pid)) process.kill(pid, 'SIGKILL');
       const bookParent = dirname(book);
-      if (existsSync(bookParent)) removeTemp(bookParent, "tome-lr-");
+      if (existsSync(bookParent)) removeTemp(bookParent, 'tome-lr-');
     }
     removeTemp(root, tempPrefix);
   });
 
   function run(script: string, overrides: NodeJS.ProcessEnv = {}) {
-    return spawnSync(process.execPath, [join(projectRoot, "scripts", script)], {
+    return spawnSync(process.execPath, [join(projectRoot, 'scripts', script)], {
       cwd: root,
       env: {
         ...process.env,
-        ASTRO_TELEMETRY_DISABLED: "1",
+        ASTRO_TELEMETRY_DISABLED: '1',
         ...overrides,
       },
-      encoding: "utf8",
+      encoding: 'utf8',
       timeout: 30_000,
       windowsHide: true,
     });
   }
 
   function expectSample() {
-    expect(readFileSync(join(root, samplePath), "utf8")).toBe(sample);
-    expect(status(root)).toBe("");
-    expect(readFileSync(join(root, "outside/sentinel.txt"), "utf8")).toBe(
-      "outside must survive\n",
+    expect(readFileSync(join(root, samplePath), 'utf8')).toBe(sample);
+    expect(status(root)).toBe('');
+    expect(readFileSync(join(root, 'outside/sentinel.txt'), 'utf8')).toBe(
+      'outside must survive\n',
     );
   }
 
   it.each([
-    "check-external-build.mjs",
-    "check-multibook.mjs",
-    "check-search.mjs",
-    "check-live-reload.mjs",
+    'check-external-build.mjs',
+    'check-multibook.mjs',
+    'check-search.mjs',
+    'check-live-reload.mjs',
   ])(
-    "test_fixture_commands_refuse_dirty_content: %s exits before setup or cleanup",
+    'test_fixture_commands_refuse_dirty_content: %s exits before setup or cleanup',
     (script) => {
       const personal = {
-        [samplePath]: "# Personal tracked content\n",
-        [`${contentPath}/sample/staged.txt`]: "personal staged content\n",
-        [`${contentPath}/untracked.txt`]: "personal untracked content\n",
-        [`${contentPath}/ignored/personal.txt`]: "personal ignored content\n",
+        [samplePath]: '# Personal tracked content\n',
+        [`${contentPath}/sample/staged.txt`]: 'personal staged content\n',
+        [`${contentPath}/untracked.txt`]: 'personal untracked content\n',
+        [`${contentPath}/ignored/personal.txt`]: 'personal ignored content\n',
       };
       for (const [path, contents] of Object.entries(personal))
         write(root, path, contents);
-      git(root, "add", "--", `${contentPath}/sample/staged.txt`);
+      git(root, 'add', '--', `${contentPath}/sample/staged.txt`);
       const beforeStatus = status(root);
       const beforeIndex = git(
         root,
-        "show",
+        'show',
         `:${contentPath}/sample/staged.txt`,
       );
       write(
         root,
-        "package.json",
+        'package.json',
         JSON.stringify({
-          scripts: { build: "node started.mjs", dev: "node started.mjs" },
+          scripts: { build: 'node started.mjs', dev: 'node started.mjs' },
         }),
       );
       write(
         root,
-        "started.mjs",
+        'started.mjs',
         "import { writeFileSync } from 'node:fs'; writeFileSync('setup-ran.txt', 'unexpected');\n",
       );
 
@@ -187,28 +187,28 @@ describe("fixture commands — real CLI failure and preservation paths", () => {
       expect(result.error).toBeUndefined();
       expect(result.status).not.toBe(0);
       expect(result.stderr).toMatch(/refusing destructive fixture sync/);
-      expect(existsSync(join(root, "setup-ran.txt"))).toBe(false);
+      expect(existsSync(join(root, 'setup-ran.txt'))).toBe(false);
       expect(status(root)).toBe(beforeStatus);
-      expect(git(root, "show", `:${contentPath}/sample/staged.txt`)).toBe(
+      expect(git(root, 'show', `:${contentPath}/sample/staged.txt`)).toBe(
         beforeIndex,
       );
       for (const [path, contents] of Object.entries(personal))
-        expect(readFileSync(join(root, path), "utf8")).toBe(contents);
-      expect(readFileSync(join(root, "outside/sentinel.txt"), "utf8")).toBe(
-        "outside must survive\n",
+        expect(readFileSync(join(root, path), 'utf8')).toBe(contents);
+      expect(readFileSync(join(root, 'outside/sentinel.txt'), 'utf8')).toBe(
+        'outside must survive\n',
       );
     },
   );
 
-  it("test_fixture_gate_reports_build_failure: real multibook CLI fails on its final default rebuild", () => {
+  it('test_fixture_gate_reports_build_failure: real multibook CLI fails on its final default rebuild', () => {
     write(
       root,
-      "package.json",
-      JSON.stringify({ scripts: { build: "node build.mjs" } }),
+      'package.json',
+      JSON.stringify({ scripts: { build: 'node build.mjs' } }),
     );
     write(
       root,
-      "build.mjs",
+      'build.mjs',
       `
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -235,40 +235,40 @@ if (process.env.TOME_BOOKS) {
 `.trimStart(),
     );
 
-    const result = run("check-multibook.mjs");
+    const result = run('check-multibook.mjs');
 
     expect(result.error).toBeUndefined();
     expect(result.status).not.toBe(0);
-    expect(result.stdout).toContain("OK — two-tome Bibliotheca");
-    expect(result.stdout).toContain("rebuilding default");
-    expect(result.stdout).toContain("FINAL DEFAULT BUILD FAILURE");
-    expect(result.stderr).toContain("FAIL");
-    expect(readFileSync(join(root, "final-build-evidence.txt"), "utf8")).toBe(
-      "default build saw restored sample",
+    expect(result.stdout).toContain('OK — two-tome Bibliotheca');
+    expect(result.stdout).toContain('rebuilding default');
+    expect(result.stdout).toContain('FINAL DEFAULT BUILD FAILURE');
+    expect(result.stderr).toContain('FAIL');
+    expect(readFileSync(join(root, 'final-build-evidence.txt'), 'utf8')).toBe(
+      'default build saw restored sample',
     );
     expectSample();
-    expect(readdirSync(join(root, contentPath))).toEqual(["sample"]);
+    expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
   });
 
-  it("test_live_reload_stops_before_restore_on_failure: real server stops before content and temp cleanup", () => {
+  it('test_live_reload_stops_before_restore_on_failure: real server stops before content and temp cleanup', () => {
     cpSync(
-      join(projectRoot, "fixtures/handbook"),
-      join(root, "fixtures/handbook"),
+      join(projectRoot, 'fixtures/handbook'),
+      join(root, 'fixtures/handbook'),
       { recursive: true },
     );
     symlinkSync(
-      join(projectRoot, "node_modules"),
-      join(root, "node_modules"),
-      process.platform === "win32" ? "junction" : "dir",
+      join(projectRoot, 'node_modules'),
+      join(root, 'node_modules'),
+      process.platform === 'win32' ? 'junction' : 'dir',
     );
     write(
       root,
-      "package.json",
-      JSON.stringify({ scripts: { dev: "node start-dev.mjs" } }),
+      'package.json',
+      JSON.stringify({ scripts: { dev: 'node start-dev.mjs' } }),
     );
     write(
       root,
-      "start-dev.mjs",
+      'start-dev.mjs',
       `
 import { spawn } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
@@ -282,7 +282,7 @@ if (!existsSync('.astro/dev.json')) throw new Error('test server failed to start
     );
     write(
       root,
-      "server.mjs",
+      'server.mjs',
       `
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -307,7 +307,7 @@ setTimeout(() => { server.close(); process.exit(0); }, 25000).unref();
     // Forward every syscall and its result unchanged; this only records order.
     write(
       root,
-      "observe-stop.mjs",
+      'observe-stop.mjs',
       `
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 const kill = process.kill.bind(process);
@@ -324,28 +324,28 @@ process.kill = function (pid, signal) {
 };
 `.trimStart(),
     );
-    const observer = pathToFileURL(join(root, "observe-stop.mjs")).href;
+    const observer = pathToFileURL(join(root, 'observe-stop.mjs')).href;
 
-    const result = run("check-live-reload.mjs", {
+    const result = run('check-live-reload.mjs', {
       NODE_OPTIONS: `--import=${observer}`,
     });
 
     expect(result.error).toBeUndefined();
     expect(result.status).not.toBe(0);
-    expect(result.stdout).toContain("original chapter served");
+    expect(result.stdout).toContain('original chapter served');
     expect(result.stderr).toContain(
-      "the parent-relative image did not resolve after the live edit",
+      'the parent-relative image did not resolve after the live edit',
     );
     const started = JSON.parse(
-      readFileSync(join(root, "server-started.json"), "utf8"),
+      readFileSync(join(root, 'server-started.json'), 'utf8'),
     ) as { pid: number; book: string };
     const stopped = JSON.parse(
-      readFileSync(join(root, "stop-evidence.json"), "utf8"),
+      readFileSync(join(root, 'stop-evidence.json'), 'utf8'),
     );
     expect(stopped.pid).toBe(started.pid);
     expect(stopped.content).toBe(liveFixture);
     expect(stopped.bookExists).toBe(true);
-    expect(stopped.argv).toContain("stop");
+    expect(stopped.argv).toContain('stop');
     expect(alive(started.pid)).toBe(false);
     expect(existsSync(started.book)).toBe(false);
     expect(existsSync(dirname(started.book))).toBe(false);

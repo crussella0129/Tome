@@ -9,18 +9,18 @@
 // NOTE: this gate replaces src/content/books/. It refuses to start unless that
 // target is pristine, then strictly restores tracked content and removes only
 // fixture residue within the target after each case.
-import { readFileSync, existsSync, statSync } from "node:fs";
-import { join } from "node:path";
-import process from "node:process";
-import { createFixtureGate, errorMessage } from "./fixture-gate.mjs";
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import process from 'node:process';
+import { createFixtureGate, errorMessage } from './fixture-gate.mjs';
 
 const root = process.cwd();
-const dist = join(root, "dist");
+const dist = join(root, 'dist');
 const gate = createFixtureGate({ root });
 
 function verifyHandbookInBrowser() {
-  gate.command("npx --no-install playwright test", {
-    TOME_EXTERNAL_BOOK_E2E: "1",
+  gate.command('npx --no-install playwright test', {
+    TOME_EXTERNAL_BOOK_E2E: '1',
   });
 }
 
@@ -29,19 +29,19 @@ function fail(message) {
 }
 
 function requireRoute(slug, label) {
-  if (!existsSync(join(dist, slug, "index.html")))
+  if (!existsSync(join(dist, slug, 'index.html')))
     fail(`${label}: dist/${slug}/ was not generated`);
 }
 function requireAbsent(slug, label) {
-  if (existsSync(join(dist, slug, "index.html")))
+  if (existsSync(join(dist, slug, 'index.html')))
     fail(`${label}: dist/${slug}/ is still present`);
 }
 function readRoute(slug) {
-  return readFileSync(join(dist, slug, "index.html"), "utf8");
+  return readFileSync(join(dist, slug, 'index.html'), 'utf8');
 }
 
 function requireOptimizedAsset(slug, basename, label) {
-  const escaped = basename.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = readRoute(slug).match(
     new RegExp(`src="(/_astro/${escaped}\\.[^"]+\\.svg)"`),
   );
@@ -56,28 +56,28 @@ function requireOptimizedAsset(slug, basename, label) {
 // Each case: a fixture book + its assertions on the built dist/.
 const CASES = [
   {
-    name: "handbook (standard: book.toml + src/, relative image)",
-    book: join(root, "fixtures", "handbook"),
+    name: 'handbook (standard: book.toml + src/, relative image)',
+    book: join(root, 'fixtures', 'handbook'),
     browser: true,
     check() {
-      requireRoute("first", "handbook");
-      requireAbsent("getting-started", "handbook"); // sample replaced
-      requireOptimizedAsset("first", "plate", "handbook in-source image");
+      requireRoute('first', 'handbook');
+      requireAbsent('getting-started', 'handbook'); // sample replaced
+      requireOptimizedAsset('first', 'plate', 'handbook in-source image');
       requireOptimizedAsset(
-        "first",
-        "parent-plate",
-        "handbook parent-relative image",
+        'first',
+        'parent-plate',
+        'handbook parent-relative image',
       );
     },
   },
   {
-    name: "docs-book (config-less: no book.toml, docs/ layout)",
-    book: join(root, "fixtures", "docs-book"),
+    name: 'docs-book (config-less: no book.toml, docs/ layout)',
+    book: join(root, 'fixtures', 'docs-book'),
     check() {
-      requireRoute("overview", "docs-book"); // detected docs/ source
-      requireRoute("details/deep", "docs-book"); // nested from detected source
-      requireAbsent("getting-started", "docs-book"); // sample replaced
-      if (!readRoute("").includes(">docs-book<")) {
+      requireRoute('overview', 'docs-book'); // detected docs/ source
+      requireRoute('details/deep', 'docs-book'); // nested from detected source
+      requireAbsent('getting-started', 'docs-book'); // sample replaced
+      if (!readRoute('').includes('>docs-book<')) {
         fail(
           'docs-book: the directory-name title "docs-book" is not shown in the sidebar',
         );
@@ -92,7 +92,7 @@ function runCase({ name, book, check, browser = false }) {
     gate.build({ TOME_BOOK: book });
     check();
     if (browser) {
-      console.log("check-external-build: verifying handbook in Chromium …");
+      console.log('check-external-build: verifying handbook in Chromium …');
       verifyHandbookInBrowser();
     }
     console.log(`check-external-build: OK — ${name}`);
@@ -103,7 +103,7 @@ try {
   for (const fixtureCase of CASES) await runCase(fixtureCase);
 
   console.log(
-    "check-external-build: all external books rendered; rebuilding default …",
+    'check-external-build: all external books rendered; rebuilding default …',
   );
   await gate.rebuildDefault();
 } catch (error) {
