@@ -11,6 +11,7 @@
 - **Summary:** Refactor fixture checks around a shared guard, isolated inputs, and strict cleanup.
 - **Intents:** [INT-0021](../../intents/INT-0021-safe-consistent-fixture-verification.md) — realized; INT-0006 and INT-0009 remain realized compatibility boundaries.
 - **Completion evidence:** INT-0021 realized: T-053/T-054 complete; 4 fixture gates PASS isolated; Vitest 120/120, Playwright 25/25; critique proceed-with-caveats; GitHub Actions 37214164920 succeeded at 159810e.
+- **Checkpoint:** https://github.com/crussella0129/Tome/pull/23
 
 ## Progress
 
