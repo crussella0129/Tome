@@ -11,6 +11,7 @@
 - **Summary:** Make the Sanguine sidebar a salmon-lettered void with a briar edge and refined hairlines, and give code chips a salmon gradient.
 - **Intents:** [INT-0025](../../intents/INT-0025-sanguine-sidebar-void.md) — realized; INT-0022 realized compatibility boundary.
 - **Completion evidence:** INT-0025 realized: T-062 complete; Vitest 178/178 (x5), Playwright 39/39; critique proceed-with-caveats; user signed off the built look; GitHub Actions 37237910279 succeeded at 277e597.
+- **Checkpoint:** https://github.com/crussella0129/Tome/pull/24
 
 ## Blockages
 
