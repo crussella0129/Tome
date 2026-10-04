@@ -220,3 +220,125 @@
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------- */
+/* Sanguine Atonement (INT-0025): the sidebar is a void beside the  */
+/* obsidian page. Its letters keep the salmon scheme (they must meet */
+/* 4.5:1 at menu size, which crimson cannot on black); crimson is    */
+/* the structure: the current-chapter channel, the hairlines, and a  */
+/* pixel briar down the edge. Tokens are overridden here only, so    */
+/* the riddle dialog (portalled to <body>) keeps the bone interface. */
+/* Values mirror SANGUINE_SIDEBAR in theme.ts.                       */
+/* ---------------------------------------------------------------- */
+
+:global(body.theme-sanguine-atonement) .sidebar {
+  --theme-window-background: #000000;
+  --theme-background-modal: #0c0505;
+  --theme-text: #ec5658;
+  --theme-text-subdued: #bc6957;
+  --theme-link: #ff7466;
+  --theme-focused-foreground: #ff7466;
+  --theme-focused-foreground-subdued: rgba(213, 2, 16, 0.22);
+  --theme-border: #3a0a0b;
+  --sanguine-hairline: linear-gradient(
+    90deg,
+    transparent,
+    #d50210 18%,
+    #ba1a1a 82%,
+    transparent
+  );
+  --sanguine-hairline-glow:
+    0 0 6px rgba(213, 2, 16, 0.45), 0 1px 0 rgba(58, 10, 11, 0.9);
+  background: #000000;
+  border-right: 0;
+}
+
+:global(body.theme-sanguine-atonement) .current,
+:global(body.theme-sanguine-atonement) .switcherCurrent {
+  border-left-color: #d50210;
+}
+
+/* Refined hairlines in place of the plain rules: crimson scored into the
+   void, fading at both ends, with a faint glow and a dark cut beneath. */
+:global(body.theme-sanguine-atonement) .header,
+:global(body.theme-sanguine-atonement) .switcher {
+  position: relative;
+  border-bottom: 0;
+}
+
+:global(body.theme-sanguine-atonement) .footer {
+  position: relative;
+  border-top: 0;
+}
+
+:global(body.theme-sanguine-atonement) .header::after,
+:global(body.theme-sanguine-atonement) .switcher::after,
+:global(body.theme-sanguine-atonement) .footer::before {
+  content: '';
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  height: 1px;
+  background: var(--sanguine-hairline);
+  box-shadow: var(--sanguine-hairline-glow);
+  pointer-events: none;
+}
+
+:global(body.theme-sanguine-atonement) .header::after,
+:global(body.theme-sanguine-atonement) .switcher::after {
+  bottom: 0;
+}
+
+:global(body.theme-sanguine-atonement) .footer::before {
+  top: 0;
+}
+
+:global(body.theme-sanguine-atonement) .separator {
+  height: 1px;
+  border-top: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(213, 2, 16, 0.75) 20%,
+    rgba(186, 26, 26, 0.75) 80%,
+    transparent
+  );
+  box-shadow: 0 0 5px rgba(213, 2, 16, 0.3);
+}
+
+/* As a column, the sidebar's edge is a briar: a wandering crimson stem,
+   hooked thorns with blood on their points, a leaf, a cluster of berries. */
+@media (min-width: 48.0625rem) {
+  :global(body.theme-sanguine-atonement) .sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -12px;
+    width: 24px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='64' viewBox='0 0 12 32' shape-rendering='crispEdges'%3E%3Crect x='5' y='0' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='0' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='1' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='1' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='1' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='5' y='2' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='2' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='3' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='3' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='4' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='4' width='1' height='1' fill='%236e1012'/%3E%3Crect x='8' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='6' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='5' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='8' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='6' y='8' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='9' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='9' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='10' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='10' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='10' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='5' y='11' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='11' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='12' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='12' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='13' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='13' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='13' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='4' y='14' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='14' width='1' height='1' fill='%236e1012'/%3E%3Crect x='4' y='15' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='15' width='1' height='1' fill='%236e1012'/%3E%3Crect x='4' y='16' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='16' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='16' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='4' y='17' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='17' width='1' height='1' fill='%236e1012'/%3E%3Crect x='4' y='18' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='18' width='1' height='1' fill='%236e1012'/%3E%3Crect x='4' y='19' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='19' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='19' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='5' y='20' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='20' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='21' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='21' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='22' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='22' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='22' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='5' y='23' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='23' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='24' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='24' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='25' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='25' width='1' height='1' fill='%236e1012'/%3E%3Crect x='8' y='25' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='6' y='26' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='26' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='27' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='27' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='28' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='28' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='28' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='5' y='29' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='29' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='30' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='30' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='31' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='31' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='31' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='8' y='3' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='9' y='3' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='10' y='2' width='1' height='1' fill='%23ff2a1a'/%3E%3Crect x='7' y='20' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='7' y='19' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='8' y='19' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='9' y='18' width='1' height='1' fill='%23ff2a1a'/%3E%3Crect x='4' y='12' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='4' y='11' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='3' y='11' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='10' width='1' height='1' fill='%23ff2a1a'/%3E%3Crect x='4' y='28' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='4' y='27' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='3' y='27' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='26' width='1' height='1' fill='%23ff2a1a'/%3E%3Crect x='3' y='17' width='1' height='1' fill='%235c1416'/%3E%3Crect x='2' y='16' width='1' height='1' fill='%235c1416'/%3E%3Crect x='1' y='16' width='1' height='1' fill='%235c1416'/%3E%3Crect x='1' y='15' width='1' height='1' fill='%235c1416'/%3E%3Crect x='0' y='15' width='1' height='1' fill='%235c1416'/%3E%3Crect x='8' y='9' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='9' y='10' width='1' height='1' fill='%23ff7466'/%3E%3Crect x='9' y='11' width='1' height='1' fill='%23d50210'/%3E%3Crect x='10' y='11' width='1' height='1' fill='%23d50210'/%3E%3C/svg%3E")
+      0 0 / 24px 64px repeat-y;
+    image-rendering: pixelated;
+    pointer-events: none;
+  }
+}
+
+/* Stacked above the page on narrow screens, the sidebar ends in a hairline. */
+@media (max-width: 48rem) {
+  :global(body.theme-sanguine-atonement) .sidebar {
+    position: relative;
+    border-bottom: 0;
+  }
+
+  :global(body.theme-sanguine-atonement) .sidebar::after {
+    content: '';
+    position: absolute;
+    left: var(--space-4);
+    right: var(--space-4);
+    bottom: 0;
+    height: 1px;
+    background: var(--sanguine-hairline);
+    box-shadow: var(--sanguine-hairline-glow);
+    pointer-events: none;
+  }
+}

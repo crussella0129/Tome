@@ -97,11 +97,30 @@ body.theme-sanguine-atonement .tome-prose h3 {
   font-size: 1.75rem;
 }
 
-body.theme-sanguine-atonement
-  .tome-prose
-  :is(table, pre, :not(pre) > code, .footnotes, figcaption, sup) {
+body.theme-sanguine-atonement .tome-prose :is(table, pre, .footnotes, figcaption, sup) {
   color: var(--theme-text);
   text-shadow: none;
+}
+
+/* Inline code is a salmon highlight (INT-0025): the first version's ichor,
+   lifted toward serum at the top, on the chip's own dark ground. The gradient
+   clips to the letters in its own layer while a second layer fills the chip
+   (an inset shadow would paint over clipped text). Solid salmon where
+   gradient text is unsupported. Both stops clear 4.5:1 on #170e0f. */
+body.theme-sanguine-atonement .tome-prose :not(pre) > code {
+  color: #ec5658;
+  text-shadow: none;
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  body.theme-sanguine-atonement .tome-prose :not(pre) > code {
+    background:
+      linear-gradient(180deg, #ff9a8a, #ec5658) text,
+      linear-gradient(#170e0f, #170e0f) padding-box;
+    -webkit-background-clip: text, padding-box;
+    background-clip: text, padding-box;
+    -webkit-text-fill-color: transparent;
+  }
 }
 
 /* Carved channels. Before the pour they are empty cuts in the stone. */
@@ -358,5 +377,11 @@ body.theme-sanguine-atonement .numeral {
     text-shadow: none;
     filter: none;
     animation: none;
+  }
+
+  body.theme-sanguine-atonement .tome-prose :not(pre) > code {
+    color: #000;
+    -webkit-text-fill-color: #000;
+    background: none;
   }
 }

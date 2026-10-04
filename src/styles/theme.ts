@@ -86,6 +86,30 @@ export const SANGUINE_ROLES = {
   },
 } as const;
 
+/**
+ * The Sanguine reader sidebar (INT-0025): a void lettered in the first
+ * version's salmon, with crimson for structure. Each text role is checked
+ * against every ground it renders on; `channel` is a non-text mark (3:1).
+ * Mirrored in TocSidebar.module.css. `chip` is the inline-code highlight in
+ * chapter text (sanguine.css), on the chip's own ground.
+ */
+export const SANGUINE_SIDEBAR = {
+  grounds: {
+    void: '#000000',
+    sunken: '#0c0505',
+    /** `channel` at `tint` over the void: the current chapter's row. */
+    current: '#2f0004',
+    /** `channel` at `tint` over sunken: the selected picker segment. */
+    selected: '#380407',
+  },
+  tint: 0.22,
+  text: '#ec5658',
+  subdued: '#bc6957',
+  accent: '#ff7466',
+  channel: '#d50210',
+  chip: { ground: '#170e0f', top: '#ff9a8a', bottom: '#ec5658' },
+} as const;
+
 /** Every theme Tome ships, in display order. Default is the first. */
 export const THEMES: readonly ThemeColors[] = [INK_PAPER, TERMINAL_DARK, SANGUINE_ATONEMENT];
 

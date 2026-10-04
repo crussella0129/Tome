@@ -25,6 +25,7 @@
   - [INT-0022 — Sanguine Atonement hidden theme](intents/INT-0022-sanguine-atonement-theme.md)
   - [INT-0023 — Find, load, and deploy your own books](intents/INT-0023-find-load-and-deploy-books.md)
   - [INT-0024 — Portable deployment: offline reading and sub-path hosting](intents/INT-0024-portable-deployment.md)
+  - [INT-0025 — Sanguine sidebar: the void, the briar, and salmon highlights](intents/INT-0025-sanguine-sidebar-void.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -50,3 +51,4 @@
 - [Sprint 20](sprints/s20/sprint-meta.md)
 - [Sprint 21](sprints/s21/sprint-meta.md)
 - [Sprint 22](sprints/s22/sprint-meta.md)
+- [Sprint 23](sprints/s23/sprint-meta.md)
