@@ -24,6 +24,7 @@ import { createFixtureGate } from '../../../scripts/fixture-gate.mjs';
 const projectRoot = process.cwd();
 const loader = join(projectRoot, 'scripts', 'load-books.mjs');
 const contentPath = 'src/content/books';
+const libraryPath = 'src/content/library';
 const samplePath = `${contentPath}/sample/README.md`;
 const sample = '# Committed sample\n';
 const tempParent = resolve(tmpdir());
@@ -327,7 +328,7 @@ describe('fixture-gate.mjs — guarded fixture lifecycle', () => {
     expect(isolated.TOME_CONFIG).toBe(
       join(projectRoot, 'fixtures', 'empty-library.toml'),
     );
-    expect(isolated.TOME_BOOK_DEST).toBe(join(root, contentPath));
+    expect(isolated.TOME_BOOK_DEST).toBe(join(root, libraryPath));
     expect(isolated.FIXTURE_SENTINEL).toBe('preserved');
     expect(
       Object.keys(isolated).filter((name) =>
@@ -353,10 +354,10 @@ describe('fixture-gate.mjs — guarded fixture lifecycle', () => {
       TOME_BOOK_DEST: 'other-destination',
     });
     expect(redirected.TOME_CONFIG).toBe(isolated.TOME_CONFIG);
-    expect(redirected.TOME_BOOK_DEST).toBe(join(root, contentPath));
+    expect(redirected.TOME_BOOK_DEST).toBe(join(root, libraryPath));
   });
 
-  it('test_fixture_gate_isolates_environment: real loader selects explicit fixtures and defaults to a no-op', async () => {
+  it('test_fixture_gate_isolates_environment: real loader publishes explicit fixtures, else the sample, into the library', async () => {
     const caller = makeBook(root, 'caller-book');
     const fixture = makeBook(root, 'explicit-fixture');
     const second = makeBook(root, 'second-fixture');
@@ -392,12 +393,12 @@ describe('fixture-gate.mjs — guarded fixture lifecycle', () => {
         load(overrides);
         expect(
           readFileSync(
-            join(root, contentPath, 'explicit-fixture/README.md'),
+            join(root, libraryPath, 'explicit-fixture/README.md'),
             'utf8',
           ),
         ).toBe('# explicit-fixture\n');
-        expect(existsSync(join(root, contentPath, 'caller-book'))).toBe(false);
-        expect(existsSync(join(root, contentPath, 'second-fixture'))).toBe(
+        expect(existsSync(join(root, libraryPath, 'caller-book'))).toBe(false);
+        expect(existsSync(join(root, libraryPath, 'second-fixture'))).toBe(
           'TOME_BOOKS' in overrides,
         );
       });
@@ -406,6 +407,10 @@ describe('fixture-gate.mjs — guarded fixture lifecycle', () => {
     }
 
     expect(load()).toContain('using the bundled sample');
+    expect(
+      readFileSync(join(root, libraryPath, 'sample/README.md'), 'utf8'),
+    ).toBe(sample);
+    expect(existsSync(join(root, libraryPath, 'explicit-fixture'))).toBe(false);
     expect(readFileSync(join(root, samplePath), 'utf8')).toBe(sample);
     expect(status(root)).toBe('');
     expect(readdirSync(outside)).toEqual(['sentinel.txt']);

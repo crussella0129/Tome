@@ -29,15 +29,16 @@ export function slugify(name) {
   );
 }
 
-// Extract just `title` and `src` from a book.toml (two fields — no TOML dep).
+// Extract just `title`, `src`, and `build-dir` from a book.toml (no TOML dep).
 export function extractBookToml(text) {
   const title = text.match(/^\s*title\s*=\s*["']([^"']*)["']/m)?.[1];
   const src = text.match(/^\s*src\s*=\s*["']([^"']*)["']/m)?.[1];
-  return { title, src };
+  const buildDir = text.match(/^\s*build-dir\s*=\s*["']([^"']*)["']/m)?.[1];
+  return { title, src, buildDir };
 }
 
 /**
- * Resolve `{ root, sourceDir, title }` for a book root.
+ * Resolve `{ root, sourceDir, title, slug, buildDir }` for a book root.
  * A declared `book.toml` `src` is authoritative (used exactly; throws if it
  * lacks SUMMARY.md). Otherwise auto-detect `src/` → `docs/` → the root. Title is
  * the `book.toml` title, else the root directory name, else null (the caller
@@ -47,11 +48,13 @@ export async function resolveBookSource(bookRoot) {
   const root = resolve(bookRoot);
   let tomlTitle;
   let declaredSrc;
+  let declaredBuildDir;
   const tomlPath = join(root, 'book.toml');
   if (await exists(tomlPath)) {
     const parsed = extractBookToml(await readFile(tomlPath, 'utf8'));
     if (parsed.title) tomlTitle = parsed.title;
     if (parsed.src) declaredSrc = parsed.src;
+    if (parsed.buildDir) declaredBuildDir = parsed.buildDir;
   }
 
   let sourceDir;
@@ -88,7 +91,16 @@ export async function resolveBookSource(bookRoot) {
   const title = tomlTitle ?? (basename(root) || undefined);
   // Default per-tome slug from the root directory name (stable across runs and
   // independent of the title, which may contain spaces). Callers may override.
-  return { root, sourceDir, title: title ?? null, slug: slugify(basename(root)) };
+  return {
+    root,
+    sourceDir,
+    title: title ?? null,
+    slug: slugify(basename(root)),
+    // mdBook renders into `[build] build-dir` (default `book/`) beside its
+    // sources; the loader must never copy that output back in as content.
+    buildDir: join(root, declaredBuildDir ?? 'book'),
+    buildDirDeclared: Boolean(declaredBuildDir),
+  };
 }
 
 /**

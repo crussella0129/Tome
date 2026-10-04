@@ -71,6 +71,13 @@ pass useful without changing the reader's public behavior.
   retains the fixture and temporary input for diagnosis; it cannot safely
   restore under a running watcher.
 - The existing T-052 native library-management backlog remains separate.
+- Revised 2026-10-04 by [INT-0023](INT-0023-find-load-and-deploy-books.md)
+  (T-058): the loader now publishes into a generated, git-ignored library
+  (`src/content/library/`), so fixtures land there rather than over the sample.
+  The guard and strict restoration still protect the tracked sample at
+  `src/content/books/`, and the default rebuild now *publishes* the sample
+  instead of leaving the library untouched. The outcome and acceptance
+  criteria are unchanged.
 
 ## Transition history
 
@@ -87,3 +94,6 @@ pass useful without changing the reader's public behavior.
   37214164920 succeeded at `159810e`. Test critique: proceed-with-caveats
   (per-CLI final-rebuild and environment-isolation proofs rest on the shared
   module for three of four gates).
+- 2026-10-04: consequence note added (state unchanged, `realized`) — INT-0023's
+  generated library moves fixture output out of the tracked sample; the guard,
+  restoration, and isolation contracts are unchanged and re-verified by T-058.

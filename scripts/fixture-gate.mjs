@@ -6,7 +6,10 @@ import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// The committed sample, guarded and strictly restored. Fixtures themselves are
+// published into the generated, git-ignored library.
 const BOOK_DIR = 'src/content/books';
+const LIBRARY_DIR = 'src/content/library';
 const EMPTY_CONFIG = fileURLToPath(
   new URL('../fixtures/empty-library.toml', import.meta.url),
 );
@@ -45,7 +48,7 @@ export function createFixtureGate({
       ...clean,
       ...overrides,
       TOME_CONFIG: EMPTY_CONFIG,
-      TOME_BOOK_DEST: join(root, BOOK_DIR),
+      TOME_BOOK_DEST: join(root, LIBRARY_DIR),
     };
   }
 

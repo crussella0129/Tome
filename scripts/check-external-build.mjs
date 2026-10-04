@@ -3,12 +3,10 @@
 // replace the sample). A single external book stays at the root (adaptive
 // single-tome mode). Covers the standard layout (book.toml + src/, incl. a
 // relative image) AND a config-less docs/ layout (no book.toml — detected).
-// src/content/books/ is restored to HEAD after EACH book and on any failure, so
-// the gate is idempotent and leaves the tree at HEAD. Runs locally and in CI.
-//
-// NOTE: this gate replaces src/content/books/. It refuses to start unless that
-// target is pristine, then strictly restores tracked content and removes only
-// fixture residue within the target after each case.
+// Fixtures publish into the generated library (src/content/library/); the
+// committed sample at src/content/books/ is guarded: the gate refuses to start
+// unless it is pristine and strictly restores it after each case. Runs locally
+// and in CI.
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';

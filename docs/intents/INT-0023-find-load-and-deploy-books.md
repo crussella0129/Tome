@@ -2,7 +2,7 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0023
-- **State:** planned
+- **State:** active
 - **Work evidence:** [Sprint 22 build plan](../sprints/s22/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
@@ -114,3 +114,5 @@ alone.
   (T-058 generated library, T-059 discovery CLI, T-060 tutorial). AC6 clarified
   at planning: automated checks cover Tome's own documented commands; third-party
   hosting steps are reviewed documentation.
+- 2026-10-04: `planned → active` — Sprint 22 Build reached T-058 (generated
+  library, personal manifest, clean copies) after the theme tasks landed.

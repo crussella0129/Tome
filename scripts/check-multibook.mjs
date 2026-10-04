@@ -1,9 +1,9 @@
 // Multi-book end-to-end gate: builds Tome with TWO fixture tomes and asserts the
 // adaptive multi-tome shape — every chapter namespaced under its tome slug, and a
 // `/` Bibliotheca listing both tomes as titled links (plus the sidebar switcher
-// on a chapter page). src/content/books/ is restored to HEAD after the build and
-// on any failure, so the gate is idempotent and leaves the tree at HEAD. Runs
-// locally (build-level), consistent with check-external-build.
+// on a chapter page). Fixtures publish into the generated library; the committed
+// sample is guarded and restored, so the gate is idempotent. Runs locally
+// (build-level), consistent with check-external-build.
 //
 // Refuses local content changes before setup, then restores through the shared
 // fixture lifecycle. Caller book/configuration overrides cannot redirect it.

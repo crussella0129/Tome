@@ -1,14 +1,20 @@
 # tome.config.toml — the Bibliotheca manifest.
 #
-# List the mdBooks ("tomes") this Tome should present. On `dev`/`build`,
-# scripts/load-books.mjs reads this file and copies each book into the content
-# library. With one tome the reader sits at the root; with several, Tome shows a
-# Bibliotheca index at `/` and namespaces each tome under `/<slug>/`.
+# A shared, tracked template. For your OWN books, put the same entries in a
+# `tome.local.toml` beside this file instead (it is git-ignored and, when it
+# exists, wins over this one).
+#
+# On `dev`/`build`, scripts/load-books.mjs reads the manifest and copies each
+# book into the generated, git-ignored library (src/content/library/). With one
+# tome the reader sits at the root; with several, Tome shows a Bibliotheca index
+# at `/` and namespaces each tome under `/<slug>/`.
 #
 # Precedence (highest first):
 #   1. The TOME_BOOKS="/a,/b" (comma-separated) or TOME_BOOK="/a" env var.
-#   2. The [[book]] entries below.
-#   3. Neither → the committed sample tome renders (the default; this file ships
+#   2. TOME_CONFIG=<file>, when set.
+#   3. tome.local.toml, when it exists.
+#   4. The [[book]] entries below.
+#   5. None of these → the committed sample library renders (this file ships
 #      fully commented, so it is a no-op until you add an entry).
 #
 # owner — whose library this is. The Bibliotheca masthead reads "The Bibliotheca

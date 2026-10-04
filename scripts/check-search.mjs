@@ -3,8 +3,8 @@
 // and a two-tome build (namespaced URLs). Both modes are exercised with explicit
 // fixtures (the shipped default is now a two-tome library). Imports the pure
 // `search` from the TS source (Node 24 strips the type-only import).
-// src/content/books/ is restored to HEAD after the builds and on any failure, so
-// the gate is idempotent.
+// Fixtures publish into the generated library; the committed sample is guarded
+// and restored after the builds and on any failure, so the gate is idempotent.
 //
 // Refuses local content changes before setup, then restores through the shared
 // fixture lifecycle. Caller book/configuration overrides cannot redirect it.

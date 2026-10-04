@@ -5,6 +5,9 @@ dist/
 .astro/
 # Fetched at build time (not redistributed) by scripts/fetch-fonts.mjs
 public/fonts/
+# The generated library (scripts/load-books.mjs) and your personal manifest.
+/src/content/library/
+/tome.local.toml
 # Test / build output
 coverage/
 test-results/

@@ -3,9 +3,9 @@ import { books } from '../lib/book';
 import { buildSearchIndex } from '../lib/search-index';
 
 // Every chapter's raw Markdown, eagerly imported for the build-time index. Keys
-// are `../content/books/<tome>/<file>.md` (relative to this module), matching
+// are the library's `/src/content/library/<tome>/<file>.md`, matching
 // `isContentKeyFor`.
-const rawByKey = import.meta.glob('../content/books/**/*.md', {
+const rawByKey = import.meta.glob('@library/**/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
