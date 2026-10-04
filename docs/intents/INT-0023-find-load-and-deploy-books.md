@@ -2,8 +2,8 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0023
-- **State:** proposed
-- **Work evidence:** none
+- **State:** planned
+- **Work evidence:** [Sprint 22 build plan](../sprints/s22/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
 - **Test evidence:** none
@@ -61,8 +61,9 @@ checkout.
    tablet on the local network → static hosting (with the root-path and
    privacy caveats). It includes a copy-pasteable agent recipe based on the
    `--json` output, a recipe for a campaign book whose undiscovered entries
-   are unlinked SUMMARY drafts, and the commands it documents are exercised
-   by automated tests.
+   are unlinked SUMMARY drafts. Every Tome command it documents
+   (`npm run …` scripts) exists and is exercised by automated tests;
+   third-party hosting steps are reviewed documentation.
 
 ## Rationale
 
@@ -109,3 +110,7 @@ alone.
 
 - 2026-10-04: created as `proposed` during Sprint 22 research from the user's
   request to review the explorer path and write a find-and-deploy tutorial.
+- 2026-10-04: `proposed → planned` — the user approved the Sprint 22 plan
+  (T-058 generated library, T-059 discovery CLI, T-060 tutorial). AC6 clarified
+  at planning: automated checks cover Tome's own documented commands; third-party
+  hosting steps are reviewed documentation.

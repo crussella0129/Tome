@@ -2,8 +2,8 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0022
-- **State:** proposed
-- **Work evidence:** none
+- **State:** planned
+- **Work evidence:** [Sprint 22 build plan](../sprints/s22/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
 - **Test evidence:** none
@@ -118,3 +118,5 @@ the session.
 
 - 2026-10-04: created as `proposed` during Sprint 22 research from the user's
   Sanguine Atonement request.
+- 2026-10-04: `proposed → planned` — the user approved the Sprint 22 plan
+  (T-055 selector + riddle, T-056 visual system, T-057 transformation).

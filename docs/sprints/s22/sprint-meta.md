@@ -8,6 +8,6 @@
 - **Bundle version:** 0.22.0
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
-- **Summary:** (one-line description of sprint goal, filled after Plan Phase)
-- **Intents:** (filled after Plan Phase)
+- **Summary:** Add the hidden Sanguine Atonement theme behind the Black Door riddle, and make finding, loading, and deploying your own books clean and documented.
+- **Intents:** [INT-0022](../../intents/INT-0022-sanguine-atonement-theme.md) — planned; [INT-0023](../../intents/INT-0023-find-load-and-deploy-books.md) — planned; INT-0021 realized compatibility boundary (consequence note in T-058).
 - **Completion evidence:** (filled at Loop Phase)
