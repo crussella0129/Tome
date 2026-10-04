@@ -4,6 +4,7 @@ import {
   THEMES,
   SANGUINE_ATONEMENT,
   SANGUINE_ROLES,
+  SANGUINE_SIDEBAR,
   contrastRatio,
   relativeLuminance,
   parseHex,
@@ -126,5 +127,66 @@ describe('test_sanguine_role_contrast', () => {
     const sanguine = readFileSync('src/styles/sanguine.css', 'utf8');
     const layer = sanguine.slice(sanguine.indexOf('body.theme-sanguine-atonement::before {'));
     expect(layer.match(/opacity:\s*([0-9.]+)/)?.[1]).toBe(String(surface.opacity));
+  });
+});
+
+// INT-0025 — the Sanguine sidebar void and the salmon code chips.
+describe('test_sanguine_sidebar_contrast', () => {
+  const { grounds, tint, channel } = SANGUINE_SIDEBAR;
+
+  it('the documented row tints are the channel composited over their grounds', () => {
+    expect(over(grounds.void, channel, tint)).toBe(grounds.current);
+    expect(over(grounds.sunken, channel, tint)).toBe(grounds.selected);
+  });
+
+  it('every sidebar text role meets AA (4.5:1) on each ground it renders on', () => {
+    // Subdued text (part titles, drafts, captions) never sits on the current
+    // row or the selected picker segment; those carry the accent.
+    const rendersOn = {
+      text: ['void', 'sunken', 'current', 'selected'],
+      subdued: ['void', 'sunken'],
+      accent: ['void', 'sunken', 'current', 'selected'],
+    } as const;
+    for (const [role, names] of Object.entries(rendersOn)) {
+      for (const name of names) {
+        const ratio = contrastRatio(
+          SANGUINE_SIDEBAR[role as keyof typeof rendersOn],
+          grounds[name as keyof typeof grounds],
+        );
+        expect(ratio, `${role} on ${name}`).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
+      }
+    }
+  });
+
+  it('the crimson channel is a visible non-text mark (3:1) on the void', () => {
+    expect(contrastRatio(channel, grounds.void)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('test_sanguine_chip_contrast: both stops of the salmon chip clear AA on its ground', () => {
+    const { ground, top, bottom } = SANGUINE_SIDEBAR.chip;
+    expect(contrastRatio(top, ground)).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
+    expect(contrastRatio(bottom, ground)).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
+  });
+
+  it('the contract matches the stylesheets (no drift)', () => {
+    const sidebar = readFileSync('src/components/TocSidebar.module.css', 'utf8');
+    const block = sidebar.slice(
+      sidebar.indexOf(':global(body.theme-sanguine-atonement) .sidebar {'),
+    );
+    for (const [token, value] of [
+      ['--theme-window-background', grounds.void],
+      ['--theme-background-modal', grounds.sunken],
+      ['--theme-text', SANGUINE_SIDEBAR.text],
+      ['--theme-text-subdued', SANGUINE_SIDEBAR.subdued],
+      ['--theme-focused-foreground', SANGUINE_SIDEBAR.accent],
+    ] as const) {
+      expect(block, token).toContain(`${token}: ${value};`);
+    }
+    expect(block).toContain(`--theme-focused-foreground-subdued: rgba(213, 2, 16, ${tint});`);
+    expect(block).toContain(`border-left-color: ${channel};`);
+    const chips = readFileSync('src/styles/sanguine.css', 'utf8');
+    const { ground, top, bottom } = SANGUINE_SIDEBAR.chip;
+    expect(chips).toContain(`linear-gradient(180deg, ${top}, ${bottom}) text`);
+    expect(chips).toContain(`linear-gradient(${ground}, ${ground}) padding-box`);
   });
 });

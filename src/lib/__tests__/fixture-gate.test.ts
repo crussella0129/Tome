@@ -66,6 +66,26 @@ function status(root: string) {
   );
 }
 
+/**
+ * Remove a test directory, waiting out Windows' brief hold on it. Right after a
+ * child shell exits (the gate's `npm run build`), Windows can keep its working
+ * directory locked for a few hundred milliseconds; Node's `maxRetries` does not
+ * cover that here, so retry lock errors explicitly for up to ~5 seconds.
+ */
+function removeWithRetry(path: string) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      rmSync(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? '';
+      if (attempt >= 50 || !['EPERM', 'EBUSY', 'ENOTEMPTY'].includes(code))
+        throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+  }
+}
+
 function makeBook(root: string, name: string) {
   const book = join(root, name);
   write(book, 'src/SUMMARY.md', '# Summary\n\n[Intro](README.md)\n');
@@ -99,7 +119,7 @@ describe('fixture-gate.mjs — guarded fixture lifecycle', () => {
         `Refusing to remove unexpected test directory: ${target}`,
       );
     }
-    rmSync(target, { recursive: true, force: true });
+    removeWithRetry(target);
   });
 
   function expectRestored() {

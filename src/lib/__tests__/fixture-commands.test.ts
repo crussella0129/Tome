@@ -67,6 +67,26 @@ function status(root: string) {
   );
 }
 
+/**
+ * Remove a test directory, waiting out Windows' brief hold on it. Right after a
+ * child shell exits, Windows can keep its working directory locked for a few
+ * hundred milliseconds; Node's `maxRetries` does not cover that here, so retry
+ * lock errors explicitly for up to ~5 seconds.
+ */
+function removeWithRetry(path: string) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      rmSync(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? '';
+      if (attempt >= 50 || !['EPERM', 'EBUSY', 'ENOTEMPTY'].includes(code))
+        throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+  }
+}
+
 function removeTemp(target: string, prefix: string) {
   const resolved = resolve(target);
   const withinTemp = relative(tempParent, resolved);
@@ -80,7 +100,7 @@ function removeTemp(target: string, prefix: string) {
       `Refusing to remove unexpected test directory: ${resolved}`,
     );
   }
-  rmSync(resolved, { recursive: true, force: true });
+  removeWithRetry(resolved);
 }
 
 function alive(pid: number) {

@@ -206,22 +206,104 @@ test.describe('Sanguine Atonement', () => {
       return {
         ink: p.color,
         size: parseFloat(p.fontSize),
-        chip: css('.tome-prose :not(pre) > code').color,
-        current: css('nav a[aria-current="page"]').color,
-        brand: css('nav a').color,
+        search: css('main .searchbar button').color,
       };
     });
     expect(reader.ink).toBe('rgb(213, 2, 16)');
     expect(reader.size).toBeGreaterThanOrEqual(SANGUINE_ROLES.inscriptionPx);
-    expect(reader.chip).toBe('rgb(203, 181, 171)');
-    expect(reader.current).toBe('rgb(255, 48, 48)');
-    expect(reader.brand).toBe('rgb(203, 181, 171)');
+    // Interface outside the sidebar stays bone (the sidebar and chips are INT-0025's).
+    expect(reader.search).toBe('rgb(157, 138, 130)'); // weathered bone
 
     await inSanguine(page, '/tome/components');
     const cell = await page.evaluate(
       () => getComputedStyle(document.querySelector('.tome-prose td')!).color,
     );
     expect(cell).toBe('rgb(203, 181, 171)');
+  });
+
+  // INT-0025 — the sidebar is a salmon-lettered void with a briar edge and
+  // refined hairlines; the riddle dialog outside it keeps the bone ink.
+  test('test_sanguine_sidebar_void', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await inSanguine(page, READER);
+    const nav = page.getByRole('navigation', { name: 'Table of contents' });
+    const look = await nav.evaluate((el) => {
+      const css = (node: Element, pseudo?: string) => getComputedStyle(node, pseudo);
+      const q = (sel: string) => el.querySelector(sel)!;
+      const header = el.firstElementChild!;
+      const footer = el.lastElementChild!;
+      const briar = css(el, '::after');
+      return {
+        bg: css(el).backgroundColor,
+        rightBorder: css(el).borderRightWidth,
+        position: css(el).position,
+        link: css(q('a[href="/tome/components"]')).color,
+        part: css([...el.querySelectorAll('li')].find((li) => li.textContent === 'Guide')!).color,
+        current: css(q('a[aria-current="page"]')).color,
+        channel: css(q('a[aria-current="page"]')).borderLeftColor,
+        briarImage: briar.backgroundImage,
+        briarWidth: briar.width,
+        briarPointer: briar.pointerEvents,
+        headerBorder: css(header).borderBottomWidth,
+        headerRule: css(header, '::after').backgroundImage,
+        footerBorder: css(footer).borderTopWidth,
+        footerRule: css(footer, '::before').backgroundImage,
+        separator: css(q('li[role="separator"]')).backgroundImage,
+      };
+    });
+    expect(look.bg).toBe('rgb(0, 0, 0)');
+    expect(look.position).toBe('sticky');
+    expect(look.rightBorder).toBe('0px');
+    expect(look.link).toBe('rgb(236, 86, 88)');
+    expect(look.part).toBe('rgb(188, 105, 87)');
+    expect(look.current).toBe('rgb(255, 116, 102)');
+    expect(look.channel).toBe('rgb(213, 2, 16)');
+    expect(look.briarImage).toContain('data:image/svg+xml');
+    expect(look.briarWidth).toBe('24px');
+    expect(look.briarPointer).toBe('none');
+    expect(look.headerBorder).toBe('0px');
+    expect(look.footerBorder).toBe('0px');
+    for (const rule of [look.headerRule, look.footerRule, look.separator]) {
+      expect(rule).toContain('linear-gradient');
+      expect(rule).toContain('rgba(0, 0, 0, 0)'); // fades out at the ends
+    }
+
+    // The riddle dialog lives outside the sidebar: bone, not salmon.
+    await page.waitForSelector('html[data-theme-ready="true"]');
+    await option(page, 'Other…').click();
+    const dialogInk = await page
+      .getByRole('dialog', { name: 'What is the color of Night?' })
+      .evaluate((el) => getComputedStyle(el).color);
+    expect(dialogInk).toBe('rgb(203, 181, 171)');
+    await page.keyboard.press('Escape');
+
+    // Stacked above the page, the sidebar ends in a hairline, not a briar.
+    await page.setViewportSize({ width: 600, height: 900 });
+    const narrow = await nav.evaluate((el) => getComputedStyle(el, '::after').backgroundImage);
+    expect(narrow).not.toContain('svg');
+    expect(narrow).toContain('linear-gradient');
+  });
+
+  test('test_sanguine_code_chips_salmon', async ({ page }) => {
+    await inSanguine(page, READER);
+    const chip = () =>
+      page.evaluate(() => {
+        const css = getComputedStyle(document.querySelector('.tome-prose :not(pre) > code')!);
+        return {
+          fill: css.getPropertyValue('-webkit-text-fill-color'),
+          image: css.backgroundImage,
+          clip: css.getPropertyValue('-webkit-background-clip') || css.backgroundClip,
+        };
+      });
+    const screen = await chip();
+    expect(screen.fill).toBe('rgba(0, 0, 0, 0)');
+    expect(screen.image).toContain('rgb(255, 154, 138)');
+    expect(screen.image).toContain('rgb(236, 86, 88)');
+    expect(screen.clip).toContain('text');
+    await page.emulateMedia({ media: 'print' });
+    const printed = await chip();
+    expect(printed.fill).toBe('rgb(0, 0, 0)');
+    expect(printed.image).toBe('none');
   });
 
   test('test_sanguine_sealed_drafts', async ({ page }) => {

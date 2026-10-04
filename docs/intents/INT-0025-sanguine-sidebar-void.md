@@ -2,7 +2,7 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0025
-- **State:** planned
+- **State:** active
 - **Work evidence:** [Sprint 23 build plan](../sprints/s23/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
@@ -63,9 +63,11 @@ ornamented horizontal option (vines, drips, a blade, an iron rail) in favour of
   pure-red look the theme set out to avoid.
 - **Vine, bleeding-line, blade, or rail dividers.** Mocked and rejected by the
   user; the briar is reserved for the vertical edge.
-- **Multi-layer `background-clip: text, padding-box` for the chips.** Avoided:
-  a renderer without the list form would paint the text transparent. A
-  single text-clipped gradient over an inset-shadow fill degrades safely.
+- **A text-clipped gradient over an inset-shadow fill for the chips.**
+  Rejected after testing: an inset shadow paints over the text-clipped
+  background, so the letters vanish (observed in WebKit 26.5 and Chromium).
+  Multi-layer `background-clip: text, padding-box` rendered correctly in both
+  and is used, behind an `@supports` guard with a solid salmon fallback.
 
 ## Consequences
 
@@ -80,3 +82,7 @@ ornamented horizontal option (vines, drips, a blade, an iron rail) in favour of
   sidebar and code-highlight feedback and three rounds of rendered mocks.
 - 2026-10-04: `proposed → planned` — the user approved the Sprint 23 plan
   (T-062).
+- 2026-10-04: `planned → active` — Sprint 23 Build began with T-062.
+- 2026-10-04: Alternatives corrected (state unchanged): the planned inset-shadow
+  chip technique hides the text in WebKit and Chromium; multi-layer clipping
+  renders correctly in both and replaces it. No acceptance criterion changed.
