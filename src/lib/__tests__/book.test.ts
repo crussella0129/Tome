@@ -28,6 +28,9 @@ describe('library (bundled book)', () => {
       'getting-started',
       'components',
       'components/panels',
+      'find-your-books',
+      'take-it-to-the-table',
+      'a-campaign-of-tablets',
       'about',
     ]);
     const titles = tome.chapters.map((r) => r.chapter.title);
@@ -48,7 +51,7 @@ describe('library (bundled book)', () => {
     expect(first.next?.title).toBe('Getting Started');
 
     expect(last.next).toBeUndefined();
-    expect(last.prev?.title).toBe('Panels & Tables');
+    expect(last.prev?.title).toBe('A Campaign of Tablets');
 
     const middle = routes[1]!;
     expect(middle.prev?.title).toBe('Introduction');

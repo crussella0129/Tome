@@ -291,3 +291,25 @@ test.describe('Tome reader', () => {
     expect(await display('article.tome-prose')).not.toBe('none');
   });
 });
+
+// INT-0023 AC6 — the tutorial chapters are part of the bundled guide: in the
+// sidebar under "Your Library", readable, and in the search index.
+test('test_tutorial_chapters_reachable_and_searchable', async ({ page }) => {
+  await page.goto('/tome/find-your-books');
+  await expect(page.getByRole('heading', { level: 1, name: 'Find Your Books' })).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Table of contents' });
+  await expect(nav.getByText('Your Library', { exact: true })).toBeVisible();
+  for (const title of ['Find Your Books', 'Take It to the Table', 'A Campaign of Tablets']) {
+    await expect(nav.getByRole('link', { name: title })).toBeVisible();
+  }
+  const index = (await (await page.request.get('/search-index.json')).json()) as {
+    url: string;
+    text?: string;
+    title?: string;
+  }[];
+  const urls = index.map((r) => r.url);
+  for (const slug of ['find-your-books', 'take-it-to-the-table', 'a-campaign-of-tablets']) {
+    expect(urls.some((u) => u.startsWith(`/tome/${slug}`))).toBe(true);
+  }
+  expect(JSON.stringify(index)).toContain('books:find');
+});
