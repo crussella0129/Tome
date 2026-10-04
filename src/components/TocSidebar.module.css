@@ -104,6 +104,11 @@
   opacity: 0.7;
 }
 
+/* In Sanguine Atonement an unwritten chapter is a tablet not yet found. */
+:global(body.theme-sanguine-atonement) .draft::after {
+  content: ' (sealed)';
+}
+
 .separator {
   height: 0;
   border: 0;

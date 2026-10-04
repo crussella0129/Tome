@@ -45,9 +45,36 @@ export const SANGUINE_ATONEMENT: ThemeColors = {
   className: 'theme-sanguine-atonement',
   label: 'Sanguine Atonement',
   background: '#0a0708',
-  text: '#ea5052',
+  text: '#ec5658',
   hidden: true,
 };
+
+/**
+ * Sanguine Atonement's role colours and the bounds of its obsidian surface,
+ * mirrored from `tokens.css` / `sanguine.css`. The contrast test checks every
+ * reading role against each surface, including the brightest tone the
+ * texture can reach (`sheen`, from compositing `surface.highlight` at
+ * `surface.opacity` plus the candle glow over the page).
+ */
+export const SANGUINE_ROLES = {
+  surfaces: { page: '#0a0708', panel: '#110b0c', input: '#170e0f' },
+  text: '#ec5658',
+  subdued: '#bc6957',
+  link: '#e2717b',
+  accent: '#ff2b2b',
+  /** Large carved letters fade from arterial to pooled; pooled is the darkest stop. */
+  headingTop: '#ff4b4b',
+  pooled: '#ba1a1a',
+  surface: {
+    /** The obsidian layer's brightest specular colour. */
+    highlight: '#3a2a2c',
+    /** `body::before` opacity in Sanguine. */
+    opacity: 0.3,
+    /** The candle glow at its strongest. */
+    glow: '#ff3c28',
+    glowAlpha: 0.03,
+  },
+} as const;
 
 /** Every theme Tome ships, in display order. Default is the first. */
 export const THEMES: readonly ThemeColors[] = [INK_PAPER, TERMINAL_DARK, SANGUINE_ATONEMENT];
