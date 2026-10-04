@@ -38,32 +38,42 @@ export const TERMINAL_DARK: ThemeColors = {
 
 /**
  * Blood letters cut into obsidian (INT-0022), unlocked by answering the Black
- * Door's riddle. Ground and ink are the obsidian page and the crimson "ichor";
- * see `docs/sprints/s22/sprint-research/palette-derivation.md`.
+ * Door's riddle. `text` is the interface ink (bone); chapter text is the
+ * crimson inscription in SANGUINE_ROLES, set large enough for large-text AA.
  */
 export const SANGUINE_ATONEMENT: ThemeColors = {
   className: 'theme-sanguine-atonement',
   label: 'Sanguine Atonement',
   background: '#0a0708',
-  text: '#ec5658',
+  text: '#cbb5ab',
   hidden: true,
 };
 
 /**
  * Sanguine Atonement's role colours and the bounds of its obsidian surface,
  * mirrored from `tokens.css` / `sanguine.css`. The contrast test checks every
- * reading role against each surface, including the brightest tone the
- * texture can reach (`sheen`, from compositing `surface.highlight` at
- * `surface.opacity` plus the candle glow over the page).
+ * role against each surface, including the brightest tone the texture can
+ * reach (`sheen`, from compositing `surface.highlight` at `surface.opacity`
+ * plus the candle glow over the page).
+ *
+ * Interface roles (`text`, `subdued`, `link`, `accent`) meet normal-text AA.
+ * The inscription roles are hue-true blood with no green/blue lift, so they
+ * meet AA only as large text: chapter prose is set at `inscriptionPx` or more.
  */
 export const SANGUINE_ROLES = {
   surfaces: { page: '#0a0708', panel: '#110b0c', input: '#170e0f' },
-  text: '#ec5658',
-  subdued: '#bc6957',
-  link: '#e2717b',
-  accent: '#ff2b2b',
+  text: '#cbb5ab',
+  subdued: '#9d8a82',
+  link: '#ff5c4d',
+  accent: '#ff3030',
+  /** The current-chapter row: `accent` text over its own tint on the panel. */
+  accentTint: 0.15,
+  inscription: '#d50210',
+  inscriptionLink: '#ff3b2f',
+  /** WCAG's large-text size for regular weight (18pt). */
+  inscriptionPx: 24,
   /** Large carved letters fade from arterial to pooled; pooled is the darkest stop. */
-  headingTop: '#ff4b4b',
+  headingTop: '#ff2a1a',
   pooled: '#ba1a1a',
   surface: {
     /** The obsidian layer's brightest specular colour. */

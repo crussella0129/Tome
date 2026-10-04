@@ -70,9 +70,38 @@ body.theme-sanguine-atonement::after {
 /* Ink that is blood                                                 */
 /* ---------------------------------------------------------------- */
 
+/* Chapter text is an inscription: hue-true arterial crimson with no green or
+   blue lift, set at 24px so WCAG's large-text threshold (3:1) applies. Small
+   things inside it (tables, code, footnotes) speak in bone instead. */
 body.theme-sanguine-atonement .tome-prose {
-  /* The ichor gives off the faintest light. */
-  text-shadow: 0 0 0.6em rgba(234, 80, 82, 0.12);
+  color: var(--sanguine-ink);
+  font-size: 1.5rem;
+  /* The blood gives off the faintest light. */
+  text-shadow: 0 0 0.6em rgba(213, 2, 16, 0.22);
+}
+
+body.theme-sanguine-atonement .tome-prose :is(h4, h5, h6, blockquote) {
+  font-size: 1.5rem;
+  color: var(--sanguine-ink);
+}
+
+body.theme-sanguine-atonement .tome-prose h1 {
+  font-size: 3rem;
+}
+
+body.theme-sanguine-atonement .tome-prose h2 {
+  font-size: 2.25rem;
+}
+
+body.theme-sanguine-atonement .tome-prose h3 {
+  font-size: 1.75rem;
+}
+
+body.theme-sanguine-atonement
+  .tome-prose
+  :is(table, pre, :not(pre) > code, .footnotes, figcaption, sup) {
+  color: var(--theme-text);
+  text-shadow: none;
 }
 
 /* Carved channels. Before the pour they are empty cuts in the stone. */
@@ -81,7 +110,7 @@ body.theme-sanguine-atonement :is(.tome-prose h1, .tome-prose h2, .tome-prose h3
   background-image: linear-gradient(
     180deg,
     var(--sanguine-arterial) 0%,
-    var(--theme-text) 24%,
+    var(--sanguine-ink) 24%,
     var(--sanguine-pooled) 50%,
     transparent 50%
   );
@@ -93,7 +122,7 @@ body.theme-sanguine-atonement :is(.tome-prose h1, .tome-prose h2, .tome-prose h3
   -webkit-text-fill-color: transparent;
   -webkit-text-stroke: 0.5px rgba(186, 26, 26, 0.45);
   text-shadow: none;
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.3em rgba(234, 80, 82, 0.16));
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.3em rgba(213, 2, 16, 0.22));
   animation: sanguine-pour 1.9s cubic-bezier(0.45, 0.05, 0.2, 1) both;
 }
 
@@ -126,7 +155,7 @@ body.theme-sanguine-atonement :is(.tome-prose h1, .wordmark) {
   0%,
   30%,
   100% {
-    filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.3em rgba(234, 80, 82, 0.16));
+    filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.3em rgba(213, 2, 16, 0.22));
   }
   8% {
     filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.45em rgba(255, 43, 43, 0.42));
@@ -150,7 +179,12 @@ body.theme-sanguine-atonement .tome-prose > h1 + p::first-letter {
 }
 
 body.theme-sanguine-atonement .tome-prose a {
-  text-decoration-color: rgba(226, 113, 123, 0.45);
+  color: var(--sanguine-vein);
+  text-decoration-color: rgba(255, 59, 47, 0.45);
+}
+
+body.theme-sanguine-atonement .tome-prose a:hover {
+  color: var(--sanguine-arterial);
 }
 
 body.theme-sanguine-atonement .tome-prose ul > li::before {
@@ -250,7 +284,7 @@ body.theme-sanguine-atonement .masthead::after {
   height: 36px;
   margin-top: -19px;
   pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='36' viewBox='0 0 32 12' shape-rendering='crispEdges'%3E%3Crect x='0' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='0' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='1' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='1' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='1' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='2' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='2' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='3' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='3' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='4' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='4' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='4' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='8' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='8' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='9' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='9' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='9' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='10' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='10' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='10' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='11' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='11' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='12' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='12' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='13' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='13' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='14' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='14' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='15' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='15' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='16' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='16' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='16' y='9' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='17' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='17' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='18' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='18' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='19' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='19' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='19' y='9' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='20' y='8' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='20' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='20' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='21' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='21' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='22' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='22' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='22' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='23' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='23' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='24' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='24' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='24' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='25' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='25' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='25' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='26' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='26' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='27' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='27' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='27' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='28' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='28' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='28' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='29' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='29' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='30' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='30' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='31' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='31' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='31' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='1' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='12' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='13' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='13' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='14' y='3' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='26' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='27' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='27' y='3' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='28' y='2' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='5' y='7' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='6' y='7' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='6' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='7' y='9' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='17' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='18' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='18' y='10' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='19' y='11' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='29' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='30' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='30' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='31' y='10' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='20' y='5' width='1' height='1' fill='%235c1416'/%3E%3Crect x='21' y='5' width='1' height='1' fill='%235c1416'/%3E%3Crect x='21' y='4' width='1' height='1' fill='%235c1416'/%3E%3Crect x='22' y='4' width='1' height='1' fill='%235c1416'/%3E%3Crect x='22' y='3' width='1' height='1' fill='%235c1416'/%3E%3Crect x='23' y='3' width='1' height='1' fill='%235c1416'/%3E%3Crect x='8' y='8' width='1' height='1' fill='%23ff8a7a'/%3E%3Crect x='9' y='8' width='1' height='1' fill='%23ea5052'/%3E%3Crect x='9' y='9' width='1' height='1' fill='%23ea5052'/%3E%3Crect x='10' y='9' width='1' height='1' fill='%23ea5052'/%3E%3C/svg%3E")
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='36' viewBox='0 0 32 12' shape-rendering='crispEdges'%3E%3Crect x='0' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='0' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='1' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='1' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='1' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='2' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='2' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='3' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='3' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='4' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='4' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='4' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='8' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='8' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='9' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='9' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='9' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='10' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='10' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='10' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='11' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='11' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='12' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='12' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='13' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='13' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='14' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='14' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='15' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='15' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='16' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='16' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='16' y='9' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='17' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='17' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='18' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='18' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='19' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='19' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='19' y='9' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='20' y='8' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='20' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='20' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='21' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='21' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='22' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='22' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='22' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='23' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='23' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='24' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='24' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='24' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='25' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='25' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='25' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='26' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='26' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='27' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='27' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='27' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='28' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='28' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='28' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='29' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='29' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='30' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='30' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='31' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='31' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='31' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='1' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='12' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='13' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='13' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='14' y='3' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='26' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='27' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='27' y='3' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='28' y='2' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='5' y='7' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='6' y='7' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='6' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='7' y='9' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='17' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='18' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='18' y='10' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='19' y='11' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='29' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='30' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='30' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='31' y='10' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='20' y='5' width='1' height='1' fill='%235c1416'/%3E%3Crect x='21' y='5' width='1' height='1' fill='%235c1416'/%3E%3Crect x='21' y='4' width='1' height='1' fill='%235c1416'/%3E%3Crect x='22' y='4' width='1' height='1' fill='%235c1416'/%3E%3Crect x='22' y='3' width='1' height='1' fill='%235c1416'/%3E%3Crect x='23' y='3' width='1' height='1' fill='%235c1416'/%3E%3Crect x='8' y='8' width='1' height='1' fill='%23ff3b2f'/%3E%3Crect x='9' y='8' width='1' height='1' fill='%23d50210'/%3E%3Crect x='9' y='9' width='1' height='1' fill='%23d50210'/%3E%3Crect x='10' y='9' width='1' height='1' fill='%23d50210'/%3E%3C/svg%3E")
     0 0 / 96px 36px repeat-x;
   image-rendering: pixelated;
   animation: sanguine-briar 2.4s steps(40, end) 0.4s both;
@@ -275,6 +309,12 @@ body.theme-sanguine-atonement .plate-link:hover {
   box-shadow:
     0 0 0 1px var(--sanguine-pooled),
     0 10px 24px -10px rgba(255, 43, 43, 0.45);
+}
+
+/* Each tome's name is carved at inscription size, in the same crimson. */
+body.theme-sanguine-atonement .plate-link .title {
+  font-size: 1.5rem;
+  color: var(--sanguine-ink);
 }
 
 body.theme-sanguine-atonement .numeral {

@@ -148,7 +148,7 @@ test.describe('Sanguine Atonement', () => {
       };
     });
     expect(look.bg).toBe('rgb(10, 7, 8)');
-    expect(look.ink).toBe('rgb(236, 86, 88)');
+    expect(look.ink).toBe('rgb(203, 181, 171)'); // bone: the interface ink
     expect(look.stoneZ).toBe('-1');
     expect(Number(look.stoneOpacity)).toBeCloseTo(SANGUINE_ROLES.surface.opacity, 5);
     expect(look.stoneImage).toContain('feSpecularLighting');
@@ -193,6 +193,35 @@ test.describe('Sanguine Atonement', () => {
     // The texture is visible (lighter than the bare page) yet bounded by the sheen.
     expect(brightest).toBeGreaterThan(luminance(over(surfaces.page, surfaces.page, 1)));
     expect(brightest).toBeLessThanOrEqual(luminance(sheen) + 1e-4);
+  });
+
+  // T-061 — chapter text is a crimson inscription at large-text size; small
+  // things inside it, and the interface around it, speak in bone.
+  test('test_sanguine_inscription_size_and_ink', async ({ page }) => {
+    const { SANGUINE_ROLES } = await import('../src/styles/theme');
+    await inSanguine(page, READER);
+    const reader = await page.evaluate(() => {
+      const css = (sel: string) => getComputedStyle(document.querySelector(sel)!);
+      const p = css('.tome-prose > p');
+      return {
+        ink: p.color,
+        size: parseFloat(p.fontSize),
+        chip: css('.tome-prose :not(pre) > code').color,
+        current: css('nav a[aria-current="page"]').color,
+        brand: css('nav a').color,
+      };
+    });
+    expect(reader.ink).toBe('rgb(213, 2, 16)');
+    expect(reader.size).toBeGreaterThanOrEqual(SANGUINE_ROLES.inscriptionPx);
+    expect(reader.chip).toBe('rgb(203, 181, 171)');
+    expect(reader.current).toBe('rgb(255, 48, 48)');
+    expect(reader.brand).toBe('rgb(203, 181, 171)');
+
+    await inSanguine(page, '/tome/components');
+    const cell = await page.evaluate(
+      () => getComputedStyle(document.querySelector('.tome-prose td')!).color,
+    );
+    expect(cell).toBe('rgb(203, 181, 171)');
   });
 
   test('test_sanguine_sealed_drafts', async ({ page }) => {

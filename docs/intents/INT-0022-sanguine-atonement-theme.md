@@ -50,10 +50,14 @@ flourish; anyone can read the source).
    and persists Sanguine Atonement across reloads and pages, with no flash
    of another theme on load. Under `prefers-reduced-motion: reduce` the theme
    applies without the animated wash. Light or Dark leave Sanguine directly.
-4. In Sanguine Atonement, body text, subdued text, and links each meet WCAG
-   AA (≥ 4.5:1) against every ground they render on (page, panel, input).
-   Large display letters meet ≥ 3:1. The obsidian texture and effects sit
-   behind content and never reduce those ratios on the base surfaces.
+4. In Sanguine Atonement, chapter text is an inscription in anatomically
+   hue-true blood (no added green/blue lift), set at ≥ 24px so WCAG AA's
+   large-text threshold (3:1) applies; it meets ≥ 3.3:1 against every ground it
+   renders on (page, panel, input, and the brightest sheen the texture can
+   produce). Interface text (navigation, search, selector, metadata) meets
+   WCAG AA (≥ 4.5:1) on the same grounds. Large display letters meet ≥ 3:1.
+   The obsidian texture and effects sit behind content and never reduce those
+   ratios.
 5. The theme reads as obsidian and blood, not flat red on black. It includes
    a procedural (asset-free) obsidian surface, letters rendered as blood-filled
    channels, and a set of restrained Halloween/necromantic flourishes: sealed
@@ -82,6 +86,15 @@ suits. A 2024 study using an iPad found red-on-black text produced the
 smallest accommodative lag of the colours tested, which supports red as a
 dark-mode reading colour at the table.
 
+Colour is bounded by physics. On near-black, a hue-true blood red bright
+enough for 16px text at 4.5:1 is essentially `#FF0000` (`#FE0214`). Any
+"darker, anatomical" red therefore needs larger letters. The first build lifted
+the ink with green and blue to `#EC5658` to keep 16px text at 5:1. The user saw
+that as salmon/pink and chose (2026-10-04, from a rendered comparison) the
+inscription direction: chapter text in arterial crimson `#D50210` at 24px,
+where AA's large-text threshold applies, with small interface text in bone. That
+also suits the fiction of letters carved into tablets.
+
 The riddle is a shared cultural reference: the Dark Brotherhood's Black Door in
 *Oblivion*. Hiding the theme behind it turns theme selection into part of
 the session.
@@ -93,6 +106,11 @@ the session.
   OLED panels smear true black during scroll.
 - **`#BA1A1A` for all text.** Rejected for body copy (≈ 3.1:1, below AA);
   adopted for large display letters and channel depth, where ≥ 3:1 holds.
+- **Lifted ichor `#EC5658` at 16px** (built first). Rejected by the user:
+  the green/blue lift needed for 5:1 at small sizes reads as salmon/pink rather
+  than blood.
+- **Hue-true `#FE0214` at 16px everywhere.** Rejected: passes 4.5:1 but is
+  indistinguishable from the `#FF0000` look the theme set out to avoid.
 - **A visible fourth theme in the cycle.** Rejected: the user asked for the
   riddle, and an always-visible novelty theme dilutes the two reading themes.
 - **Image textures or a downloaded display font.** Rejected: Tome's texture
@@ -122,3 +140,8 @@ the session.
   (T-055 selector + riddle, T-056 visual system, T-057 transformation).
 - 2026-10-04: `planned → active` — Sprint 22 Build began with T-055 (selector,
   riddle matcher, hidden theme entry).
+- 2026-10-04: AC4 revised, state unchanged (`active`). After T-056 landed, the
+  user judged the lifted `#EC5658` ink salmon and asked for anatomically
+  correct colour. From a rendered comparison they chose crimson inscription
+  text at ≥ 24px (large-text AA, ≥ 3.3:1 on every ground) with interface text in
+  bone at ≥ 4.5:1. Delivered as mid-sprint task T-061.

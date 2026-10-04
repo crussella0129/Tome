@@ -156,27 +156,29 @@ body.theme-terminal-dark {
 
 /* ------------------------------------------------------------------ */
 /* THEME: Sanguine Atonement (hidden; INT-0022).                         */
-/* Blood letters cut into obsidian. Roles follow blood's oxidation path:  */
-/* arterial accent → crimson ichor text → pooled venous depth →           */
-/* methemoglobin-brown meta → clotted rules. Values mirror               */
-/* SANGUINE_ATONEMENT / SANGUINE_ROLES in theme.ts; the effects live in   */
-/* sanguine.css.                                                          */
+/* Blood letters cut into obsidian. Chapter text is an inscription in     */
+/* hue-true arterial crimson, set large (sanguine.css) so it needs no      */
+/* green/blue lift; interface text is bone. Roles follow blood's path:    */
+/* arterial highlight → crimson ink → pooled venous depth → clotted       */
+/* rules. Values mirror SANGUINE_ATONEMENT / SANGUINE_ROLES in theme.ts.  */
 /* ------------------------------------------------------------------ */
 body.theme-sanguine-atonement {
   --theme-background: #0a0708; /* obsidian page */
   --theme-background-modal: #170e0f; /* sunken glass (inputs, panels) */
   --theme-background-input: #170e0f;
-  --theme-text: #ec5658; /* crimson ichor */
-  --theme-text-subdued: #bc6957; /* old blood, browning */
+  --theme-text: #cbb5ab; /* bone — interface text */
+  --theme-text-subdued: #9d8a82; /* weathered bone */
   --theme-border: #5a1a1c; /* clotted */
-  --theme-border-subdued: rgba(234, 80, 82, 0.16);
-  --theme-focused-foreground: #ff2b2b; /* arterial */
-  --theme-focused-foreground-subdued: rgba(255, 43, 43, 0.18);
-  --theme-link: #e2717b; /* vein */
+  --theme-border-subdued: rgba(213, 2, 16, 0.2);
+  --theme-focused-foreground: #ff3030; /* arterial */
+  --theme-focused-foreground-subdued: rgba(255, 48, 48, 0.15);
+  --theme-link: #ff5c4d; /* fresh blood */
   --theme-window-background: #110b0c; /* lifted glass */
   --theme-window-shadow: #000000;
 
-  --sanguine-arterial: #ff4b4b; /* light catching the top of a channel */
+  --sanguine-ink: #d50210; /* the inscription: arterial crimson */
+  --sanguine-vein: #ff3b2f; /* links within an inscription */
+  --sanguine-arterial: #ff2a1a; /* light catching the top of a channel */
   --sanguine-pooled: #ba1a1a; /* deoxygenated blood settled at its foot */
   --sanguine-bone: #d9c1b8;
 

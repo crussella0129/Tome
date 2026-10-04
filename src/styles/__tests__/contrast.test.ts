@@ -62,14 +62,8 @@ describe('test_sanguine_role_contrast', () => {
   );
   const grounds = { ...surfaces, sheen };
 
-  it('body text is at least 5:1 on page, panel, input, and sheen', () => {
-    for (const [name, ground] of Object.entries(grounds)) {
-      expect(contrastRatio(SANGUINE_ROLES.text, ground), name).toBeGreaterThanOrEqual(5);
-    }
-  });
-
-  it('subdued and link text meet AA (4.5:1) on every surface', () => {
-    for (const role of ['subdued', 'link'] as const) {
+  it('interface text (bone, weathered bone, links, accent) meets AA (4.5:1) on every surface', () => {
+    for (const role of ['text', 'subdued', 'link', 'accent'] as const) {
       for (const [name, ground] of Object.entries(grounds)) {
         expect(
           contrastRatio(SANGUINE_ROLES[role], ground),
@@ -77,6 +71,27 @@ describe('test_sanguine_role_contrast', () => {
         ).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
       }
     }
+    // The current chapter's accent text also sits on its own tint over the panel.
+    const currentRow = over(surfaces.panel, SANGUINE_ROLES.accent, SANGUINE_ROLES.accentTint);
+    expect(contrastRatio(SANGUINE_ROLES.accent, currentRow)).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
+  });
+
+  // T-061 / INT-0022 AC4 (revised): the inscription is hue-true blood, legible
+  // as large text (≥ 24px) at ≥ 3.3:1 everywhere it can render.
+  it('test_sanguine_inscription_contrast: crimson ink and its links clear 3.3:1 at inscription size', () => {
+    expect(SANGUINE_ROLES.inscriptionPx).toBeGreaterThanOrEqual(24);
+    for (const role of ['inscription', 'inscriptionLink'] as const) {
+      for (const [name, ground] of Object.entries(grounds)) {
+        expect(
+          contrastRatio(SANGUINE_ROLES[role], ground),
+          `${role} on ${name}`,
+        ).toBeGreaterThanOrEqual(3.3);
+      }
+    }
+    // Anatomically hue-true: red-dominant with almost no green or blue lift.
+    const [r, g, b] = parseHex(SANGUINE_ROLES.inscription);
+    expect(r).toBeGreaterThan(200);
+    expect(Math.max(g, b)).toBeLessThanOrEqual(24);
   });
 
   it('the pooled foot of a carved letter keeps large-text AA (3:1) on the page', () => {
@@ -98,6 +113,11 @@ describe('test_sanguine_role_contrast', () => {
     expect(token('theme-text-subdued')).toBe(SANGUINE_ROLES.subdued);
     expect(token('theme-link')).toBe(SANGUINE_ROLES.link);
     expect(token('theme-focused-foreground')).toBe(SANGUINE_ROLES.accent);
+    expect(block).toContain(
+      `--theme-focused-foreground-subdued: rgba(255, 48, 48, ${SANGUINE_ROLES.accentTint})`,
+    );
+    expect(token('sanguine-ink')).toBe(SANGUINE_ROLES.inscription);
+    expect(token('sanguine-vein')).toBe(SANGUINE_ROLES.inscriptionLink);
     expect(token('sanguine-pooled')).toBe(SANGUINE_ROLES.pooled);
     expect(token('sanguine-arterial')).toBe(SANGUINE_ROLES.headingTop);
     expect(SANGUINE_ATONEMENT.background).toBe(surfaces.page);
