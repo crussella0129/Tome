@@ -2,8 +2,8 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0025
-- **State:** proposed
-- **Work evidence:** none
+- **State:** planned
+- **Work evidence:** [Sprint 23 build plan](../sprints/s23/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
 - **Test evidence:** none
@@ -78,3 +78,5 @@ ornamented horizontal option (vines, drips, a blade, an iron rail) in favour of
 
 - 2026-10-04: created as `proposed` during Sprint 23 research from the user's
   sidebar and code-highlight feedback and three rounds of rendered mocks.
+- 2026-10-04: `proposed → planned` — the user approved the Sprint 23 plan
+  (T-062).

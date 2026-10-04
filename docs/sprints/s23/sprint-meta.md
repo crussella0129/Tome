@@ -8,6 +8,6 @@
 - **Bundle version:** 0.22.0
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
-- **Summary:** (one-line description of sprint goal, filled after Plan Phase)
-- **Intents:** (filled after Plan Phase)
+- **Summary:** Make the Sanguine sidebar a salmon-lettered void with a briar edge and refined hairlines, and give code chips a salmon gradient.
+- **Intents:** [INT-0025](../../intents/INT-0025-sanguine-sidebar-void.md) — planned; INT-0022 realized compatibility boundary.
 - **Completion evidence:** (filled at Loop Phase)
