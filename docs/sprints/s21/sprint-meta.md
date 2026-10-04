@@ -17,6 +17,10 @@
 - [x] Inspect current state and converge the substrate to bundle 0.22.0.
 - [x] Research a bounded refactor and record baseline failures.
 - [x] Obtain approval of the concrete build/test plans and finalize them.
-- [ ] Execute T-053 and T-054 with verification and task commits.
+- [x] Execute T-053 and T-054 with verification and task commits.
 - T-053 verification: 17/17 targeted tests, zero skips; isolated Astro check clean.
+- T-054 verification: 23/23 targeted tests; four gates PASS in an isolated
+  worktree; Vitest 120/120, Playwright 25/25, Astro check clean. Resumed on
+  2026-10-04 by claude-opus-5-5; an unplanned guard-bypass env var left
+  uncommitted by the prior session was reverted before verification.
 - [ ] Complete Test/Loop evidence and the configured remote checkpoint.

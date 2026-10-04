@@ -70,8 +70,21 @@ npm run test:e2e        # end-to-end (Playwright)
 npm run check:external  # external single-book build gate
 npm run check:multibook # two-tome Bibliotheca build gate
 npm run check:search    # search index + query build gate
+npm run check:livereload # live chapter edits + parent-relative image gate
 npm run check:electron  # desktop-shell end-to-end gate (Playwright + Electron)
 ```
+
+The external, multi-book, search, and live-reload gates require pristine
+`src/content/books/`: tracked, staged, untracked, and ignored local changes cause
+them to stop before replacing any books. Run these gates serially in a clean
+checkout when your working library contains personal books. They use explicit
+fixtures, ignore inherited book/configuration/destination overrides, and restore
+the committed sample after verification. Build and cleanup failures return a
+nonzero status, including a failed final default rebuild.
+
+The live-reload gate requires the checkout's existing dev server to be stopped.
+It starts and stops its own server before restoring content; if shutdown cannot
+be confirmed, it reports the failure and retains the fixture and temporary book.
 </details>
 
 By default Tome renders a bundled sample **library** of two tomes — *Tome* (this guide)
