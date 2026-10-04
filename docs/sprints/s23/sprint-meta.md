@@ -9,7 +9,7 @@
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Make the Sanguine sidebar a salmon-lettered void with a briar edge and refined hairlines, and give code chips a salmon gradient.
-- **Intents:** [INT-0025](../../intents/INT-0025-sanguine-sidebar-void.md) — planned; INT-0022 realized compatibility boundary.
+- **Intents:** [INT-0025](../../intents/INT-0025-sanguine-sidebar-void.md) — realized; INT-0022 realized compatibility boundary.
 - **Completion evidence:** (filled at Loop Phase)
 
 ## Blockages

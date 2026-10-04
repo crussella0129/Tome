@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0025
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 23 build plan](../sprints/s23/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-062 completion](../work/completed-tasks.md#t-062-sprint-23)
+- **Code evidence:** [sidebar void, briar, hairlines](../../src/components/TocSidebar.module.css), [salmon chips](../../src/styles/sanguine.css), [role contract](../../src/styles/theme.ts)
 - **Test evidence:** [Sprint 23 test report](../sprints/s23/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [visual evidence](../sprints/s23/sprint-tests/evidence/sidebar-void-desktop.png)
 
 ## Intent
 
@@ -86,3 +86,7 @@ ornamented horizontal option (vines, drips, a blade, an iron rail) in favour of
 - 2026-10-04: Alternatives corrected (state unchanged): the planned inset-shadow
   chip technique hides the text in WebKit and Chromium; multi-layer clipping
   renders correctly in both and replaces it. No acceptance criterion changed.
+- 2026-10-04: `active → realized` — T-062 delivers the void sidebar, salmon
+  lettering, crimson channel, pixel briar, refined hairlines, and salmon code
+  chips. All five criteria are proven (CI 37237910279 green at `277e597`), and
+  the user signed off on the built look.
