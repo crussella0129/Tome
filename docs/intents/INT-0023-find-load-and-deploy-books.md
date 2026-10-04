@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0023
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 22 build plan](../sprints/s22/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-058 completion](../work/completed-tasks.md#t-058-sprint-22), [T-059 completion](../work/completed-tasks.md#t-059-sprint-22), [T-060 completion](../work/completed-tasks.md#t-060-sprint-22)
+- **Code evidence:** [loader](../../scripts/load-books.mjs), [manifest resolver](../../scripts/library-config.mjs), [discovery CLI](../../scripts/find-books.mjs)
 - **Test evidence:** [Sprint 22 test report](../sprints/s22/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [Find Your Books](../../src/content/books/tome/find-your-books.md), [Take It to the Table](../../src/content/books/tome/take-it-to-the-table.md), [README](../../README.md)
 
 ## Intent
 
@@ -116,3 +116,11 @@ alone.
   hosting steps are reviewed documentation.
 - 2026-10-04: `planned → active` — Sprint 22 Build reached T-058 (generated
   library, personal manifest, clean copies) after the theme tasks landed.
+- 2026-10-04: `active → realized` — T-058 moves the library into a generated,
+  git-ignored directory with a personal `tome.local.toml` and clean copies;
+  T-059 adds `books:find` / `books:add`; T-060 writes the tutorial into the
+  bundled guide. All six criteria are proven (CI 37219722218 green at
+  `b222c56`), including on the user's real library (35 → 21 MB, no `.git`,
+  clean checkout) and with the fixture gates passing in the active workspace.
+  Offline reading and sub-path hosting remain documented limitations, carried
+  to [INT-0024](INT-0024-portable-deployment.md).

@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0022
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 22 build plan](../sprints/s22/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-055 completion](../work/completed-tasks.md#t-055-sprint-22), [T-056 completion](../work/completed-tasks.md#t-056-sprint-22), [T-057 completion](../work/completed-tasks.md#t-057-sprint-22), [T-061 completion](../work/completed-tasks.md#t-061-sprint-22)
+- **Code evidence:** [theme picker and the rite](../../src/components/ThemePicker.tsx), [riddle matcher](../../src/lib/riddle.ts), [Sanguine visual system](../../src/styles/sanguine.css), [role contract](../../src/styles/theme.ts)
 - **Test evidence:** [Sprint 22 test report](../sprints/s22/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [A Campaign of Tablets](../../src/content/books/tome/a-campaign-of-tablets.md), [visual evidence](../sprints/s22/sprint-tests/evidence/sanguine-chapter-desktop.png)
 
 ## Intent
 
@@ -145,3 +145,10 @@ the session.
   correct colour. From a rendered comparison they chose crimson inscription
   text at ≥ 24px (large-text AA, ≥ 3.3:1 on every ground) with interface text in
   bone at ≥ 4.5:1. Delivered as mid-sprint task T-061.
+- 2026-10-04: `active → realized` — T-055/T-056/T-057/T-061 deliver the
+  Light · Dark · Other selector, the Black Door riddle, the obsidian-and-blood
+  visual system (with the user's 8-bit vine and crimson-inscription choices),
+  and the blood-wash rite with first-paint persistence. All six criteria are
+  proven by unit, component, E2E, and pixel tests (CI 37219722218 green at
+  `b222c56`); the experiential AC5 was signed off by the user on the final
+  renders.
