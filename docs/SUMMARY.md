@@ -22,6 +22,8 @@
   - [INT-0019 — Centered reader and resilient search geometry](intents/INT-0019-centered-reader-search-geometry.md)
   - [INT-0020 — Native library folder management](intents/INT-0020-native-library-folder-management.md)
   - [INT-0021 — Safe, consistent fixture verification](intents/INT-0021-safe-consistent-fixture-verification.md)
+  - [INT-0022 — Sanguine Atonement hidden theme](intents/INT-0022-sanguine-atonement-theme.md)
+  - [INT-0023 — Find, load, and deploy your own books](intents/INT-0023-find-load-and-deploy-books.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -46,3 +48,4 @@
 - [Sprint 19](sprints/s19/sprint-meta.md)
 - [Sprint 20](sprints/s20/sprint-meta.md)
 - [Sprint 21](sprints/s21/sprint-meta.md)
+- [Sprint 22](sprints/s22/sprint-meta.md)
