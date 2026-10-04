@@ -1,0 +1,362 @@
+/*
+ * Sanguine Atonement — blood letters cut into obsidian (INT-0022).
+ *
+ * Every rule is scoped to `body.theme-sanguine-atonement`, so the other themes
+ * are untouched. Colours come from the token block in tokens.css; the role
+ * contract (and the contrast bounds this file must respect) lives in
+ * SANGUINE_ROLES in theme.ts:
+ *
+ *   - The obsidian layer is asset-free (an SVG filter rasterized once): broad
+ *     specular glints for the glassy, shell-curved fracture plus sparse
+ *     mahogany streaks of iron. Its brightest tone, composited at the layer's
+ *     opacity, is the `sheen` surface every reading colour is tested against.
+ *   - Headings are channels: the blood pours in from the top, catches the
+ *     light (arterial) and settles dark at the foot (pooled, #BA1A1A).
+ *   - All motion is opacity/background-position/filter/clip-path on a few
+ *     elements, and none of it runs under reduced motion or in print.
+ *   - The Bibliotheca rules target its stable class names (`.masthead`,
+ *     `.wordmark`, `.plate-link`, `.numeral`).
+ */
+
+/* ---------------------------------------------------------------- */
+/* The stone                                                         */
+/* ---------------------------------------------------------------- */
+
+/* Obsidian replaces the paper grain. Opacity bounds the sheen (see theme.ts). */
+body.theme-sanguine-atonement::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='720'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0022 0.0034' numOctaves='4' seed='7' stitchTiles='stitch' result='swell'/%3E%3CfeSpecularLighting in='swell' surfaceScale='20' specularConstant='1.2' specularExponent='18' lighting-color='%23ffffff' result='lit'%3E%3CfeDistantLight azimuth='235' elevation='38'/%3E%3C/feSpecularLighting%3E%3CfeComponentTransfer in='lit' result='glint'%3E%3CfeFuncR type='table' tableValues='0 0.114 0.182 0.227'/%3E%3CfeFuncG type='table' tableValues='0 0.083 0.132 0.165'/%3E%3CfeFuncB type='table' tableValues='0 0.086 0.138 0.173'/%3E%3CfeFuncA type='table' tableValues='0 0.4 0.9 1'/%3E%3C/feComponentTransfer%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0011 0.017' numOctaves='2' seed='29' stitchTiles='stitch' result='vein'/%3E%3CfeColorMatrix in='vein' type='matrix' values='0 0 0 0 0.29 0 0 0 0 0.09 0 0 0 0 0.063 5 0 0 0 -3.3' result='mahogany'/%3E%3CfeComposite in='glint' in2='mahogany' operator='over'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 720px 720px;
+  opacity: 0.3;
+  mix-blend-mode: normal;
+}
+
+/* Candle-dim: a faint warm glow from above, darkness at the edges. */
+body.theme-sanguine-atonement::after {
+  background:
+    radial-gradient(80% 55% at 50% -8%, rgba(255, 60, 40, 0.03), transparent 70%),
+    radial-gradient(120% 120% at 50% 38%, transparent 48%, var(--paper-vignette) 100%);
+  animation: sanguine-candle 9s steps(1, end) infinite;
+}
+
+@keyframes sanguine-candle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  11% {
+    opacity: 0.9;
+  }
+  13% {
+    opacity: 1;
+  }
+  41% {
+    opacity: 0.94;
+  }
+  44% {
+    opacity: 0.86;
+  }
+  47% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 0.92;
+  }
+  74% {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Ink that is blood                                                 */
+/* ---------------------------------------------------------------- */
+
+/* Chapter text is an inscription: hue-true arterial crimson with no green or
+   blue lift, set at 24px so WCAG's large-text threshold (3:1) applies. Small
+   things inside it (tables, code, footnotes) speak in bone instead. */
+body.theme-sanguine-atonement .tome-prose {
+  color: var(--sanguine-ink);
+  font-size: 1.5rem;
+  /* The blood gives off the faintest light. */
+  text-shadow: 0 0 0.6em rgba(213, 2, 16, 0.22);
+}
+
+body.theme-sanguine-atonement .tome-prose :is(h4, h5, h6, blockquote) {
+  font-size: 1.5rem;
+  color: var(--sanguine-ink);
+}
+
+body.theme-sanguine-atonement .tome-prose h1 {
+  font-size: 3rem;
+}
+
+body.theme-sanguine-atonement .tome-prose h2 {
+  font-size: 2.25rem;
+}
+
+body.theme-sanguine-atonement .tome-prose h3 {
+  font-size: 1.75rem;
+}
+
+body.theme-sanguine-atonement
+  .tome-prose
+  :is(table, pre, :not(pre) > code, .footnotes, figcaption, sup) {
+  color: var(--theme-text);
+  text-shadow: none;
+}
+
+/* Carved channels. Before the pour they are empty cuts in the stone. */
+body.theme-sanguine-atonement :is(.tome-prose h1, .tome-prose h2, .tome-prose h3, .wordmark) {
+  color: var(--sanguine-pooled);
+  background-image: linear-gradient(
+    180deg,
+    var(--sanguine-arterial) 0%,
+    var(--sanguine-ink) 24%,
+    var(--sanguine-pooled) 50%,
+    transparent 50%
+  );
+  background-size: 100% 200%;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 0.5px rgba(186, 26, 26, 0.45);
+  text-shadow: none;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.3em rgba(213, 2, 16, 0.22));
+  animation: sanguine-pour 1.9s cubic-bezier(0.45, 0.05, 0.2, 1) both;
+}
+
+body.theme-sanguine-atonement .tome-prose h2 {
+  animation-delay: 0.35s;
+  border-bottom-color: var(--theme-border);
+}
+
+body.theme-sanguine-atonement .tome-prose h3 {
+  animation-delay: 0.6s;
+}
+
+/* The first carving, and the library's name, keep a slow heartbeat. */
+body.theme-sanguine-atonement :is(.tome-prose h1, .wordmark) {
+  animation:
+    sanguine-pour 1.9s cubic-bezier(0.45, 0.05, 0.2, 1) both,
+    sanguine-heartbeat 1.6s ease-in-out 2.2s infinite;
+}
+
+@keyframes sanguine-pour {
+  from {
+    background-position: 0 100%;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+@keyframes sanguine-heartbeat {
+  0%,
+  30%,
+  100% {
+    filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.3em rgba(213, 2, 16, 0.22));
+  }
+  8% {
+    filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.45em rgba(255, 43, 43, 0.42));
+  }
+  20% {
+    filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0 0.38em rgba(255, 43, 43, 0.3));
+  }
+}
+
+/* A seal: the chapter's first letter, struck in arterial red. */
+body.theme-sanguine-atonement .tome-prose > h1 + p::first-letter {
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  font-size: 3.4em;
+  line-height: 0.82;
+  font-weight: 700;
+  color: var(--sanguine-arterial);
+  text-shadow:
+    0 2px 0 #3a0c0d,
+    0 0 0.35em rgba(255, 43, 43, 0.35);
+}
+
+body.theme-sanguine-atonement .tome-prose a {
+  color: var(--sanguine-vein);
+  text-decoration-color: rgba(255, 59, 47, 0.45);
+}
+
+body.theme-sanguine-atonement .tome-prose a:hover {
+  color: var(--sanguine-arterial);
+}
+
+body.theme-sanguine-atonement .tome-prose ul > li::before {
+  content: '◆';
+  font-size: 0.7em;
+  line-height: 2.2;
+  color: var(--sanguine-pooled);
+}
+
+/* ---------------------------------------------------------------- */
+/* Inscriptions, sigils, seals                                       */
+/* ---------------------------------------------------------------- */
+
+/* A divider becomes a sigil between two clotted rules. */
+body.theme-sanguine-atonement .tome-prose hr {
+  position: relative;
+  height: 1.75rem;
+  border: 0;
+  background: linear-gradient(
+      90deg,
+      transparent,
+      var(--theme-border) 18%,
+      var(--theme-border) 44%,
+      transparent 44%,
+      transparent 56%,
+      var(--theme-border) 56%,
+      var(--theme-border) 82%,
+      transparent
+    )
+    center / 100% 1px no-repeat;
+}
+
+body.theme-sanguine-atonement .tome-prose hr::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: var(--sanguine-pooled);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'%3E%3Ccircle cx='16' cy='16' r='11.5'/%3E%3Cpath d='M6.6 10.6h18.8L16 27z'/%3E%3Cpath d='M16 1.5v29M11.5 6.5h9'/%3E%3Ccircle cx='16' cy='15.2' r='1.9' fill='%23000' stroke='none'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%23000' stroke-width='1.3' stroke-linecap='round'%3E%3Ccircle cx='16' cy='16' r='11.5'/%3E%3Cpath d='M6.6 10.6h18.8L16 27z'/%3E%3Cpath d='M16 1.5v29M11.5 6.5h9'/%3E%3Ccircle cx='16' cy='15.2' r='1.9' fill='%23000' stroke='none'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* Quotations and callouts are inscriptions fed by a channel of blood. */
+body.theme-sanguine-atonement .tome-prose :is(blockquote, .admonition) {
+  position: relative;
+  border-left: 3px solid transparent;
+  background:
+    linear-gradient(180deg, var(--sanguine-arterial), var(--sanguine-pooled) 70%, #3a0c0d) left
+      top / 3px 100% no-repeat border-box,
+    linear-gradient(90deg, rgba(90, 26, 28, 0.16), transparent 60%) padding-box;
+}
+
+/* A single drop gathers at the foot of the channel. */
+body.theme-sanguine-atonement .tome-prose :is(blockquote, .admonition)::after {
+  content: '';
+  position: absolute;
+  left: -4.5px;
+  bottom: -7px;
+  width: 6px;
+  height: 8px;
+  border-radius: 50% 50% 50% 50% / 35% 35% 65% 65%;
+  background: var(--sanguine-pooled);
+}
+
+body.theme-sanguine-atonement :is(input, textarea) {
+  caret-color: var(--theme-focused-foreground);
+}
+
+body.theme-sanguine-atonement ::selection {
+  background: #7a2226;
+  color: var(--sanguine-bone);
+}
+
+/* ---------------------------------------------------------------- */
+/* The Bibliotheca: a thorned vine for a rule                      */
+/* ---------------------------------------------------------------- */
+
+/* An 8-bit briar replaces the masthead's rule: a pooled-blood stem, hooked
+   thorns with blood on their points, a leaf, a cluster of berries. It grows
+   in from the left one pixel-column at a time. */
+body.theme-sanguine-atonement .masthead {
+  position: relative;
+  padding-bottom: var(--space-6);
+  border-bottom-color: transparent;
+}
+
+body.theme-sanguine-atonement .masthead::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 36px;
+  margin-top: -19px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='36' viewBox='0 0 32 12' shape-rendering='crispEdges'%3E%3Crect x='0' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='0' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='1' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='1' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='1' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='2' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='2' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='3' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='3' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='4' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='4' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='4' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='5' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='5' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='6' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='6' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='7' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='7' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='8' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='8' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='9' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='9' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='9' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='10' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='10' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='10' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='11' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='11' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='12' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='12' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='13' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='13' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='14' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='14' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='15' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='15' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='16' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='16' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='16' y='9' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='17' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='17' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='18' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='18' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='19' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='19' y='8' width='1' height='1' fill='%236e1012'/%3E%3Crect x='19' y='9' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='20' y='8' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='20' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='20' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='21' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='21' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='22' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='22' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='22' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='23' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='23' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='24' y='7' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='24' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='24' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='25' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='25' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='25' y='7' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='26' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='26' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='27' y='5' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='27' y='6' width='1' height='1' fill='%236e1012'/%3E%3Crect x='27' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='28' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='28' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='28' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='29' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='29' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='30' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='30' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='31' y='6' width='1' height='1' fill='%23ba1a1a'/%3E%3Crect x='31' y='7' width='1' height='1' fill='%236e1012'/%3E%3Crect x='31' y='8' width='1' height='1' fill='%233a0a0b'/%3E%3Crect x='1' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='2' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='12' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='13' y='5' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='13' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='14' y='3' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='26' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='27' y='4' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='27' y='3' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='28' y='2' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='5' y='7' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='6' y='7' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='6' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='7' y='9' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='17' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='18' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='18' y='10' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='19' y='11' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='29' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='30' y='8' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='30' y='9' width='1' height='1' fill='%238a1c1c'/%3E%3Crect x='31' y='10' width='1' height='1' fill='%23ff4b4b'/%3E%3Crect x='20' y='5' width='1' height='1' fill='%235c1416'/%3E%3Crect x='21' y='5' width='1' height='1' fill='%235c1416'/%3E%3Crect x='21' y='4' width='1' height='1' fill='%235c1416'/%3E%3Crect x='22' y='4' width='1' height='1' fill='%235c1416'/%3E%3Crect x='22' y='3' width='1' height='1' fill='%235c1416'/%3E%3Crect x='23' y='3' width='1' height='1' fill='%235c1416'/%3E%3Crect x='8' y='8' width='1' height='1' fill='%23ff3b2f'/%3E%3Crect x='9' y='8' width='1' height='1' fill='%23d50210'/%3E%3Crect x='9' y='9' width='1' height='1' fill='%23d50210'/%3E%3Crect x='10' y='9' width='1' height='1' fill='%23d50210'/%3E%3C/svg%3E")
+    0 0 / 96px 36px repeat-x;
+  image-rendering: pixelated;
+  animation: sanguine-briar 2.4s steps(40, end) 0.4s both;
+}
+
+@keyframes sanguine-briar {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+body.theme-sanguine-atonement .plate-link {
+  background: rgba(17, 11, 12, 0.86);
+}
+
+body.theme-sanguine-atonement .plate-link:hover {
+  border-color: var(--sanguine-pooled);
+  border-left-color: var(--theme-focused-foreground);
+  box-shadow:
+    0 0 0 1px var(--sanguine-pooled),
+    0 10px 24px -10px rgba(255, 43, 43, 0.45);
+}
+
+/* Each tome's name is carved at inscription size, in the same crimson. */
+body.theme-sanguine-atonement .plate-link .title {
+  font-size: 1.5rem;
+  color: var(--sanguine-ink);
+}
+
+body.theme-sanguine-atonement .numeral {
+  color: var(--sanguine-arterial);
+  text-shadow: 0 0 0.5em rgba(255, 43, 43, 0.4);
+}
+
+/* ---------------------------------------------------------------- */
+/* Stillness and paper                                               */
+/* ---------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  body.theme-sanguine-atonement::after,
+  body.theme-sanguine-atonement :is(.tome-prose h1, .tome-prose h2, .tome-prose h3, .wordmark),
+  body.theme-sanguine-atonement .masthead::after {
+    animation: none;
+  }
+}
+
+@media print {
+  body.theme-sanguine-atonement {
+    background: #fff;
+    color: #000;
+  }
+
+  body.theme-sanguine-atonement::before,
+  body.theme-sanguine-atonement::after,
+  body.theme-sanguine-atonement .masthead::after,
+  body.theme-sanguine-atonement .tome-prose hr::after,
+  body.theme-sanguine-atonement .tome-prose :is(blockquote, .admonition)::after {
+    display: none;
+  }
+
+  body.theme-sanguine-atonement .tome-prose,
+  body.theme-sanguine-atonement :is(.tome-prose h1, .tome-prose h2, .tome-prose h3, .wordmark),
+  body.theme-sanguine-atonement .tome-prose > h1 + p::first-letter {
+    color: #000;
+    -webkit-text-fill-color: currentColor;
+    -webkit-text-stroke: 0;
+    background: none;
+    text-shadow: none;
+    filter: none;
+    animation: none;
+  }
+}

@@ -1,17 +1,20 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import solid from '@astrojs/solid-js';
 import tailwindcss from '@tailwindcss/vite';
 import { resolveBookSource, syncPath } from './scripts/book-source.mjs';
 import { prepareChapterParentAssets } from './scripts/parent-assets.mjs';
 import remarkAlerts from './scripts/remark-alerts.mjs';
 
-const LIB_DEST = 'src/content/books';
+// The generated, git-ignored library (scripts/load-books.mjs publishes it); the
+// committed sample at src/content/books/ is only ever read.
+const LIB_DEST = 'src/content/library';
 
 /**
  * Dev-only live reload for an external `TOME_BOOK`: watch the book's source and
- * re-sync changed files into its `src/content/books/<slug>/` dir so edits appear
+ * re-sync changed files into its `src/content/library/<slug>/` dir so edits appear
  * in the reader without a restart. `astro:server:setup` fires only in `dev`, so
  * this has zero effect on `build`/prod.
  * @returns {import('astro').AstroIntegration}
@@ -83,5 +86,10 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    // Every library glob reads `@library/…`. Vitest maps the same alias to the
+    // committed sample (vitest.config.ts), so tests never see a personal library.
+    resolve: {
+      alias: { '@library': fileURLToPath(new URL('./src/content/library', import.meta.url)) },
+    },
   },
 });

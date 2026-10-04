@@ -2,6 +2,7 @@
 import '../styles/tokens.css';
 import InitTheme from './init-theme.astro';
 import SearchOverlay from './SearchOverlay';
+import ThemePicker from './ThemePicker';
 import { DEFAULT_THEME } from '../styles/theme';
 import { bibliothecaEntries, type Book } from '../lib/book';
 
@@ -25,6 +26,9 @@ const tomes = bibliothecaEntries(books).map((tome, i) => ({
     <meta name="generator" content={Astro.generator} />
     <title>Bibliotheca</title>
     <meta name="description" content="The library — every tome, catalogued." />
+    <meta name="theme-color" content={DEFAULT_THEME.background} />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
   </head>
   <body class={DEFAULT_THEME.className}>
     <InitTheme />
@@ -56,6 +60,10 @@ const tomes = bibliothecaEntries(books).map((tome, i) => ({
           ))
         }
       </ul>
+
+      <footer class="library-foot">
+        <ThemePicker client:idle />
+      </footer>
     </main>
   </body>
 </html>
@@ -102,6 +110,13 @@ const tomes = bibliothecaEntries(books).map((tome, i) => ({
 
   .masthead-search {
     margin-top: var(--space-5);
+  }
+
+  .library-foot {
+    max-width: 20rem;
+    margin: var(--space-10) auto 0;
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--theme-border);
   }
 
   .shelf {

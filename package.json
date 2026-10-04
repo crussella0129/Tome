@@ -24,6 +24,8 @@
     "check:multibook": "node scripts/check-multibook.mjs",
     "check:search": "node scripts/check-search.mjs",
     "check:electron": "npm run build && playwright test --config playwright.electron.config.ts",
+    "books:find": "node scripts/find-books.mjs",
+    "books:add": "node scripts/find-books.mjs --add",
     "assets:banner": "node scripts/make-banner.mjs",
     "assets:shots": "node scripts/make-shots.mjs"
   },

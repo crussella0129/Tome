@@ -38,15 +38,37 @@ function env(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
 }
 
 function run(
-  dest: string,
+  dest: string | null,
   overrides: Record<string, string> = {},
   args: string[] = [],
+  cwd = root,
 ) {
-  execFileSync('node', [script, '--dest', dest, ...args], {
-    cwd: root,
-    env: env(overrides),
-    encoding: 'utf8',
-  });
+  return execFileSync(
+    'node',
+    [script, ...(dest ? ['--dest', dest] : []), ...args],
+    {
+      cwd,
+      env: env(overrides),
+      encoding: 'utf8',
+    },
+  );
+}
+
+/** Every file under `dir`, relative and sorted, with its bytes. */
+function tree(dir: string, base = dir): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) Object.assign(out, tree(full, base));
+    else
+      out[full.slice(base.length + 1).replace(/\\/g, '/')] = readFileSync(
+        full,
+        'utf8',
+      );
+  }
+  return Object.fromEntries(
+    Object.entries(out).sort(([a], [b]) => a.localeCompare(b)),
+  );
 }
 
 function runExpectError(
@@ -105,14 +127,27 @@ describe('load-books.mjs — single external book (TOME_BOOK)', () => {
     expect(meta.title).toBe('The Sacred Handbook');
   });
 
-  // No-op when no env and no manifest: the destination is left untouched.
-  it('test_load_books_noop_when_unset: leaves the destination untouched', () => {
+  // INT-0023: nothing configured → the library is a byte-equal copy of the
+  // committed sample (the sample itself is only read).
+  it('test_loader_default_publishes_sample: replaces the library with the sample', () => {
+    const sample = makeBook(join(tmp, 'sample'), {
+      'alpha/SUMMARY.md': '# Alpha\n\n[Intro](README.md)\n',
+      'alpha/README.md': '# Alpha\n',
+      'alpha/book.meta.json': '{ "title": "Alpha" }\n',
+      'beta/SUMMARY.md': '# Beta\n',
+    });
+    const before = tree(sample);
     const dest = join(tmp, 'noop');
     mkdirSync(dest, { recursive: true });
-    writeFileSync(join(dest, 'sentinel.txt'), 'keep');
-    run(dest, {}, ['--config', join(tmp, 'no-such-config.toml')]);
-    expect(existsSync(join(dest, 'sentinel.txt'))).toBe(true);
-    expect(existsSync(join(dest, 'book.meta.json'))).toBe(false);
+    writeFileSync(join(dest, 'stale.txt'), 'from an earlier build');
+    run(dest, {}, [
+      '--config',
+      join(tmp, 'no-such-config.toml'),
+      '--sample',
+      sample,
+    ]);
+    expect(tree(dest)).toEqual(before);
+    expect(tree(sample)).toEqual(before);
   });
 
   // Clear error + non-zero exit on an invalid book.
@@ -246,12 +281,14 @@ describe('load-books.mjs — manifest, precedence, and multi-copy', () => {
     expect(existsSync(join(dest, 'alpha'))).toBe(false);
   });
 
-  it('test_load_books_precedence: no env and no manifest is a no-op', () => {
+  it('test_load_books_precedence: no env and no manifest publishes the sample', () => {
+    const sample = makeBook(join(tmp, 'precedence-sample'), {
+      'tome/SUMMARY.md': '# Tome\n',
+    });
     const dest = join(tmp, 'out-noop');
-    mkdirSync(dest, { recursive: true });
-    writeFileSync(join(dest, 'sentinel.txt'), 'keep');
-    run(dest, {}, ['--config', join(tmp, 'absent.toml')]);
-    expect(existsSync(join(dest, 'sentinel.txt'))).toBe(true);
+    run(dest, {}, ['--config', join(tmp, 'absent.toml'), '--sample', sample]);
+    expect(tree(dest)).toEqual(tree(sample));
+    expect(existsSync(join(dest, 'gamma'))).toBe(false);
   });
 
   // T-020 clause 2: several books each land in books/<slug>/ (deduped) + meta.
@@ -309,6 +346,167 @@ describe('load-books.mjs — manifest, precedence, and multi-copy', () => {
     expect(
       await resolveOwner({ configPath: join(tmp, 'absent.toml'), env: {} }),
     ).toBe(userInfo().username);
+  });
+});
+
+// INT-0023 — a personal library that never touches the source checkout.
+describe('load-books.mjs — personal library', () => {
+  let tmp: string;
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'tome-personal-'));
+  });
+  afterAll(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  const book = (name: string) =>
+    makeBook(join(tmp, 'books', name), {
+      'src/SUMMARY.md': `# ${name}\n\n[Intro](README.md)\n`,
+      'src/README.md': `# ${name}\n`,
+    });
+
+  it('test_manifest_precedence: env > explicit TOME_CONFIG > tome.local.toml > tome.config.toml', () => {
+    // `local` is reached through a relative manifest path below.
+    const [, shared, explicit, fromEnv] = [
+      'local',
+      'shared',
+      'explicit',
+      'env',
+    ].map(book);
+    const cwd = join(tmp, 'checkout');
+    mkdirSync(cwd, { recursive: true });
+    writeFileSync(
+      join(cwd, 'tome.config.toml'),
+      `[[book]]\npath = ${JSON.stringify(shared)}\n`,
+    );
+    const explicitManifest = join(tmp, 'explicit.toml');
+    writeFileSync(
+      explicitManifest,
+      `[[book]]\npath = ${JSON.stringify(explicit)}\n`,
+    );
+    const loaded = (name: string, overrides: Record<string, string> = {}) => {
+      const dest = join(tmp, `out-${name}`);
+      run(dest, overrides, [], cwd);
+      return readdirSync(dest);
+    };
+
+    expect(loaded('shared-only')).toEqual(['shared']);
+    // A relative path in the personal manifest resolves against its own folder.
+    writeFileSync(
+      join(cwd, 'tome.local.toml'),
+      `[[book]]\npath = "../books/local"\n`,
+    );
+    expect(loaded('local-wins')).toEqual(['local']);
+    expect(loaded('explicit-wins', { TOME_CONFIG: explicitManifest })).toEqual([
+      'explicit',
+    ]);
+    expect(
+      loaded('env-wins', { TOME_CONFIG: explicitManifest, TOME_BOOK: fromEnv }),
+    ).toEqual(['env']);
+  });
+
+  it('test_owner_follows_manifest: the owner comes from the manifest the loader would read', async () => {
+    const cwd = join(tmp, 'owner');
+    mkdirSync(cwd, { recursive: true });
+    writeFileSync(
+      join(cwd, 'tome.config.toml'),
+      'owner = "Shared Scriptorium"\n',
+    );
+    expect(await resolveOwner({ env: {}, cwd })).toBe('Shared Scriptorium');
+    writeFileSync(join(cwd, 'tome.local.toml'), 'owner = "The Gamemaster"\n');
+    expect(await resolveOwner({ env: {}, cwd })).toBe('The Gamemaster');
+    const explicit = join(tmp, 'owner-explicit.toml');
+    writeFileSync(explicit, 'owner = "Explicit"\n');
+    expect(await resolveOwner({ env: { TOME_CONFIG: explicit }, cwd })).toBe(
+      'Explicit',
+    );
+  });
+
+  it('test_loader_excludes_vcs_and_build_output: copies content, never .git, deps, or rendered output', () => {
+    const rootLayout = makeBook(join(tmp, 'root-layout'), {
+      'SUMMARY.md': '# Tablets\n\n- [One](one.md)\n- [Two](two/two.md)\n',
+      'one.md': '# One\n\n![sigil](img/sigil.png)\n',
+      'img/sigil.png': 'png-bytes',
+      'two/two.md': '# Two\n',
+      'two/node_modules/dep/SUMMARY.md': '# not a chapter\n',
+      '.git/HEAD': 'ref: refs/heads/main\n',
+      '.git/objects/ab/cdef': 'object',
+      '.hg/store': 'x',
+      'node_modules/pkg/index.js': 'x',
+      'book/index.html': '<html>rendered</html>',
+      'target/debug/app': 'x',
+    });
+    const declared = makeBook(join(tmp, 'declared-build'), {
+      'book.toml':
+        '[book]\ntitle = "Declared"\n\n[build]\nbuild-dir = "site"\n',
+      'SUMMARY.md': '# Declared\n\n- [Page](page.md)\n',
+      'page.md': '# Page\n',
+      'site/index.html': '<html>rendered</html>',
+      // Without a rendered index.html, a folder named `book` is ordinary content.
+      'book/chapter.md': '# A chapter folder named book\n',
+    });
+    const dest = join(tmp, 'out-clean-copy');
+    run(dest, { TOME_BOOKS: `${rootLayout},${declared}` });
+
+    expect(Object.keys(tree(join(dest, 'root-layout')))).toEqual([
+      'book.meta.json',
+      'img/sigil.png',
+      'one.md',
+      'SUMMARY.md',
+      'two/two.md',
+    ]);
+    expect(Object.keys(tree(join(dest, 'declared-build')))).toEqual([
+      'book.meta.json',
+      'book.toml',
+      'book/chapter.md',
+      'page.md',
+      'SUMMARY.md',
+    ]);
+  });
+
+  it('test_personal_build_leaves_checkout_clean: a tome.local.toml book publishes outside tracked files', () => {
+    const personal = book('campaign');
+    const repo = join(tmp, 'repo');
+    const sampleFile = 'src/content/books/tome/SUMMARY.md';
+    makeBook(repo, {
+      [sampleFile]: '# Committed sample\n',
+      '.gitignore': '/src/content/library/\n/tome.local.toml\n',
+      'tome.config.toml': '# tracked template — no books\n',
+    });
+    const git = (...args: string[]) =>
+      execFileSync(
+        'git',
+        [
+          '-c',
+          'core.autocrlf=false',
+          '-c',
+          'user.name=t',
+          '-c',
+          'user.email=t@example.invalid',
+          ...args,
+        ],
+        { cwd: repo, encoding: 'utf8' },
+      );
+    git('init', '--quiet');
+    git('add', '--', '.');
+    git('commit', '--quiet', '-m', 'sample');
+    writeFileSync(
+      join(repo, 'tome.local.toml'),
+      `[[book]]\npath = ${JSON.stringify(personal)}\n`,
+    );
+
+    run(null, {}, [], repo);
+
+    expect(readdirSync(join(repo, 'src/content/library'))).toEqual([
+      'campaign',
+    ]);
+    expect(git('status', '--porcelain=v1', '--untracked-files=all')).toBe('');
+    expect(readFileSync(join(repo, sampleFile), 'utf8')).toBe(
+      '# Committed sample\n',
+    );
+    expect(readFileSync(join(repo, 'tome.config.toml'), 'utf8')).toBe(
+      '# tracked template — no books\n',
+    );
   });
 });
 

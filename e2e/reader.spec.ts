@@ -139,8 +139,11 @@ test.describe('Tome reader', () => {
     // Wait for the sidebar island to hydrate before clicking, so the toggle's
     // handler is attached (avoids the `client:idle` race — T-208). TocSidebar's
     // onMount adds `js-nav` to the body once running.
-    await page.waitForSelector('body.js-nav');
-    await page.getByRole('button', { name: 'Switch colour theme' }).click();
+    await page.waitForSelector('html[data-theme-ready="true"]');
+    await page
+      .getByRole('radiogroup', { name: 'Colour theme' })
+      .getByRole('radio', { name: 'Dark' })
+      .click();
     await expect(page.locator('body')).toHaveClass(/theme-terminal-dark/);
     const bg = await page.evaluate(
       () => getComputedStyle(document.body).backgroundColor,
@@ -153,7 +156,9 @@ test.describe('Tome reader', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(TOME);
     // A token-transitioned control (`.transition-token`) in the sidebar.
-    const btn = page.getByRole('button', { name: 'Switch colour theme' });
+    const btn = page
+      .getByRole('radiogroup', { name: 'Colour theme' })
+      .getByRole('radio', { name: 'Light' });
     await expect(btn).toBeVisible();
     // Computed transition-duration is reported in seconds; the reduce media rule
     // collapses it to ~0. Take the max across the shorthand list.
@@ -285,4 +290,26 @@ test.describe('Tome reader', () => {
     // The chapter itself remains visible.
     expect(await display('article.tome-prose')).not.toBe('none');
   });
+});
+
+// INT-0023 AC6 — the tutorial chapters are part of the bundled guide: in the
+// sidebar under "Your Library", readable, and in the search index.
+test('test_tutorial_chapters_reachable_and_searchable', async ({ page }) => {
+  await page.goto('/tome/find-your-books');
+  await expect(page.getByRole('heading', { level: 1, name: 'Find Your Books' })).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Table of contents' });
+  await expect(nav.getByText('Your Library', { exact: true })).toBeVisible();
+  for (const title of ['Find Your Books', 'Take It to the Table', 'A Campaign of Tablets']) {
+    await expect(nav.getByRole('link', { name: title })).toBeVisible();
+  }
+  const index = (await (await page.request.get('/search-index.json')).json()) as {
+    url: string;
+    text?: string;
+    title?: string;
+  }[];
+  const urls = index.map((r) => r.url);
+  for (const slug of ['find-your-books', 'take-it-to-the-table', 'a-campaign-of-tablets']) {
+    expect(urls.some((u) => u.startsWith(`/tome/${slug}`))).toBe(true);
+  }
+  expect(JSON.stringify(index)).toContain('books:find');
 });

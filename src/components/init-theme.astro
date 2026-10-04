@@ -1,17 +1,27 @@
 ---
 // Restore the reader's saved theme before first paint (no flash of the default
-// theme). Rendered as the first child of <body> so `document.body` exists.
+// theme). Rendered as the first child of <body> so `document.body` exists. The
+// valid classes come from THEMES, so a new theme can never be silently rejected.
+import { PREPAINT_THEMES, DEFAULT_THEME } from '../styles/theme';
+
+const themes = JSON.stringify(PREPAINT_THEMES);
+const fallback = DEFAULT_THEME.className;
 ---
 
-<script is:inline>
+<script is:inline data-themes={themes} data-fallback={fallback}>
   (function () {
     try {
-      var valid = ['theme-ink-paper', 'theme-terminal-dark'];
+      var script = document.currentScript;
+      var themes = JSON.parse(script.getAttribute('data-themes'));
       var saved = localStorage.getItem('tome-theme');
-      var theme = valid.indexOf(saved) >= 0 ? saved : 'theme-ink-paper';
+      var theme = Object.prototype.hasOwnProperty.call(themes, saved)
+        ? saved
+        : script.getAttribute('data-fallback');
       var b = document.body;
-      b.classList.remove('theme-ink-paper', 'theme-terminal-dark');
+      for (var name in themes) b.classList.remove(name);
       b.classList.add(theme);
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', themes[theme]);
     } catch (e) {
       /* localStorage unavailable — keep the server default */
     }

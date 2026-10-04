@@ -3,85 +3,27 @@
 // replace the sample). A single external book stays at the root (adaptive
 // single-tome mode). Covers the standard layout (book.toml + src/, incl. a
 // relative image) AND a config-less docs/ layout (no book.toml — detected).
-// src/content/books/ is restored to HEAD after EACH book and on any failure, so
-// the gate is idempotent and leaves the tree at HEAD. Runs locally and in CI.
-//
-// NOTE: this gate replaces src/content/books/. It refuses to start unless that
-// target is pristine, then strictly restores tracked content and removes only
-// fixture residue within the target after each case.
-import { execFileSync, execSync } from 'node:child_process';
+// Fixtures publish into the generated library (src/content/library/); the
+// committed sample at src/content/books/ is guarded: the gate refuses to start
+// unless it is pristine and strictly restores it after each case. Runs locally
+// and in CI.
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
+import { createFixtureGate, errorMessage } from './fixture-gate.mjs';
 
 const root = process.cwd();
-const BOOK_DIR = 'src/content/books';
 const dist = join(root, 'dist');
-
-function build(env = {}) {
-  execSync('npm run build', {
-    cwd: root,
-    stdio: 'inherit',
-    env: { ...process.env, ...env },
-  });
-}
+const gate = createFixtureGate({ root });
 
 function verifyHandbookInBrowser() {
-  execSync('npx playwright test', {
-    cwd: root,
-    stdio: 'inherit',
-    env: { ...process.env, TOME_EXTERNAL_BOOK_E2E: '1' },
+  gate.command('npx --no-install playwright test', {
+    TOME_EXTERNAL_BOOK_E2E: '1',
   });
-}
-
-function contentStatus() {
-  return execFileSync(
-    'git',
-    [
-      'status',
-      '--porcelain=v1',
-      '--untracked-files=all',
-      '--ignored=matching',
-      '--',
-      BOOK_DIR,
-    ],
-    { cwd: root, encoding: 'utf8' },
-  ).trim();
-}
-
-function requirePristineContent() {
-  const status = contentStatus();
-  if (status) {
-    throw new Error(
-      `${BOOK_DIR} has local tracked, untracked, or ignored changes; refusing destructive fixture sync:\n${status}`,
-    );
-  }
-}
-
-function restoreSample() {
-  execFileSync(
-    'git',
-    ['restore', '--source=HEAD', '--worktree', '--', BOOK_DIR],
-    {
-      cwd: root,
-      stdio: 'ignore',
-    },
-  );
-  execFileSync('git', ['clean', '-fdqx', '--', BOOK_DIR], {
-    cwd: root,
-    stdio: 'ignore',
-  });
-  const status = contentStatus();
-  if (status)
-    throw new Error(`sample restoration left content residue:\n${status}`);
 }
 
 function fail(message) {
   throw new Error(message);
-}
-
-function message(error) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function requireRoute(slug, label) {
@@ -143,45 +85,26 @@ const CASES = [
 ];
 
 function runCase({ name, book, check, browser = false }) {
-  let caseError;
-  try {
+  return gate.withFixture(() => {
     console.log(`check-external-build: building ${name} …`);
-    build({ TOME_BOOK: book });
+    gate.build({ TOME_BOOK: book });
     check();
     if (browser) {
       console.log('check-external-build: verifying handbook in Chromium …');
       verifyHandbookInBrowser();
     }
     console.log(`check-external-build: OK — ${name}`);
-  } catch (error) {
-    caseError = error;
-  }
-
-  try {
-    restoreSample();
-  } catch (restoreError) {
-    if (caseError) {
-      throw new AggregateError(
-        [caseError, restoreError],
-        `${name} failed (${message(caseError)}) and sample restoration failed (${message(restoreError)})`,
-      );
-    }
-    throw restoreError;
-  }
-
-  if (caseError) throw caseError;
+  });
 }
 
 try {
-  requirePristineContent();
-  for (const fixtureCase of CASES) runCase(fixtureCase);
+  for (const fixtureCase of CASES) await runCase(fixtureCase);
 
   console.log(
     'check-external-build: all external books rendered; rebuilding default …',
   );
-  build();
-  requirePristineContent();
+  await gate.rebuildDefault();
 } catch (error) {
-  console.error(`check-external-build: FAIL — ${message(error)}`);
+  console.error(`check-external-build: FAIL — ${errorMessage(error)}`);
   process.exitCode = 1;
 }

@@ -1,19 +1,23 @@
-// Populate the content library (src/content/books/<slug>/) from one or more
-// external mdBooks, resolved by precedence (highest first):
+// Publish the content library (src/content/library/<slug>/) that Astro reads
+// through the `@library` alias. The library is generated and git-ignored; the
+// committed sample at src/content/books/ is never written. Tomes are resolved
+// by precedence (highest first):
 //
 //   1. TOME_BOOKS="/a,/b" (comma-separated) or TOME_BOOK="/a" (single) — env wins.
-//   2. tome.config.toml — a committed manifest of `[[book]]` entries
-//      (`path`, optional `title`/`slug`).
-//   3. Otherwise a no-op: the committed sample (books/tome/) renders.
+//   2. A manifest of `[[book]]` entries (`path`, optional `title`/`slug`):
+//      `--config` / TOME_CONFIG when given, else the personal git-ignored
+//      tome.local.toml when it exists, else the tracked tome.config.toml.
+//   3. Otherwise the committed sample is published unchanged.
 //
 // The whole library is replaced with the resolved set, so a single external
 // book stays at the root (adaptive single-tome mode) and several become the
-// Bibliotheca. Each book is copied into books/<slug>/ (slugs deduped
-// deterministically) with a per-tome book.meta.json. Source/title/slug detection
-// + slugify are shared with book-source.mjs (also used by the dev live-reload
-// hook). Library root overridable (--dest / TOME_BOOK_DEST, default
-// src/content/books) and manifest path overridable (--config / TOME_CONFIG) so
-// tests isolate and never touch the sample.
+// Bibliotheca. Each book is copied into <slug>/ (slugs deduped deterministically)
+// with a per-tome book.meta.json — minus version-control metadata, dependency
+// trees, and mdBook's own rendered output. Source/title/slug detection + slugify
+// are shared with book-source.mjs (also used by the dev live-reload hook).
+// Library root overridable (--dest / TOME_BOOK_DEST), manifest (--config /
+// TOME_CONFIG), and sample (--sample) so tests isolate and never touch the
+// working library.
 import {
   cp,
   rm,
@@ -24,11 +28,26 @@ import {
   realpath,
   rename,
 } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from 'node:path';
 import process from 'node:process';
 import { parse as parseToml } from 'smol-toml';
 import { resolveBookSource, slugify, exists } from './book-source.mjs';
 import { prepareParentAssets } from './parent-assets.mjs';
+import { resolveManifestPath } from './library-config.mjs';
+
+const LIBRARY_DIR = 'src/content/library';
+const SAMPLE_DIR = 'src/content/books';
+
+/** Never content, at any depth: version control and dependency trees. */
+const EXCLUDED_NAMES = new Set(['.git', '.hg', '.svn', 'node_modules']);
 
 function argValue(argv, flag) {
   const i = argv.indexOf(flag);
@@ -37,14 +56,10 @@ function argValue(argv, flag) {
 
 function parseOptions(argv) {
   return {
-    dest:
-      argValue(argv, '--dest') ||
-      process.env.TOME_BOOK_DEST ||
-      'src/content/books',
-    configPath:
-      argValue(argv, '--config') ||
-      process.env.TOME_CONFIG ||
-      'tome.config.toml',
+    dest: argValue(argv, '--dest') || process.env.TOME_BOOK_DEST || LIBRARY_DIR,
+    // TOME_CONFIG is honoured by resolveManifestPath.
+    configPath: argValue(argv, '--config'),
+    sample: argValue(argv, '--sample') || SAMPLE_DIR,
   };
 }
 
@@ -58,7 +73,8 @@ function envList(value) {
 
 /**
  * The ordered list of book specs (`{ path, title?, slug? }`) to load, by
- * precedence, or `null` for a no-op (keep the committed sample).
+ * precedence, or `null` when nothing is configured (publish the sample).
+ * Manifest paths are relative to the manifest's own directory.
  */
 async function resolveSpecs(configPath) {
   const { TOME_BOOKS, TOME_BOOK } = process.env;
@@ -68,12 +84,20 @@ async function resolveSpecs(configPath) {
   if (TOME_BOOK && TOME_BOOK.trim()) {
     return [{ path: TOME_BOOK.trim() }];
   }
-  if (await exists(configPath)) {
-    const cfg = parseToml(await readFile(configPath, 'utf8'));
+  const manifest = await resolveManifestPath({ explicit: configPath });
+  if (await exists(manifest)) {
+    const cfg = parseToml(await readFile(manifest, 'utf8'));
     const entries = Array.isArray(cfg.book) ? cfg.book : [];
     const specs = entries
       .filter((e) => e && typeof e.path === 'string' && e.path.trim())
-      .map((e) => ({ path: e.path.trim(), title: e.title, slug: e.slug }));
+      .map((e) => {
+        const path = e.path.trim();
+        return {
+          path: isAbsolute(path) ? path : resolve(dirname(manifest), path),
+          title: e.title,
+          slug: e.slug,
+        };
+      });
     return specs.length > 0 ? specs : null;
   }
   return null;
@@ -88,35 +112,40 @@ function dedupeSlug(base, used) {
   return slug;
 }
 
-async function main() {
-  const { dest, configPath } = parseOptions(process.argv.slice(2));
-  const specs = await resolveSpecs(configPath);
+/** `child` lies strictly inside `parent`. */
+function within(parent, child) {
+  const rel = relative(parent, child);
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+}
 
-  if (!specs) {
-    console.log(
-      'load-books: no tomes configured (TOME_BOOKS/TOME_BOOK env or tome.config.toml [[book]] entries) — using the bundled sample.',
-    );
-    return;
+/**
+ * The copy filter for one book: skip VCS and dependency directories at any
+ * depth, and — when they sit inside the copied source — mdBook's build output
+ * (`[build] build-dir`, or a default `book/` that holds a rendered index.html)
+ * and a root-level `target/`.
+ */
+function contentFilter(book) {
+  const skipped = new Set();
+  const inSource = (abs) =>
+    join(book.sourceRealDir, relative(book.sourceDir, abs));
+  if (
+    within(book.sourceDir, book.buildDir) &&
+    (book.buildDirDeclared || existsSync(join(book.buildDir, 'index.html')))
+  ) {
+    skipped.add(inSource(book.buildDir));
   }
-
-  // Resolve every book first (so an invalid one fails before we touch the tree).
-  const used = new Set();
-  const resolved = [];
-  for (const spec of specs) {
-    const src = await resolveBookSource(spec.path);
-    const title = spec.title ?? src.title;
-    const slug = dedupeSlug(slugify(spec.slug ?? src.slug), used);
-    resolved.push({
-      root: src.root,
-      sourceDir: src.sourceDir,
-      sourceRealDir: await realpath(src.sourceDir),
-      title,
-      slug,
-    });
+  if (resolve(book.sourceDir) === resolve(book.root)) {
+    skipped.add(join(book.sourceRealDir, 'target'));
   }
+  return (source) =>
+    !EXCLUDED_NAMES.has(basename(source)) && !skipped.has(resolve(source));
+}
 
-  // Prepare every tome beside the destination before replacing the library.
-  // A later-tome failure therefore leaves the existing destination untouched.
+/**
+ * Atomically replace `dest` with a library staged by `fill(stage)`. The previous
+ * library survives any failure; a failed rollback names where it was kept.
+ */
+async function publish(dest, fill) {
   const destination = resolve(dest);
   await mkdir(dirname(destination), { recursive: true });
   let stage = await mkdtemp(
@@ -125,20 +154,7 @@ async function main() {
   let backupContainer = null;
   let backup = null;
   try {
-    for (const book of resolved) {
-      const out = join(stage, book.slug);
-      await mkdir(out, { recursive: true });
-      await cp(book.sourceRealDir, out, { recursive: true });
-      await prepareParentAssets({
-        root: book.root,
-        sourceDir: book.sourceDir,
-        stagedTome: out,
-      });
-      await writeFile(
-        join(out, 'book.meta.json'),
-        `${JSON.stringify({ title: book.title ?? null }, null, 2)}\n`,
-      );
-    }
+    await fill(stage);
 
     // Keep the previous library available for rollback until the staged tree
     // has been published successfully. Both moves stay on the same filesystem.
@@ -188,6 +204,61 @@ async function main() {
       await rm(backupContainer, { recursive: true, force: true });
     }
   }
+}
+
+async function main() {
+  const { dest, configPath, sample } = parseOptions(process.argv.slice(2));
+  const specs = await resolveSpecs(configPath);
+
+  if (!specs) {
+    if (!(await exists(sample))) {
+      throw new Error(
+        `no tomes configured (TOME_BOOKS/TOME_BOOK, tome.local.toml, or tome.config.toml) and no sample at ${sample}`,
+      );
+    }
+    await publish(dest, (stage) => cp(sample, stage, { recursive: true }));
+    console.log(
+      `load-books: no tomes configured (TOME_BOOKS/TOME_BOOK env, tome.local.toml, or tome.config.toml [[book]] entries) — using the bundled sample (published to ${dest}).`,
+    );
+    return;
+  }
+
+  // Resolve every book first (so an invalid one fails before we touch the tree).
+  const used = new Set();
+  const resolved = [];
+  for (const spec of specs) {
+    const src = await resolveBookSource(spec.path);
+    const title = spec.title ?? src.title;
+    const slug = dedupeSlug(slugify(spec.slug ?? src.slug), used);
+    resolved.push({
+      ...src,
+      sourceRealDir: await realpath(src.sourceDir),
+      title,
+      slug,
+    });
+  }
+
+  // Prepare every tome beside the destination before replacing the library.
+  // A later-tome failure therefore leaves the existing destination untouched.
+  await publish(dest, async (stage) => {
+    for (const book of resolved) {
+      const out = join(stage, book.slug);
+      await mkdir(out, { recursive: true });
+      await cp(book.sourceRealDir, out, {
+        recursive: true,
+        filter: contentFilter(book),
+      });
+      await prepareParentAssets({
+        root: book.root,
+        sourceDir: book.sourceDir,
+        stagedTome: out,
+      });
+      await writeFile(
+        join(out, 'book.meta.json'),
+        `${JSON.stringify({ title: book.title ?? null }, null, 2)}\n`,
+      );
+    }
+  });
 
   const summary = resolved
     .map((b) => `${b.slug} ("${b.title ?? '(untitled)'}")`)

@@ -3,21 +3,27 @@ import { hrefToSlug, chapterUrlIn } from './paths';
 import type { BookToc, ChapterNode } from './summary.types';
 
 // The library: every tome's spine + metadata, eagerly imported as raw text /
-// JSON (Vite globs). The committed sample lives at `books/tome/`; the loader
-// (load-books.mjs) replaces it with the configured tomes at build time.
-const summaryRaws = import.meta.glob('../content/books/*/SUMMARY.md', {
+// JSON (Vite globs). `@library` is the generated library that load-books.mjs
+// publishes (src/content/library/); under Vitest it is the committed sample.
+const summaryRaws = import.meta.glob('@library/*/SUMMARY.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 }) as Record<string, string>;
-const bookMetas = import.meta.glob('../content/books/*/book.meta.json', {
+const bookMetas = import.meta.glob('@library/*/book.meta.json', {
   import: 'default',
   eager: true,
 }) as Record<string, { title?: string | null }>;
 
-/** The tome slug embedded in a `../content/books/<slug>/…` glob key. */
+/**
+ * A library glob key — `/src/content/library/<tome>/<file>` in the app,
+ * `/src/content/books/<tome>/<file>` under Vitest — split into its tome slug and
+ * the file's path within that tome.
+ */
+const LIBRARY_KEY = /(?:^|\/)content\/(?:library|books)\/([^/]+)\/(.+)$/;
+
 function slugOfKey(key: string): string {
-  return key.match(/\/books\/([^/]+)\//)?.[1] ?? '';
+  return key.match(LIBRARY_KEY)?.[1] ?? '';
 }
 
 /**
@@ -41,7 +47,7 @@ export interface ChapterRoute {
 }
 
 export interface Book {
-  /** Directory name under `src/content/books/`. Unique in the library. */
+  /** Directory name in the library. Unique in the library. */
   slug: string;
   title: string | undefined;
   toc: BookToc;
@@ -143,7 +149,8 @@ export function isContentKeyFor(
   href: string,
 ): boolean {
   const clean = href.trim().replace(/^\.\//, '');
-  return globKey.endsWith(`content/books/${bookSlug}/${clean}`);
+  const match = globKey.match(LIBRARY_KEY);
+  return match?.[1] === bookSlug && match[2] === clean;
 }
 
 /** A tome as it appears in the Bibliotheca / sidebar switcher: a titled link. */

@@ -47,7 +47,7 @@ islands hydrate on idle), and runs as a native, fully-offline desktop app.
 </td>
 <td width="50%" valign="top">
   <img src="docs/assets/shots/dark.png" alt="The warm-dark theme" width="100%"><br>
-  <sub><b>Two themes.</b> Ink-on-old-paper by day, a warm amber-phosphor terminal by night.</sub>
+  <sub><b>Two themes</b> (and a third behind a door, if you know the color of Night). Ink-on-old-paper by day, a warm amber-phosphor terminal by night.</sub>
 </td>
 </tr>
 </table>
@@ -70,13 +70,45 @@ npm run test:e2e        # end-to-end (Playwright)
 npm run check:external  # external single-book build gate
 npm run check:multibook # two-tome Bibliotheca build gate
 npm run check:search    # search index + query build gate
+npm run check:livereload # live chapter edits + parent-relative image gate
 npm run check:electron  # desktop-shell end-to-end gate (Playwright + Electron)
 ```
+
+The external, multi-book, search, and live-reload gates require pristine
+`src/content/books/`: tracked, staged, untracked, and ignored local changes cause
+them to stop before replacing any books. Run these gates serially in a clean
+checkout when your working library contains personal books. They use explicit
+fixtures, ignore inherited book/configuration/destination overrides, and restore
+the committed sample after verification. Build and cleanup failures return a
+nonzero status, including a failed final default rebuild.
+
+The live-reload gate requires the checkout's existing dev server to be stopped.
+It starts and stops its own server before restoring content; if shutdown cannot
+be confirmed, it reports the failure and retains the fixture and temporary book.
 </details>
 
 By default Tome renders a bundled sample **library** of two tomes — *Tome* (this guide)
 and *Marginalia* (a short companion). Because there are two, the site opens on the
 **Bibliotheca**; pick a tome to read, and use the sidebar switcher to cross between them.
+
+## Bring your own books
+
+Find the mdBooks already on your machine, add one, and read it:
+
+```bash
+npm run books:find                     # scan your home folder (or: -- <folders> --depth N --json)
+npm run books:add -- ../my-campaign    # validate + add it to your personal tome.local.toml
+npm run dev                            # http://localhost:4321
+```
+
+Your library lives in **`tome.local.toml`** (git-ignored) and is copied into
+`src/content/library/` (also git-ignored), so the checkout stays clean. The copy
+leaves out `.git`, `node_modules`, and rendered output. The bundled guide walks through
+the whole path, from discovery to a tablet at the table, with an agent recipe:
+
+- [Find Your Books](src/content/books/tome/find-your-books.md): `books:find`, manual search, `books:add`, and the `--json` recipe for agents.
+- [Take It to the Table](src/content/books/tome/take-it-to-the-table.md): desktop, a tablet over Wi-Fi, live edits during a session, and static hosting.
+- [A Campaign of Tablets](src/content/books/tome/a-campaign-of-tablets.md): handouts that unseal as players find them.
 
 ## Read any mdBook
 
@@ -107,19 +139,22 @@ error listing the paths it tried.
 and re-syncs changed files into the reader — edit a chapter on disk and it updates with no
 restart. (A dev-only integration; it has no effect on `npm run build`.)
 
-> Note: loading external books overwrites the content library `src/content/books/` at build
-> time. Leave `TOME_BOOK`/`TOME_BOOKS` unset for normal development so the sample stays pristine.
+> Note: books are copied into the generated, git-ignored library `src/content/library/`.
+> The committed sample in `src/content/books/` is only ever read, so loading your own books
+> never changes the checkout.
 
 ## The Bibliotheca — a library of books
 
-Point `TOME_BOOKS` at multiple roots (comma-separated), or list them in `tome.config.toml`:
+Point `TOME_BOOKS` at multiple roots (comma-separated), or list them in your git-ignored
+`tome.local.toml` (`npm run books:add` writes it; `tome.config.toml` is the tracked template
+with the same format):
 
 ```bash
 TOME_BOOKS=/path/to/rust-book,/path/to/CubiKan npm run build
 ```
 
 ```toml
-# tome.config.toml
+# tome.local.toml
 owner = "Ada"          # masthead reads "The Bibliotheca of Ada" (defaults to your OS user)
 
 [[book]]
@@ -137,7 +172,8 @@ slug  = "cubikan"      # optional — the URL segment (defaults to the directory
 - **Several books** → each is namespaced under its slug (`/rust-book/…`), `/` becomes the
   **Bibliotheca** (a library index), and the sidebar gains a switcher for jumping between tomes.
 
-Precedence is `TOME_BOOKS`/`TOME_BOOK` (env) → `tome.config.toml` → the bundled sample.
+Precedence is `TOME_BOOKS`/`TOME_BOOK` (env) → `TOME_CONFIG` → `tome.local.toml` →
+`tome.config.toml` → the bundled sample.
 Colliding slugs are de-duplicated (`guide`, `guide-2`). The masthead reads *“The Bibliotheca of
 &lt;owner&gt;”*, where `owner` defaults to your OS login name (override with the `owner` key or
 `TOME_OWNER`).

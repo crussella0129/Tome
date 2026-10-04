@@ -12,7 +12,7 @@ import { resolveOwner } from '../../scripts/library-config.mjs';
 // Every chapter's Markdown, keyed by path. Importers are lazy; each generated
 // page loads only its own chapter.
 const contentModules = import.meta.glob<MarkdownInstance<Record<string, unknown>>>(
-  '../content/books/**/*.md',
+  '@library/**/*.md',
 );
 
 export function getStaticPaths() {

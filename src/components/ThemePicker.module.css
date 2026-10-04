@@ -1,0 +1,210 @@
+/* Theme picker — a three-segment sacred control plus the Black Door dialog.
+   Every colour is a --theme-* token, so the dialog is always drawn in the theme
+   that is active when it opens. Controls are at least 44×44 CSS px (2.75rem)
+   for fingers on a tablet at the table. */
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  background: var(--theme-background-modal);
+}
+
+.option {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--theme-text);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--theme-border);
+  cursor: pointer;
+}
+
+.option:last-child {
+  border-right: 0;
+}
+
+.option:hover {
+  background: var(--theme-focused-foreground-subdued);
+}
+
+.option[aria-checked='true'] {
+  color: var(--theme-focused-foreground);
+  background: var(--theme-focused-foreground-subdued);
+  font-weight: 700;
+}
+
+.current {
+  margin: 0;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--theme-text-subdued);
+}
+
+/* ---------------------------------------------------------------- */
+/* The Black Door                                                    */
+/* ---------------------------------------------------------------- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--theme-background) 72%, transparent);
+}
+
+.dialog {
+  width: min(100%, 26rem);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  color: var(--theme-text);
+  background: var(--theme-window-background);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+}
+
+.question {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  color: var(--theme-text);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.input {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  /* 16px keeps iOS Safari from zooming the page when the field is focused. */
+  font-size: max(1rem, var(--text-base));
+  color: var(--theme-text);
+  caret-color: var(--theme-focused-foreground);
+  background: var(--theme-background-input);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+}
+
+.reply {
+  min-height: 1.5em;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--theme-text-subdued);
+}
+
+.welcome {
+  color: var(--theme-focused-foreground);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.action {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--theme-text);
+  background: var(--theme-background-modal);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.action:hover {
+  border-color: var(--theme-focused-foreground);
+}
+
+.primary {
+  color: var(--theme-focused-foreground);
+  border-color: var(--theme-focused-foreground);
+  font-weight: 700;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- */
+/* The transformation: a wash of blood pours down, then drains.      */
+/* Mounted on <body> by ThemePicker; transform/opacity only. The     */
+/* leading edge is a slow, uneven wave rather than drips.            */
+/* ---------------------------------------------------------------- */
+
+.wash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(100dvh + 48px);
+  z-index: calc(var(--z-overlay) + 10);
+  pointer-events: none;
+  background: linear-gradient(180deg, #2a0405 0%, #5e0b0d 45%, #9c1416 82%, #ba1a1a 100%);
+  -webkit-mask:
+    linear-gradient(#000, #000) top / 100% calc(100% - 47px) no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='48' viewBox='0 0 320 48' preserveAspectRatio='none'%3E%3Cpath fill='%23000' d='M0 0H320V20C300 34 282 40 262 30C240 19 226 12 204 22C180 33 160 44 136 32C114 21 98 14 76 24C52 35 30 38 14 28C8 24 4 21 0 20Z'/%3E%3C/svg%3E")
+      bottom / 320px 48px repeat-x;
+  mask:
+    linear-gradient(#000, #000) top / 100% calc(100% - 47px) no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='48' viewBox='0 0 320 48' preserveAspectRatio='none'%3E%3Cpath fill='%23000' d='M0 0H320V20C300 34 282 40 262 30C240 19 226 12 204 22C180 33 160 44 136 32C114 21 98 14 76 24C52 35 30 38 14 28C8 24 4 21 0 20Z'/%3E%3C/svg%3E")
+      bottom / 320px 48px repeat-x;
+  transform: translateY(-100%);
+  animation: pour 700ms cubic-bezier(0.55, 0, 0.75, 0.25) forwards;
+}
+
+.draining {
+  animation: drain 900ms ease-out forwards;
+}
+
+@keyframes pour {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes drain {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}

@@ -10,7 +10,7 @@ export default defineConfig({
   testDir: './e2e',
   testMatch: externalBookMode
     ? '**/external-book.spec.ts'
-    : ['**/reader.spec.ts', '**/search.spec.ts', '**/scaling.spec.ts'],
+    : ['**/reader.spec.ts', '**/search.spec.ts', '**/scaling.spec.ts', '**/theme.spec.ts'],
   fullyParallel: !externalBookMode,
   workers: externalBookMode ? 1 : undefined,
   forbidOnly: !!process.env.CI,
@@ -31,7 +31,17 @@ export default defineConfig({
       ? 'node scripts/serve-dist.mjs'
       : 'npm run build && node scripts/serve-dist.mjs',
     url: `http://localhost:${PORT}`,
-    env: { PORT: String(PORT) },
+    // The default build always presents the committed sample: pin the empty
+    // fixture manifest and clear the book env vars, so a developer's personal
+    // tome.local.toml (or shell exports) can never change what the suite sees.
+    env: externalBookMode
+      ? { PORT: String(PORT) }
+      : {
+          PORT: String(PORT),
+          TOME_CONFIG: 'fixtures/empty-library.toml',
+          TOME_BOOK: '',
+          TOME_BOOKS: '',
+        },
     reuseExistingServer: false,
     timeout: 180_000,
   },
