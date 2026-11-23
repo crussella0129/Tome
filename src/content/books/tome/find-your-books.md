@@ -109,6 +109,75 @@ git-ignored. The copy leaves out `.git`, `node_modules`, `target/`, and
 mdBook's own rendered `book/` output. The sample in `src/content/books/` is
 never touched.
 
+## Add a document
+
+Tome also reads what is not an mdBook: a Markdown file, a Word document, or a
+folder of them. No `SUMMARY.md` is needed, and your files are only read, never
+changed.
+
+```bash
+npm run books:add -- ~/notes/ideas.md
+npm run books:add -- "C:\Users\you\Documents\Thesis draft.docx"
+npm run books:add -- ~/notes
+```
+
+The same paths work in `tome.local.toml`:
+
+```toml
+[[book]]
+path = "../papers/thesis-draft.docx"
+title = "Thesis Draft"
+```
+
+A single file becomes a tome of one chapter. A folder becomes a tome with one
+chapter per `.md` and `.docx` file, at any depth:
+
+- The folder's own documents come first, by name, with numbers counted as
+  numbers: `2-notes.md` sorts before `10-notes.md`.
+- Each subfolder becomes a part of the sidebar, named for the subfolder.
+- A `README.md` (or `index.md`) in the folder opens the tome. Without one, the
+  first document does.
+- Dot-folders, `.git`, `node_modules`, `target`, `dist`, `vendor` and `venv`
+  are skipped, and so is any subfolder that is itself an mdBook.
+
+**Google Docs.** In the document, choose File → Download → Microsoft Word
+(.docx), then add the downloaded file.
+
+### What carries over from Word
+
+Headings, bold, italic, strikethrough, superscript and subscript, lists, links
+to web and mail addresses, tables, footnotes and endnotes, block quotations
+(Word's Quote styles), and pictures (PNG, JPEG, GIF, WebP). The document's
+Title heads the page, and its headings become the page's sections. A list or
+several paragraphs inside a table cell stay in the cell, one to a line.
+
+Some things are not shown yet. Where one stood, the page says so:
+
+| In the document | On the page |
+|---|---|
+| An equation | `[equation not shown]` |
+| A chart or a SmartArt diagram | `[figure not shown]` |
+| A picture of another kind (EMF, TIFF, HEIC), or one a note points to that is missing | `[image not shown]` |
+| A Word file in a folder that cannot be opened | a chapter that reads `[document not shown]` |
+| A cross-reference or a table of contents entry | its words, without the link |
+
+The build prints a line for each document that left something out, for example
+`left out 2 equations`. Page headers and footers, comments, colours, fonts and
+underlining are not carried over and are not reported.
+
+### What to know about Markdown notes
+
+- A settings block at the top of a note (front matter between `---` lines) is
+  left out of the page. Its `title` names the chapter when the note has no
+  `#` heading.
+- A link from one note to another file, such as `[see](other-note.md)`, does
+  not lead to that note's chapter yet.
+- A picture written as HTML (`<img src="…">`) is not copied; write it as
+  `![alt](picture.png)`.
+
+`npm run dev` shows a document, but a change to it appears only after a
+restart. Live editing covers mdBook folders.
+
 ## For agents
 
 A recipe a coding agent can follow without guessing:

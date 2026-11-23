@@ -124,12 +124,27 @@ export type TomePage = ChapterPage | BibliothecaPage;
  * The adaptive page set for the whole library. One tome → its chapters at the
  * root, no Bibliotheca. More than one → every chapter namespaced under its tome
  * slug, plus the Bibliotheca at `/`.
+ *
+ * A tome with no chapter at its own address (no `README`/`index` page, as a
+ * folder of loose documents may lack) still answers there: its first chapter is
+ * shown at `/` in a library of one, and at `/<slug>` (where the sidebar's title
+ * links) in a library of several (INT-0029). mdBook does the same for a book
+ * with no opening chapter.
  */
 export function tomePages(list: Book[]): TomePage[] {
   const multi = list.length > 1;
   const pages: TomePage[] = [];
   if (multi) pages.push({ kind: 'bibliotheca', routeSlug: '', books: list });
   for (const book of list) {
+    const first = book.chapters[0];
+    if (first && !book.chapters.some((route) => route.slug === '')) {
+      pages.push({
+        kind: 'chapter',
+        routeSlug: pageSlug(book.slug, '', multi),
+        book,
+        route: first,
+      });
+    }
     for (const route of book.chapters) {
       pages.push({
         kind: 'chapter',

@@ -15,6 +15,12 @@
 // with a per-tome book.meta.json — minus version-control metadata, dependency
 // trees, and mdBook's own rendered output. Source/title/slug detection + slugify
 // are shared with book-source.mjs (also used by the dev live-reload hook).
+//
+// An entry may also name a Markdown file, a Word document, or a folder of them
+// with no SUMMARY.md (INT-0029). Those are not copied whole: each document is
+// read and, for Word, converted (document-stage.mjs), staged under a safe name
+// with only the images it uses, and given a written SUMMARY.md
+// (document-source.mjs). What a document left out is printed, one line each.
 // Library root overridable (--dest / TOME_BOOK_DEST), manifest (--config /
 // TOME_CONFIG), and sample (--sample) so tests isolate and never touch the
 // working library.
@@ -27,6 +33,7 @@ import {
   mkdtemp,
   realpath,
   rename,
+  copyFile,
 } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import {
@@ -39,7 +46,8 @@ import {
 } from 'node:path';
 import process from 'node:process';
 import { parse as parseToml } from 'smol-toml';
-import { resolveBookSource, slugify, exists } from './book-source.mjs';
+import { slugify, exists } from './book-source.mjs';
+import { resolveSource, writeSpine } from './document-source.mjs';
 import { prepareParentAssets } from './parent-assets.mjs';
 import { resolveManifestPath } from './library-config.mjs';
 
@@ -206,6 +214,37 @@ async function publish(dest, fill) {
   }
 }
 
+/**
+ * Read every document of a document or folder source, before anything is
+ * staged (document-stage.mjs holds the rules). The Word reader and the
+ * Markdown tools behind that module take over a second to load, so it is
+ * loaded here, only when an entry names documents; a library of mdBooks
+ * starts as fast as it did before.
+ */
+async function readDocumentTome(source) {
+  const { readDocuments, tomeTitle } = await import('./document-stage.mjs');
+  const chapters = await readDocuments(source);
+  return { chapters, title: tomeTitle(source, chapters) };
+}
+
+/** Write one tome of documents into `out`: chapters, their files, the spine. */
+async function stageDocuments(tome, out) {
+  const at = (rel) => join(out, ...rel.split('/'));
+  for (const chapter of tome.chapters) {
+    await mkdir(dirname(at(chapter.staged)), { recursive: true });
+    await writeFile(at(chapter.staged), chapter.markdown);
+    for (const file of chapter.files) {
+      await mkdir(dirname(at(file.to)), { recursive: true });
+      if (file.from) await copyFile(file.from, at(file.to));
+      else await writeFile(at(file.to), file.bytes);
+    }
+  }
+  await writeFile(
+    join(out, 'SUMMARY.md'),
+    writeSpine({ title: tome.title, chapters: tome.chapters }),
+  );
+}
+
 async function main() {
   const { dest, configPath, sample } = parseOptions(process.argv.slice(2));
   const specs = await resolveSpecs(configPath);
@@ -227,15 +266,22 @@ async function main() {
   const used = new Set();
   const resolved = [];
   for (const spec of specs) {
-    const src = await resolveBookSource(spec.path);
-    const title = spec.title ?? src.title;
+    const src = await resolveSource(spec.path);
     const slug = dedupeSlug(slugify(spec.slug ?? src.slug), used);
-    resolved.push({
-      ...src,
-      sourceRealDir: await realpath(src.sourceDir),
-      title,
-      slug,
-    });
+    if (src.kind === 'book') {
+      resolved.push({
+        ...src,
+        sourceRealDir: await realpath(src.sourceDir),
+        title: spec.title ?? src.title,
+        slug,
+      });
+      continue;
+    }
+    // Documents are read (and Word converted) here, so one that cannot be read
+    // fails before the library is touched.
+    const { chapters, title } = await readDocumentTome(src);
+    // A lone document is titled by itself; a folder by its name.
+    resolved.push({ ...src, chapters, title: spec.title ?? title, slug });
   }
 
   // Prepare every tome beside the destination before replacing the library.
@@ -244,21 +290,36 @@ async function main() {
     for (const book of resolved) {
       const out = join(stage, book.slug);
       await mkdir(out, { recursive: true });
-      await cp(book.sourceRealDir, out, {
-        recursive: true,
-        filter: contentFilter(book),
-      });
-      await prepareParentAssets({
-        root: book.root,
-        sourceDir: book.sourceDir,
-        stagedTome: out,
-      });
+      if (book.kind === 'book') {
+        await cp(book.sourceRealDir, out, {
+          recursive: true,
+          filter: contentFilter(book),
+        });
+        await prepareParentAssets({
+          root: book.root,
+          sourceDir: book.sourceDir,
+          stagedTome: out,
+        });
+      } else {
+        await stageDocuments(book, out);
+      }
       await writeFile(
         join(out, 'book.meta.json'),
         `${JSON.stringify({ title: book.title ?? null }, null, 2)}\n`,
       );
     }
   });
+
+  // Say what each document could not carry over: nothing is left out silently.
+  for (const book of resolved) {
+    for (const chapter of book.chapters ?? []) {
+      if (chapter.report) {
+        console.log(
+          `load-books: ${book.slug}: ${chapter.rel}: left out ${chapter.report}`,
+        );
+      }
+    }
+  }
 
   const summary = resolved
     .map((b) => `${b.slug} ("${b.title ?? '(untitled)'}")`)

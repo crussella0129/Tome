@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+            xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+            xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+            xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+            xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+  <w:body>
+    <w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>On the Weight of Obsidian</w:t></w:r></w:p>
+
+    <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>The Quarry</w:t></w:r></w:p>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Plain words, </w:t></w:r>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>bold words</w:t></w:r>
+      <w:r><w:t xml:space="preserve">, </w:t></w:r>
+      <w:r><w:rPr><w:i/></w:rPr><w:t>slanted words</w:t></w:r>
+      <w:r><w:t xml:space="preserve">, </w:t></w:r>
+      <w:r><w:rPr><w:strike/></w:rPr><w:t>struck words</w:t></w:r>
+      <w:r><w:t xml:space="preserve">, </w:t></w:r>
+      <w:r><w:rPr><w:u w:val="single"/></w:rPr><w:t>underlined words</w:t></w:r>
+      <w:r><w:t xml:space="preserve"> and a note</w:t></w:r>
+      <w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="1"/></w:r>
+      <w:r><w:t xml:space="preserve"> and a second</w:t></w:r>
+      <w:r><w:rPr><w:rStyle w:val="EndnoteReference"/></w:rPr><w:endnoteReference w:id="1"/></w:r>
+      <w:r><w:t>.</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:r><w:t xml:space="preserve">The area is x</w:t></w:r>
+      <w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:t>2</w:t></w:r>
+      <w:r><w:t xml:space="preserve"> and the tablets are washed in H</w:t></w:r>
+      <w:r><w:rPr><w:vertAlign w:val="subscript"/></w:rPr><w:t>2</w:t></w:r>
+      <w:r><w:t>O.</w:t></w:r>
+    </w:p>
+
+    <w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Tools</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>a chisel</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>a mallet</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>score the face</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>cut the channel</w:t></w:r></w:p>
+
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
+      <w:r><w:t xml:space="preserve">Washing in H</w:t></w:r>
+      <w:r><w:rPr><w:vertAlign w:val="subscript"/></w:rPr><w:t>2</w:t></w:r>
+      <w:r><w:t>O</w:t></w:r>
+    </w:p>
+    <w:p><w:r><w:t>Each tablet is rinsed before it is read.</w:t></w:r></w:p>
+
+    <w:p><w:pPr><w:pStyle w:val="Heading3"/></w:pPr><w:r><w:t>Links</w:t></w:r></w:p>
+    <w:p>
+      <w:r><w:t xml:space="preserve">See </w:t></w:r>
+      <w:hyperlink r:id="rId6"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>the source</w:t></w:r></w:hyperlink>
+      <w:r><w:t xml:space="preserve">, write to </w:t></w:r>
+      <w:hyperlink r:id="rId9"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>the scribe</w:t></w:r></w:hyperlink>
+      <w:r><w:t xml:space="preserve">, never </w:t></w:r>
+      <w:hyperlink r:id="rId7"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>the trapdoor</w:t></w:r></w:hyperlink>
+      <w:r><w:t xml:space="preserve">, nor </w:t></w:r>
+      <w:hyperlink r:id="rId8"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>the cellar</w:t></w:r></w:hyperlink>
+      <w:r><w:t xml:space="preserve">, and return to </w:t></w:r>
+      <w:hyperlink w:anchor="_Toc1"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/></w:rPr><w:t>the quarry section</w:t></w:r></w:hyperlink>
+      <w:r><w:t>.</w:t></w:r>
+    </w:p>
+
+    <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>The Measure</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Tablet</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Weight</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>First</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>nine stone</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Density is </w:t></w:r>
+      <m:oMath><m:f><m:num><m:r><m:t>m</m:t></m:r></m:num><m:den><m:r><m:t>V</m:t></m:r></m:den></m:f></m:oMath>
+      <w:r><w:t xml:space="preserve">(see the table) for every tablet.</w:t></w:r>
+    </w:p>
+    <w:p>
+      <m:oMathPara><m:oMath><m:r><m:t>E=mc</m:t></m:r><m:sSup><m:e><m:r><m:t>c</m:t></m:r></m:e><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup></m:oMath></m:oMathPara>
+    </w:p>
+    <w:p>
+      <w:r>
+        <w:drawing>
+          <wp:inline>
+            <wp:extent cx="190500" cy="190500"/>
+            <wp:docPr id="1" name="Plate" descr="A plate of the first tablet"/>
+            <a:graphic>
+              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:pic>
+                  <pic:nvPicPr><pic:cNvPr id="1" name="plate.png"/><pic:cNvPicPr/></pic:nvPicPr>
+                  <pic:blipFill><a:blip r:embed="rId5"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+                  <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="190500" cy="190500"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+                </pic:pic>
+              </a:graphicData>
+            </a:graphic>
+          </wp:inline>
+        </w:drawing>
+      </w:r>
+    </w:p>
+    <w:p><w:r><w:t>Zyzzyva closes the paper.</w:t></w:r></w:p>
+    <w:sectPr/>
+  </w:body>
+</w:document>

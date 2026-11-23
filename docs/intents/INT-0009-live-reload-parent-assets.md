@@ -87,3 +87,11 @@ chapters is a distinct fidelity outcome, not unfinished INT-0003/INT-0007 work.
   editing a parent-asset chapter now reflects **and** the parent image resolves via
   the tome-private staged asset (the Sprint-10 failure is fixed). The build path is
   untouched (extract-only refactor; its 5 tests + `check_external_build` stay green).
+- 2026-11-23: noted during Sprint 24's Test phase, still `realized`. The
+  `check_live_reload` gate that stands as this intent's proof is intermittent:
+  in repeated runs the watcher logs the sync of an edit, yet the dev server
+  sometimes keeps serving the old chapter for the gate's whole 25 seconds. It
+  was so before Sprint 24 (7 of 16 runs at `06cdbcd`) as after (3 of 14 at
+  `f2ac541`); the runs are tabled in
+  [Sprint 24's end-to-end record](../sprints/s24/sprint-tests/e2e-tests.md).
+  Finding and fixing the cause is queued as T-075.

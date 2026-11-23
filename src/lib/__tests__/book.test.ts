@@ -94,6 +94,62 @@ describe('adaptive routing', () => {
     expect(chapterSlugs).not.toContain(''); // no chapter collides with the index
   });
 
+  // INT-0029 (T-070): a tome with no opening page still answers at its own
+  // address, with its first chapter.
+  const notes = makeBook('notes', ['# Notes', '', '- [A](a.md)', '- [B](b.md)'].join('\n'), null);
+
+  it('test_pages_lone_tome_without_root: `/` shows the first chapter', () => {
+    const pages = tomePages([notes]) as ChapterPage[];
+    expect(pages.every((p) => p.kind === 'chapter')).toBe(true);
+    expect(pages.map((p) => p.routeSlug)).toEqual(['', 'a', 'b']);
+    const [root, a] = pages;
+    // The added page carries the first chapter's own route: the sidebar marks
+    // that chapter current and the pager offers the second.
+    expect(root!.route).toBe(a!.route);
+    expect(root!.route.slug).toBe('a');
+    expect(root!.route.prev).toBeUndefined();
+    expect(root!.route.next?.title).toBe('B');
+  });
+
+  it('test_pages_rootless_in_library: `/<slug>` shows the first chapter', () => {
+    const pages = tomePages([alpha, notes]);
+    expect(pages[0]).toMatchObject({ kind: 'bibliotheca', routeSlug: '' });
+    const chapters = pages.filter((p): p is ChapterPage => p.kind === 'chapter');
+    expect(chapters.map((p) => p.routeSlug)).toEqual([
+      'alpha',
+      'alpha/one',
+      'notes',
+      'notes/a',
+      'notes/b',
+    ]);
+    const tomeRoot = chapters.find((p) => p.routeSlug === 'notes')!;
+    expect(tomeRoot.book).toBe(notes);
+    expect(tomeRoot.route.slug).toBe('a');
+  });
+
+  it('test_pages_unchanged_otherwise: tomes with an opening page gain nothing', () => {
+    const single = tomePages([alpha]) as ChapterPage[];
+    expect(single.map((p) => [p.kind, p.routeSlug, p.route.slug])).toEqual([
+      ['chapter', '', ''],
+      ['chapter', 'one', 'one'],
+    ]);
+    const several = tomePages([alpha, beta]);
+    expect(several.map((p) => [p.kind, p.routeSlug])).toEqual([
+      ['bibliotheca', ''],
+      ['chapter', 'alpha'],
+      ['chapter', 'alpha/one'],
+      ['chapter', 'beta'],
+      ['chapter', 'beta/two'],
+    ]);
+  });
+
+  it('test_entries_rootless_tome: the Bibliotheca opens it at its first chapter', () => {
+    const entry = bibliothecaEntries([alpha, notes]).find((e) => e.slug === 'notes')!;
+    expect(entry).toEqual({ slug: 'notes', title: 'Notes', href: '/notes/a', count: 2 });
+    const routes = tomePages([alpha, notes]).map((p) => `/${p.routeSlug}`);
+    expect(routes).toContain(entry.href);
+  });
+
   it('pageSlug: adaptive namespace prefixing', () => {
     expect(pageSlug('tome', '', false)).toBe(''); // single-tome root → site index
     expect(pageSlug('tome', 'intro', false)).toBe('intro');

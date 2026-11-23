@@ -2,9 +2,18 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  symlinkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, relative } from 'node:path';
+import { buildDocx } from '../../../fixtures/word/build-docx.mjs';
 
 const projectRoot = process.cwd();
 const cli = join(projectRoot, 'scripts', 'find-books.mjs');
@@ -176,7 +185,9 @@ describe('find-books.mjs --add — the personal manifest (INT-0023 AC2)', () => 
       'checkout/tome.config.toml': '# tracked template\n# [[book]]\n# path = "../x"\n',
       'tablets/book.toml': '[book]\ntitle = "The Obsidian Tablets"\n',
       'tablets/src/SUMMARY.md': summary('Tablets', ['i', 'ii']),
-      'not-a-book/notes.md': '# nothing here\n',
+      // A folder of loose Markdown is now accepted (INT-0029), so the folder
+      // refused below holds nothing Tome reads.
+      'not-a-book/notes.txt': '# nothing here\n',
     });
   });
   afterAll(() => rmSync(tmp, { recursive: true, force: true }));
@@ -219,5 +230,184 @@ describe('find-books.mjs --add — the personal manifest (INT-0023 AC2)', () => 
     expect(result.stderr).toMatch(/SUMMARY\.md/);
     expect(readFileSync(join(cwd, 'tome.local.toml'), 'utf8')).toBe(before);
     expect(hash(join(cwd, 'tome.config.toml'))).toBe(shared);
+  });
+});
+
+// INT-0029 (T-071) — books:add takes a Markdown file, a Word document, or a
+// folder of them. Reading a document loads the Word reader (a couple of seconds
+// a run), so these cases get more than the default timeout.
+describe('find-books.mjs --add — documents (INT-0029 AC1)', { timeout: 180_000 }, () => {
+  let tmp: string;
+  let cwd: string;
+  const loader = join(projectRoot, 'scripts', 'load-books.mjs');
+  const hash = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
+  const manifest = () => readFileSync(join(cwd, 'tome.local.toml'), 'utf8');
+  /** The title the loader writes for an entry, read back from its library. */
+  function loadedTitle(entry: string): string {
+    const dest = mkdtempSync(join(tmp, 'lib-'));
+    const env: NodeJS.ProcessEnv = { ...process.env, TOME_BOOK: entry };
+    delete env.TOME_BOOKS;
+    delete env.TOME_CONFIG;
+    delete env.TOME_BOOK_DEST;
+    const result = spawnSync(process.execPath, [loader, '--dest', dest], {
+      cwd: projectRoot,
+      env,
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const [slug] = readdirSync(dest);
+    return JSON.parse(readFileSync(join(dest, slug!, 'book.meta.json'), 'utf8')).title;
+  }
+
+  /** The environment with every loader input removed. */
+  function cleanEnv(): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    delete env.TOME_BOOK;
+    delete env.TOME_BOOKS;
+    delete env.TOME_CONFIG;
+    delete env.TOME_BOOK_DEST;
+    return env;
+  }
+  /** Every file of the documents given to books:add, with its hash. */
+  function sourceHashes(): Record<string, string> {
+    const out: Record<string, string> = {};
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else out[relative(tmp, full)] = hash(full);
+      }
+    };
+    for (const folder of ['papers', 'vault']) walk(join(tmp, folder));
+    return out;
+  }
+
+  beforeAll(async () => {
+    tmp = mkdtempSync(join(tmpdir(), 'tome-add-docs-'));
+    cwd = join(tmp, 'checkout');
+    const paper = await buildDocx();
+    write(tmp, {
+      'checkout/tome.config.toml': '# tracked template\n# [[book]]\n# path = "../x"\n',
+      'papers/My Note.md': '# A Note Of Mine\n\nBody.\n',
+      'papers/old.doc': 'the older Word format',
+      'vault/one.md': '# One\n',
+      'vault/letters/two.md': '# Two\n',
+      'mixed/good.md': '# Good\n',
+      'mixed/broken.docx': 'plain text under a Word name\n',
+      'loose/top.md': '# Top\n',
+      'loose/book/book.toml': '[book]\ntitle = "A Real Book"\n',
+      'loose/book/src/SUMMARY.md': summary('A Real Book', ['i']),
+      'nothing/notes.txt': 'nothing Tome reads\n',
+      'corrupt.docx': 'plain text under a Word name\n',
+    });
+    writeFileSync(join(tmp, 'papers', 'paper.docx'), paper);
+    writeFileSync(join(tmp, 'vault', 'paper.docx'), paper);
+  });
+  afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('test_books_add_documents: a file or a folder is added under the title the loader shows', () => {
+    const shared = hash(join(cwd, 'tome.config.toml'));
+    const note = join(tmp, 'papers', 'My Note.md');
+    const paper = join(tmp, 'papers', 'paper.docx');
+    const vault = join(tmp, 'vault');
+    const sourcesBefore = sourceHashes();
+    expect(Object.keys(sourcesBefore).length).toBeGreaterThanOrEqual(6);
+
+    const first = books(['--add', note], cwd);
+    expect(first.status, first.stderr).toBe(0);
+    expect(first.stdout).toContain('Added "A Note Of Mine" (1 chapter) to tome.local.toml.');
+    expect(first.stdout).toContain('npm run dev');
+    expect(loadedTitle(note)).toBe('A Note Of Mine');
+
+    const second = books(['--add', paper], cwd);
+    expect(second.status, second.stderr).toBe(0);
+    expect(second.stdout).toContain('Added "On the Weight of Obsidian" (1 chapter)');
+    expect(loadedTitle(paper)).toBe('On the Weight of Obsidian');
+
+    const third = books(['--add', vault, '--title', 'My Vault', '--slug', 'the-vault'], cwd);
+    expect(third.status, third.stderr).toBe(0);
+    expect(third.stdout).toContain('Added "My Vault" (3 chapters)');
+    expect(loadedTitle(vault)).toBe('vault'); // the folder's own name, before the override
+
+    const text = manifest();
+    expect(text.match(/\[\[book\]\]/g)).toHaveLength(3);
+    expect(text).toContain(`path = ${JSON.stringify(note)}`);
+    expect(text).toContain(`path = ${JSON.stringify(paper)}`);
+    expect(text).toContain(`path = ${JSON.stringify(vault)}`);
+    expect(text).toContain('title = "My Vault"');
+    expect(text).toContain('slug = "the-vault"');
+    expect(hash(join(cwd, 'tome.config.toml'))).toBe(shared);
+
+    // The manifest books:add wrote is one the loader reads: three tomes, the
+    // folder under the title and slug given.
+    const dest = mkdtempSync(join(tmp, 'from-manifest-'));
+    const loaded = spawnSync(
+      process.execPath,
+      [loader, '--dest', dest, '--config', join(cwd, 'tome.local.toml')],
+      { cwd: projectRoot, env: cleanEnv(), encoding: 'utf8', windowsHide: true },
+    );
+    expect(loaded.status, loaded.stderr).toBe(0);
+    expect(readdirSync(dest).sort()).toEqual(['my-note', 'paper', 'the-vault']);
+    const titleOf = (slug: string) =>
+      JSON.parse(readFileSync(join(dest, slug, 'book.meta.json'), 'utf8')).title;
+    expect(titleOf('the-vault')).toBe('My Vault');
+    expect(titleOf('my-note')).toBe('A Note Of Mine');
+    expect(titleOf('paper')).toBe('On the Weight of Obsidian');
+
+    // Adding only reads: every source file is as it was.
+    expect(sourceHashes()).toEqual(sourcesBefore);
+  });
+
+  it('test_books_add_document_dedupes: the same document twice is one entry', () => {
+    const before = manifest();
+    const again = books(['--add', join(tmp, 'papers', '..', 'papers', 'paper.docx')], cwd);
+    expect(again.status, again.stderr).toBe(0);
+    expect(again.stdout).toContain('already in tome.local.toml');
+    expect(manifest()).toBe(before);
+  });
+
+  it('test_books_add_rejects_unaccepted: what cannot be read is refused, and a folder says what it skips', () => {
+    const shared = hash(join(cwd, 'tome.config.toml'));
+    const before = manifest();
+    for (const name of [join('papers', 'old.doc'), 'nothing', 'corrupt.docx']) {
+      const result = books(['--add', join(tmp, name)], cwd);
+      expect(result.status, name).not.toBe(0);
+      expect(result.stderr, name).toContain(join(tmp, name).split(/[\\/]/).pop());
+      expect(manifest(), name).toBe(before);
+    }
+
+    // One unreadable Word file in a folder does not refuse the folder.
+    const mixed = books(['--add', join(tmp, 'mixed')], cwd);
+    expect(mixed.status, mixed.stderr).toBe(0);
+    expect(mixed.stdout).toContain('Added "mixed" (2 chapters)');
+    expect(mixed.stdout).toMatch(/broken\.docx could not be read as a Word document/);
+    expect(manifest().match(/\[\[book\]\]/g)).toHaveLength(4);
+    expect(hash(join(cwd, 'tome.config.toml'))).toBe(shared);
+  });
+
+  it('test_find_books_ignores_documents: discovery still lists mdBooks only', () => {
+    const result = books([join(tmp, 'loose'), '--json']);
+    expect(result.status, result.stderr).toBe(0);
+    const found = JSON.parse(result.stdout);
+    expect(found.version).toBe(1);
+    expect(found.books).toHaveLength(1);
+    expect(Object.keys(found.books[0]).sort()).toEqual([
+      'chapters',
+      'layout',
+      'path',
+      'sourceDir',
+      'sprintBook',
+      'title',
+    ]);
+    expect(found.books[0]).toMatchObject({ title: 'A Real Book', chapters: 1 });
+    expect(found.skipped).toEqual([]);
+
+    // The table too: one book, and no line for the loose note beside it.
+    const table = books([join(tmp, 'loose')]);
+    expect(table.status, table.stderr).toBe(0);
+    expect(table.stdout).toMatch(/Found 1 book under/);
+    expect(table.stdout).toContain('A Real Book');
+    expect(table.stdout).not.toMatch(/top\.md|\bTop\b/);
   });
 });
