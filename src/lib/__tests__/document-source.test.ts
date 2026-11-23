@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { resolveBookSource } from '../../../scripts/book-source.mjs';
 import {
+  liveReloadNotice,
   orderDocuments,
   resolveSource,
   stagedNames,
@@ -263,5 +264,16 @@ describe('document-source.mjs — order, names and the spine (INT-0029 AC2)', ()
       { kind: 'part-title', title: 'letters' },
       { kind: 'chapter', title: 'letters/one.md', href: 'letters/one.md' },
     ]);
+  });
+});
+
+describe('document-source.mjs — the dev server and documents (INT-0029)', () => {
+  it('test_live_reload_notice: documents are served, not watched; an mdBook is watched', () => {
+    const forDocument = liveReloadNotice({ kind: 'document' });
+    const forFolder = liveReloadNotice({ kind: 'folder' });
+    expect(forDocument).toMatch(/live reload is off for documents/);
+    expect(forDocument).toMatch(/restart/);
+    expect(forFolder).toBe(forDocument);
+    expect(liveReloadNotice({ kind: 'book' })).toBeUndefined();
   });
 });

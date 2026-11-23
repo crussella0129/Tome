@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import solid from '@astrojs/solid-js';
 import tailwindcss from '@tailwindcss/vite';
-import { resolveBookSource, syncPath } from './scripts/book-source.mjs';
+import { syncPath } from './scripts/book-source.mjs';
+import { liveReloadNotice, resolveSource } from './scripts/document-source.mjs';
 import { prepareChapterParentAssets } from './scripts/parent-assets.mjs';
 import remarkAlerts from './scripts/remark-alerts.mjs';
 
@@ -30,7 +31,14 @@ function tomeLiveReload() {
         let sourceDir;
         let dest;
         try {
-          const resolved = await resolveBookSource(bookRoot);
+          const resolved = await resolveSource(bookRoot);
+          // A Markdown file, a Word document, or a folder of them (INT-0029) is
+          // read and converted on its way into the library, so it is served but
+          // not watched: say so, and add no watcher.
+          if (resolved.kind !== 'book') {
+            logger.info(liveReloadNotice(resolved) ?? 'live reload is off');
+            return;
+          }
           root = resolved.root;
           sourceDir = resolved.sourceDir;
           dest = join(LIB_DEST, resolved.slug);

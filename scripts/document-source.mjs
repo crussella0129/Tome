@@ -279,3 +279,16 @@ export async function resolveSource(path) {
     })),
   };
 }
+
+/**
+ * What the dev server says about a source it cannot live-reload, or `undefined`
+ * for one it can. Live reload (INT-0009) copies a changed chapter straight into
+ * the library; a document is read and converted on the way in, so a change to
+ * one is seen after a restart.
+ * @param {{ kind: string }} source from `resolveSource()`
+ * @returns {string | undefined}
+ */
+export function liveReloadNotice(source) {
+  if (source.kind === 'book') return undefined;
+  return 'live reload is off for documents: restart `npm run dev` to see a change to them';
+}
