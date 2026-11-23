@@ -31,8 +31,21 @@ interface MdNode {
   children?: MdNode[];
 }
 
-/** Concatenate the raw text of an inline subtree (for a heading's own text). */
+/**
+ * The words of a raw HTML node, its tags left out. Within a line a tag is a
+ * node of its own (`<sup>`), so nothing is left; a block keeps what its tags
+ * enclose (`<div>words</div>` → `words`).
+ */
+function htmlWords(value: string): string {
+  return value.replace(/<[^>]*>/g, '');
+}
+
+/**
+ * Concatenate the raw text of an inline subtree (for a heading's own text).
+ * HTML tags are skipped, as Astro skips them when it gives the heading its id.
+ */
 function inlineText(node: MdNode): string {
+  if (node.type === 'html') return htmlWords(node.value ?? '');
   if (typeof node.value === 'string') return node.value;
   return (node.children ?? []).map(inlineText).join('');
 }
@@ -45,7 +58,8 @@ function collapseWhitespace(text: string): string {
  * Parse a chapter's Markdown into `{ text, headings }`. Headings are slugged in
  * document order (including the H1) by one github-slugger, so dedupe suffixes
  * (`-1`, `-2`) match Astro's per-page `id`s. Fenced code blocks are excluded from
- * the searchable text; inline code is kept.
+ * the searchable text; inline code is kept. HTML tags are left out of both the
+ * text and a heading's own text, so `H<sub>2</sub>O` is found as its words.
  */
 export function parseChapter(raw: string): { text: string; headings: SearchHeading[] } {
   const tree = fromMarkdown(raw) as unknown as MdNode;
@@ -60,6 +74,10 @@ export function parseChapter(raw: string): { text: string; headings: SearchHeadi
       headings.push({ text, slug: slugger.slug(text), depth: node.depth ?? 1 });
       parts.push(text);
       return; // heading text captured; don't descend again
+    }
+    if (node.type === 'html') {
+      parts.push(htmlWords(node.value ?? '')); // the words, never the tags
+      return;
     }
     if (typeof node.value === 'string') {
       parts.push(node.value); // text, inlineCode

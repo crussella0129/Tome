@@ -90,3 +90,25 @@ describe('buildSearchIndex', () => {
     expect(alphaGs.url).toBe('/alpha/getting-started');
   });
 });
+
+// INT-0029 (T-067) — HTML tags are never search words.
+describe('parseChapter with HTML', () => {
+  it('test_search_text_drops_tags: the words between tags are kept, the tags are not', () => {
+    const { text } = parseChapter(
+      'x<sup>2</sup> and <span class="a">b</span>\n\n<div>block words</div>',
+    );
+    expect(text).toContain('x');
+    expect(text).toContain('2');
+    expect(text).toContain('and');
+    expect(text).toContain('b');
+    expect(text).toContain('block words');
+    expect(text).not.toMatch(/[<>]/);
+    expect(text).not.toMatch(/\b(sup|span|div|class)\b/);
+  });
+
+  it('test_search_text_drops_tags: a heading with a tag is slugged by its words', () => {
+    const { headings, text } = parseChapter('## Washing in H<sub>2</sub>O\n\nRinsed.');
+    expect(headings).toEqual([{ text: 'Washing in H2O', slug: 'washing-in-h2o', depth: 2 }]);
+    expect(text).toBe('Washing in H2O Rinsed.');
+  });
+});
