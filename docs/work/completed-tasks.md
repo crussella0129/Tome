@@ -565,4 +565,4 @@
 - **Completed:** 2026-11-23T15:06:43Z
 - **Files modified:** src/lib/book.ts (`tomePages` adds one page at a rootless tome's own address carrying its first chapter's route), src/lib/__tests__/book.test.ts (four new cases)
 - **EARS verified:** Vitest `book.test.ts` 11/11: one tome with chapters `a.md`, `b.md` gives pages `''`, `a`, `b`, the `''` page carrying `a`'s route (no prev, next `B`); in a library of two, the rootless tome gains a page at `notes` carrying `a`'s route and the Bibliotheca stays at `''`; tomes that have an opening page give exactly the pages they gave before, alone and together; `bibliothecaEntries()` links the rootless tome to `/notes/a`, which is among the pages. The seven existing cases pass unedited. `npx astro check`: 0 errors.
-- **Commit:** PENDING
+- **Commit:** `2526b377c50c1434f81441af276a81080e82b503`
