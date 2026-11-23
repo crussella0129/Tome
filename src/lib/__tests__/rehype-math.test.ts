@@ -479,3 +479,74 @@ describe('the functions other steps build on', () => {
     for (const [tex, expected] of cases) expect(titleText(tex), tex).toBe(expected);
   });
 });
+
+// Found by the Test phase's review: inputs the cases above did not try.
+describe('laid out: what the first cases did not try', () => {
+  // T-078 clause 7 — the threshold itself: sixteen characters, and one more.
+  it('test_math_long_threshold: a box of its own begins past sixteen characters', () => {
+    const letters = 'abcdefghijklmnopq';
+    const sixteen = render(`A formula $${letters.slice(0, 16)}$ here.`).tree;
+    expect(text(all(sixteen, 'math')[0]!)).toHaveLength(16);
+    expect(all(sixteen, 'span', 'tome-math-long')).toHaveLength(0);
+    const seventeen = render(`A formula $${letters}$ here.`).tree;
+    expect(text(all(seventeen, 'math')[0]!)).toHaveLength(17);
+    expect(all(seventeen, 'span', 'tome-math-long')).toHaveLength(1);
+    // The formula of twenty-eight that ran past its column in WebKit.
+    const seen = render(
+      'Short $d_1 + d_2 + d_3 + d_4 + d_5 + d_6 + d_7 + d_8 + d_9 = V$ here.',
+    ).tree;
+    expect(text(all(seen, 'math')[0]!)).toHaveLength(28);
+    expect(all(seen, 'span', 'tome-math-long')).toHaveLength(1);
+  });
+
+  // T-078 clause 8 — nothing between the dollar signs is nothing to lay out.
+  it('test_math_empty: an empty formula is shown as typed and named', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { tree, messages } = render(lines('Before.', '', '$$', '$$', '', 'After.'));
+    expect(all(tree, 'math')).toHaveLength(0);
+    expect(all(tree, 'code', 'tome-math-error').map(text)).toEqual(['$$$$']);
+    expect(messages).toHaveLength(1);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(readable('')).toBe(false);
+    expect(readable('   ', true)).toBe(false);
+    expect(formulaText('')).toBeNull();
+    expect(titleText(' ')).toBeNull();
+  });
+
+  // T-078 clause 2 — with Windows line ends, as Astro runs it.
+  it('test_math_crlf: a numbered derivation in a file with Windows line ends is laid out and numbered', () => {
+    const CRLF = String.fromCharCode(13, 10);
+    const source = [
+      R`$$\begin{align}`,
+      'a &= b',
+      R`\end{align}$$`,
+      'a line of text directly under it',
+    ].join(CRLF);
+    const { tree } = render(source, { asAstro: true });
+    expect(all(tree, 'code', 'tome-math-error')).toHaveLength(0);
+    expect(all(tree, 'div', 'tome-math')).toHaveLength(1);
+    expect(numbers(tree)).toEqual(['(1)']);
+    expect(all(tree, 'p').map(text)).toEqual(['a line of text directly under it']);
+  });
+
+  // T-078 clause 12 — a title must not read as another formula would.
+  it('test_math_title_text_neighbours: a number before a fraction, two fractions, a stack with no bar', () => {
+    const cases: [string, string | null][] = [
+      [R`3\frac{1}{2}`, '3 1/2'], // three and a half, not thirty-one halves
+      [R`\frac{31}{2}`, '31/2'],
+      [R`12\frac{3}{4}`, '12 3/4'],
+      [R`x\frac{1}{2}`, 'x 1/2'],
+      [R`\frac{a}{b}\frac{c}{d}`, 'a/b c/d'], // two fractions, not `a/bc/d`
+      [R`2\sqrt{3}`, '2√3'],
+      // A stack with no bar is not a division: no honest one-line form.
+      [R`\binom{n}{k}`, null],
+      [R`n \choose k`, null],
+      [R`\genfrac{}{}{0pt}{}{n}{k}`, null],
+      [R`a \atop b`, null],
+      // As TeX itself sets `2 3^2`: the same marks as `23^2`.
+      ['2 3^2', '23²'],
+      ['23^2', '23²'],
+    ];
+    for (const [tex, expected] of cases) expect(titleText(tex), tex).toBe(expected);
+  });
+});

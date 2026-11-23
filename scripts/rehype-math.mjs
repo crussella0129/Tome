@@ -39,6 +39,9 @@ const LONG = 16;
  * @returns {string | null}
  */
 function mathml(tex, display) {
+  // Nothing between the dollar signs is nothing to lay out: shown as typed,
+  // and named, like any formula that cannot be read.
+  if (tex.trim() === '') return null;
   let markup;
   try {
     markup = temml.renderToString(tex, {
@@ -243,15 +246,30 @@ function raised(node, table, mark) {
   return `${mark}${single(node) ? text : inBrackets(text)}`;
 }
 
+/** The first element a node shows: itself, or the first inside a grouping element. @param {any} node @returns {string} */
+function firstTag(node) {
+  const held = GROUPS.has(node.tagName) ? elementsOf(node) : [];
+  return held.length > 0 ? firstTag(held[0]) : node.tagName;
+}
+
 /** What a grouping element holds, in order. @param {any} node @returns {string} */
 function row(node) {
   let out = '';
   let previous = '';
   for (const child of node.children) {
     const text = plain(child);
-    // `\sqrt{2}3` is not `\sqrt{23}`: a number after a root or a fraction is
-    // parted from it.
-    if (PARTED.has(previous) && /^\d/.test(text)) out += '·';
+    const first = child.type === 'element' ? firstTag(child) : '';
+    if (/[\p{L}\p{N}]$/u.test(out) && first === 'mfrac') {
+      // `3\frac{1}{2}` is three and a half, not thirty-one halves; and two
+      // fractions side by side are two fractions.
+      out += ' ';
+    } else if (/\d$/.test(out) && /^\d/.test(text)) {
+      // Two numbers side by side are a product: `\sqrt{2}3` is not
+      // `\sqrt{23}`, and `2 \cdot 3^2` written `2 3^2` is not `23²`.
+      out += '·';
+    } else if (PARTED.has(previous) && /^\d/.test(text)) {
+      out += '·';
+    }
     out += text;
     if (child.type === 'element') {
       const held = GROUPS.has(child.tagName) ? elementsOf(child) : [];
@@ -283,6 +301,11 @@ function plain(node) {
     case 'mroot':
       return `${raised(held[1], SUPERSCRIPT, '^')}√${part(held[0])}`;
     case 'mfrac':
+      // With no bar it is a stack, as in a binomial coefficient, and a stroke
+      // would read as a division.
+      if (/^0(?:[a-z%]*)$/.test(String(node.properties?.linethickness ?? '').trim())) {
+        throw new NoPlainForm('a fraction with no bar');
+      }
       return `${part(held[0])}/${part(held[1])}`;
     case 'msup':
       return `${part(held[0])}${raised(held[1], SUPERSCRIPT, '^')}`;

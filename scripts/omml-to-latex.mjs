@@ -115,8 +115,13 @@ const child = (node, name) =>
 const children = (node, name) =>
   elements(node).filter((each) => prefix(each) === 'm' && local(each) === name);
 
-/** Whether an element holds any of the equation's own markup. @param {any} node @returns {boolean} */
-const holdsMath = (node) => elements(node).some((each) => prefix(each) === 'm' || holdsMath(each));
+/**
+ * Whether an element holds any of the equation: its own markup, or text of
+ * Word's (a `w:r` with a `w:t` set inside an equation).
+ * @param {any} node @returns {boolean}
+ */
+const holdsMath = (node) =>
+  elements(node).some((each) => prefix(each) === 'm' || local(each) === 't' || holdsMath(each));
 
 /**
  * A property's value: `<m:xPr><m:name m:val="…"/></m:xPr>`. `undefined` when
@@ -349,7 +354,9 @@ function toLatex(node, context) {
   // change, a link) is another matter: reading through it could keep text
   // that was struck out, so the whole equation is given up.
   if (prefix(node) !== 'm') {
-    if (holdsMath(node)) throw new Unknown(`element ${node.nodeName} round part of an equation`);
+    if (local(node) === 't' || holdsMath(node)) {
+      throw new Unknown(`element ${node.nodeName} holding part of an equation`);
+    }
     return '';
   }
   const name = local(node);
@@ -405,12 +412,29 @@ function toLatex(node, context) {
       return `${cmd(value(child(node, 'barPr'), 'pos') === 'bot' ? 'underline' : 'overline')}${group(e())}`;
     case 'groupChr':
       return groupCharacter(node, context);
-    case 'borderBox':
+    case 'borderBox': {
+      // A box with every side drawn. With a side hidden or a stroke across it
+      // (Word's way of striking something out) it is something else, and a
+      // box would misstate it.
+      const properties = child(node, 'borderBoxPr');
+      const changed = properties
+        ? elements(properties).filter(
+            (each) =>
+              /^(hide|strike)/.test(local(each)) &&
+              isOn(each.getAttribute('m:val') ?? each.getAttribute('val') ?? ''),
+          )
+        : [];
+      if (changed.length > 0) throw new Unknown(`a box with ${local(changed[0])}`);
       return `${cmd('boxed')}${group(e())}`;
-    case 'phant':
-      return isOn(value(child(node, 'phantPr'), 'show')) || !child(node, 'phantPr')
-        ? e()
-        : `${cmd('phantom')}${group(e())}`;
+    }
+    case 'phant': {
+      // Word hides what a phantom holds only when it says so (`m:show` off).
+      // With no word on it the contents are shown: that is how Word saves a
+      // "smash", which changes the room a thing takes and not whether it is
+      // seen. (Checked against a file Word wrote.)
+      const show = value(child(node, 'phantPr'), 'show');
+      return show !== undefined && !isOn(show) ? `${cmd('phantom')}${group(e())}` : e();
+    }
     default:
       throw new Unknown(`element m:${name}`);
   }

@@ -8,6 +8,7 @@
 // cannot be carried over (an equation the converter does not know, a chart, an
 // image of a kind a browser does not show). It only reads: the caller writes
 // the files.
+import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import JSZip from 'jszip';
@@ -51,8 +52,20 @@ const run = (text) => `<w:r><w:t xml:space="preserve">${text}</w:t></w:r>`;
  * finished Markdown: letters and digits only, so the Word reader and the
  * Markdown writer both carry it untouched.
  */
-const EQUATION_TOKEN = /tomeEquation(\d+)carried/g;
-const equationToken = (index) => `tomeEquation${index}carried`;
+function placeholders() {
+  // Made anew for each document, with letters no document could hold by
+  // chance, so its own words are never taken for an equation.
+  const nonce = randomBytes(8).toString('hex');
+  const source = `tomeEquation${nonce}n(\\d+)carried`;
+  return {
+    /** @param {number} index */
+    token: (index) => `tomeEquation${nonce}n${index}carried`,
+    /** A fresh pattern for every token in a text. */
+    all: () => new RegExp(source, 'g'),
+    /** A token at the very start of a text. */
+    first: new RegExp(`^${source}`),
+  };
+}
 
 /**
  * Replace what the Word reader would drop without a trace by something it will
@@ -60,11 +73,12 @@ const equationToken = (index) => `tomeEquation${index}carried`;
  * a mark when the converter does not know it; a drawing that is a chart or a
  * diagram by a mark.
  * @param {JSZip} zip the opened document, changed in memory only
+ * @param {ReturnType<typeof placeholders>} marks
  * @returns {Promise<{ equations: number, figures: number, carried: { latex: string, display: boolean, cell: boolean }[] }>}
  *   `equations` counts those left out; `carried` holds the LaTeX of the rest,
  *   by the number in each token.
  */
-async function markUnreadable(zip) {
+async function markUnreadable(zip, marks) {
   let equations = 0;
   let figures = 0;
   const carried = [];
@@ -76,7 +90,7 @@ async function markUnreadable(zip) {
       return run(MARKS.equation);
     }
     carried.push({ latex, display: false, cell: false });
-    return run(equationToken(carried.length - 1));
+    return run(marks.token(carried.length - 1));
   };
   for (const name of Object.keys(zip.files)) {
     if (!TEXT_PARTS.test(name)) continue;
@@ -102,9 +116,14 @@ async function markUnreadable(zip) {
  * @param {any} tree the document as HTML
  * @param {{ latex: string, display: boolean, cell: boolean }[]} carried
  */
-function placeEquations(tree, carried) {
+function placeEquations(tree, carried, marks) {
   if (carried.length === 0) return;
-  const tokens = (text) => [...text.matchAll(EQUATION_TOKEN)].map((match) => Number(match[1]));
+  // Only a token that stands for an equation: a document may hold the same
+  // letters by chance.
+  const tokens = (text) =>
+    [...text.matchAll(marks.all())]
+      .map((match) => Number(match[1]))
+      .filter((index) => carried[index] !== undefined);
   const walk = (node, inCell, inHeading) => {
     if (node.type === 'text') {
       for (const index of tokens(node.value)) if (inCell) carried[index].cell = true;
@@ -118,7 +137,7 @@ function placeEquations(tree, carried) {
     if ((node.tagName === 'p' || node.tagName === 'li') && !cell && !heading) {
       const text = textOf(node).trim();
       const only = tokens(text);
-      if (only.length === 1 && text === equationToken(only[0])) carried[only[0]].display = true;
+      if (only.length === 1 && text === marks.token(only[0])) carried[only[0]].display = true;
     }
     for (const child of node.children ?? []) walk(child, cell, heading);
   };
@@ -150,10 +169,22 @@ function dollarForm(equation, next) {
 }
 
 /** Exchange each token in a finished Markdown document for its equation. */
-function writeEquations(markdown, carried) {
-  return markdown.replace(EQUATION_TOKEN, (token, index, offset) =>
-    dollarForm(carried[Number(index)], markdown[offset + token.length]),
-  );
+function writeEquations(markdown, carried, marks) {
+  return markdown.replace(marks.all(), (token, index, offset) => {
+    const equation = carried[Number(index)];
+    if (equation === undefined) return token; // the document's own words
+    const after = markdown.slice(offset + token.length);
+    let written = dollarForm(equation, after[0]);
+    // A backslash of the document's own, directly before the equation, would
+    // make its opening dollar sign `\$`: write the backslash as itself.
+    const backslashes = markdown.slice(0, offset).match(/\\*$/)[0].length;
+    if (backslashes % 2 === 1) written = `\\${written}`;
+    // Two equations with nothing between them would run their dollar signs
+    // together (`$a$$b$`): they stand a space apart.
+    const next = after.match(marks.first);
+    if (next && carried[Number(next[1])] !== undefined) written += ' ';
+    return written;
+  });
 }
 
 /**
@@ -161,10 +192,11 @@ function writeEquations(markdown, carried) {
  * in it is written on one line that keeps what it says (`√2`), or, where it has
  * no such form, between dollar signs as the chapter has it.
  */
-function titleWithEquations(title, carried) {
-  return title.replace(EQUATION_TOKEN, (token, index) => {
-    const { latex } = carried[Number(index)];
-    return titleText(latex) ?? `$${latex}$`;
+function titleWithEquations(title, carried, marks) {
+  return title.replace(marks.all(), (token, index) => {
+    const equation = carried[Number(index)];
+    if (equation === undefined) return token;
+    return titleText(equation.latex) ?? `$${equation.latex}$`;
   });
 }
 
@@ -511,7 +543,8 @@ export async function convertDocx(input, options = {}) {
     );
   }
 
-  const { equations, figures, carried } = await markUnreadable(zip);
+  const marks = placeholders();
+  const { equations, figures, carried } = await markUnreadable(zip, marks);
   const images = [];
   const unsupported = new Map();
   let result;
@@ -549,7 +582,7 @@ export async function convertDocx(input, options = {}) {
       flattenCells(tree);
       plainUnsafeLinks(tree);
       markUnsupportedImages(tree);
-      placeEquations(tree, carried);
+      placeEquations(tree, carried, marks);
     })
     .use(rehypeRemark, { handlers })
     .use(remarkGfm)
@@ -575,8 +608,8 @@ export async function convertDocx(input, options = {}) {
   for (const [detail, count] of others) leftOut.push({ kind: 'other', count, detail });
 
   return {
-    markdown: writeEquations(String(file), carried),
-    title: titleWithEquations(title, carried),
+    markdown: writeEquations(String(file), carried, marks),
+    title: titleWithEquations(title, carried, marks),
     images,
     leftOut,
   };

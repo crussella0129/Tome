@@ -284,3 +284,99 @@ describe('omml-to-latex.mjs — one rule for each element', () => {
     expect(ommlToLatex(math(r('a')), { readable: () => true })).toBe('a');
   });
 });
+
+// Found by the Test phase's review: rules the converter has beyond the cases
+// above, each now with a case; and two shapes checked against files Word saved.
+describe('omml-to-latex.mjs — the other rules', () => {
+  const brace = (mark: string, position: string) =>
+    `<m:groupChr><m:groupChrPr><m:chr m:val="${mark}"/><m:pos m:val="${position}"/></m:groupChrPr><m:e>${r('a+b')}</m:e></m:groupChr>`;
+  const box = (properties: string) =>
+    `<m:borderBox><m:borderBoxPr>${properties}</m:borderBoxPr><m:e>${r('x')}</m:e></m:borderBox>`;
+  const phantom = (properties: string | null) =>
+    `${r('a')}<m:phant>${properties === null ? '' : `<m:phantPr>${properties}</m:phantPr>`}<m:e>${r('b')}</m:e></m:phant>${r('c')}`;
+
+  // T-082 clause 1
+  it('test_omml_other_rules: boxes, phantoms, braces, more brackets, accents and styles', () => {
+    const cases: [string, string, string][] = [
+      ['a box round a group', `<m:box><m:e>${r('a+b')}</m:e></m:box>`, 'a+b'],
+      ['a bordered box', box(''), R`\boxed{x}`],
+      ['a phantom Word says is hidden', phantom('<m:show m:val="0"/>'), R`a\phantom{b}c`],
+      // As Word saves a smash: no word on showing, so it is shown.
+      ['a smash', phantom('<m:zeroAsc m:val="1"/><m:zeroDesc m:val="1"/>'), 'abc'],
+      ['a phantom with no properties', phantom(null), 'abc'],
+      ['a phantom Word says is shown', phantom('<m:show m:val="1"/>'), 'abc'],
+      ['an underbrace', brace('⏟', 'bot'), R`\underbrace{a+b}`],
+      ['an overbrace', brace('⏞', 'top'), R`\overbrace{a+b}`],
+      [
+        'the brace Word means when it names none',
+        `<m:groupChr><m:e>${r('a+b')}</m:e></m:groupChr>`,
+        R`\underbrace{a+b}`,
+      ],
+      [
+        'several parts with a separator',
+        `<m:d><m:dPr><m:begChr m:val="("/><m:sepChr m:val="|"/><m:endChr m:val=")"/></m:dPr><m:e>${r('a')}</m:e><m:e>${r('b')}</m:e></m:d>`,
+        R`\left( a \middle\vert b \right)`,
+      ],
+      ['double bars', brackets('‖', '‖', r('x')), R`\left\Vert x \right\Vert`],
+      [
+        'matrix in double bars',
+        brackets('‖', '‖', MATRIX),
+        R`\begin{Vmatrix} a & b \\ c & d \end{Vmatrix}`,
+      ],
+      ['angle brackets', brackets('⟨', '⟩', r('a,b')), R`\left\langle a,b \right\rangle`],
+      ['floor', brackets('⌊', '⌋', r('x')), R`\left\lfloor x \right\rfloor`],
+      ['ceiling', brackets('⌈', '⌉', r('x')), R`\left\lceil x \right\rceil`],
+      ['acute', accent(String.fromCodePoint(0x0301)), R`\acute{x}`],
+      ['grave', accent(String.fromCodePoint(0x0300)), R`\grave{x}`],
+      ['breve', accent(String.fromCodePoint(0x0306)), R`\breve{x}`],
+      ['check', accent(String.fromCodePoint(0x030c)), R`\check{x}`],
+      ['a hat written as a spacing character', accent('^'), R`\hat{x}`],
+      ['a tilde written as a spacing character', accent('~'), R`\tilde{x}`],
+      ['bold italic', run('<m:sty m:val="bi"/>'), R`\boldsymbol{v}`],
+      ['sans-serif', run('<m:scr m:val="sans-serif"/>'), R`\mathsf{v}`],
+      ['monospace', run('<m:scr m:val="monospace"/>'), R`\mathtt{v}`],
+      ['italic, as letters are anyway', run('<m:sty m:val="i"/>'), 'v'],
+      [
+        'a sum with no limits',
+        `<m:nary><m:naryPr><m:chr m:val="∑"/><m:subHide m:val="1"/><m:supHide m:val="1"/></m:naryPr><m:sub/><m:sup/><m:e>${r('i')}</m:e></m:nary>`,
+        '∑ i',
+      ],
+      [
+        'a fraction in a fraction',
+        `<m:f><m:num><m:f><m:num>${r('a')}</m:num><m:den>${r('b')}</m:den></m:f>${r('c')}</m:num><m:den>${r('d')}</m:den></m:f>`,
+        R`\frac{\frac{a}{b}c}{d}`,
+      ],
+      ['signs XML writes specially', r('a&lt;b&gt;c'), 'a<b>c'],
+    ];
+    for (const [label, inner, expected] of cases) {
+      expect(latex(inner), label).toBe(expected);
+      expect(readable(expected), label).toBe(true);
+    }
+  });
+
+  // T-082 clause 3
+  it('test_omml_other_unknowns: a struck box and text of Word’s own give nothing', () => {
+    const nothing: [string, string][] = [
+      // Word's way of striking something out: a box with a stroke across it.
+      ['a box with a stroke', box('<m:strikeBLTR m:val="1"/>')],
+      ['a box with a side hidden', box('<m:hideTop m:val="1"/>')],
+      [
+        'a box with every side hidden and a stroke',
+        box(
+          '<m:hideTop m:val="1"/><m:hideBot m:val="1"/><m:hideLeft m:val="1"/><m:hideRight m:val="1"/><m:strikeH m:val="1"/>',
+        ),
+      ],
+      // A run of Word's, not of the equation's, holding text: part of what is
+      // shown, with no rule to write it.
+      [
+        'a text run of Word’s inside an equation',
+        `${r('a+')}<w:r><w:t>hello</w:t></w:r>${r('+b')}`,
+      ],
+      ['a tracked deletion round a run', `${r('a')}<w:del w:id="1" w:author="x">${r('b')}</w:del>`],
+      ['an equation of spaces only', r('   ')],
+    ];
+    for (const [label, inner] of nothing) expect(latex(inner), label).toBeNull();
+    // A side named as not hidden is a plain box still.
+    expect(latex(box('<m:hideTop m:val="0"/>'))).toBe(R`\boxed{x}`);
+  });
+});

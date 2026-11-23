@@ -167,7 +167,9 @@ function openInParagraph(context) {
   }
   let text = '';
   for (; chunk; chunk = chunk.previous) text = `${context.sliceSerialize(chunk)}\n${text}`;
-  return (text.match(/\$\$/g) ?? []).length % 2 === 1;
+  // A `$$` named in inline code is not one that opens a formula.
+  const outsideCode = text.replace(/(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g, '');
+  return (outsideCode.match(/\$\$/g) ?? []).length % 2 === 1;
 }
 
 /**
@@ -218,11 +220,15 @@ const inDoubleDollars = (node, source) => {
   const start = node?.position?.start.offset;
   return node?.type === 'inlineMath' && typeof start === 'number' && source.startsWith('$$', start);
 };
+// A line end, as Unix writes it or as Windows does (`\r\n`), with any spaces
+// left beside it.
+const LINE_END_LAST = /\r?\n[ \t]*$/;
+const LINE_END_FIRST = /^[ \t]*\r?\n/;
 /** Whether a formula's neighbour leaves it its line: nothing, or text broken at that side. */
 const endsLine = (/** @type {any} */ node) =>
-  node === undefined || (node.type === 'text' && /\n[ \t]*$/.test(node.value));
+  node === undefined || (node.type === 'text' && LINE_END_LAST.test(node.value));
 const startsLine = (/** @type {any} */ node) =>
-  node === undefined || (node.type === 'text' && /^[ \t]*\n/.test(node.value));
+  node === undefined || (node.type === 'text' && LINE_END_FIRST.test(node.value));
 
 /**
  * The set-apart form, exactly as the package writes it for `$$` fences.
@@ -266,8 +272,8 @@ function divide(paragraph, source) {
     // Drop the line ends that stood against a formula.
     const first = line[0];
     const last = line[line.length - 1];
-    if (first?.type === 'text') first.value = first.value.replace(/^[ \t]*\n/, '');
-    if (last?.type === 'text') last.value = last.value.replace(/\n[ \t]*$/, '');
+    if (first?.type === 'text') first.value = first.value.replace(LINE_END_FIRST, '');
+    if (last?.type === 'text') last.value = last.value.replace(LINE_END_LAST, '');
     const kept = line.filter((child) => child.type !== 'text' || child.value !== '');
     if (kept.length > 0) out.push({ type: 'paragraph', children: kept });
     line = [];

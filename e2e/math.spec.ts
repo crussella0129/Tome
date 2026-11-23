@@ -25,10 +25,48 @@ async function open(
   if (theme) await page.addInitScript((value) => localStorage.setItem('tome-theme', value), theme);
   await page.goto(path);
   await page.waitForSelector('html[data-theme-ready="true"]');
-  await page.evaluate(async () => {
-    await document.fonts.load('16px "Tome Math"', '∑√α');
-    await document.fonts.ready;
-  });
+  // Wait for the page's own formulas to bring the font in. The test does not
+  // fetch it: a face that no formula uses would never load, and this would
+  // time out, which is the point.
+  await page.waitForFunction(() =>
+    [...document.fonts].some(
+      (face) => face.family.replace(/["']/g, '') === 'Tome Math' && face.status === 'loaded',
+    ),
+  );
+  await page.evaluate(() => document.fonts.ready);
+}
+
+/**
+ * Which rows of a rectangle of the page an element paints: the first and the
+ * last, counted from the rectangle's top. The rectangle is photographed with
+ * the element and with it hidden.
+ */
+async function paintedRows(
+  page: Page,
+  target: Locator,
+  clip: { x: number; y: number; width: number; height: number },
+): Promise<{ first: number; last: number }> {
+  const shown = pixels(await page.screenshot({ clip, animations: 'disabled' }));
+  await target.evaluate((element) => ((element as HTMLElement).style.visibility = 'hidden'));
+  const hidden = pixels(await page.screenshot({ clip, animations: 'disabled' }));
+  await target.evaluate((element) => ((element as HTMLElement).style.visibility = ''));
+  let first = -1;
+  let last = -1;
+  for (let y = 0; y < shown.height; y += 1) {
+    for (let x = 0; x < shown.width; x += 1) {
+      const index = (y * shown.width + x) * 4;
+      const distance =
+        Math.abs(shown.data[index]! - hidden.data[index]!) +
+        Math.abs(shown.data[index + 1]! - hidden.data[index + 1]!) +
+        Math.abs(shown.data[index + 2]! - hidden.data[index + 2]!);
+      if (distance > 48) {
+        if (first < 0) first = y;
+        last = y;
+        break;
+      }
+    }
+  }
+  return { first, last };
 }
 
 /** The set-apart formulas of a page, in order. */
@@ -208,10 +246,22 @@ test.describe('Formulas laid out', () => {
     const [numerator, denominator] = await childBoxes(formulas.nth(0), 'mfrac');
     expect(numerator!.bottom).toBeLessThanOrEqual(denominator!.top + 0.5);
 
-    // A root over a fraction: the radical at least as tall as what it holds.
+    // A root over a fraction: the radical sign itself stretches to what it
+    // holds. Its ink is looked for in the strip left of the fraction (the
+    // root's box would hold the fraction whether the sign stretched or not).
+    await formulas.nth(2).scrollIntoViewIfNeeded();
     const [radical] = await boxes(formulas.nth(2), 'msqrt');
     const [held] = await boxes(formulas.nth(2), 'mfrac');
     expect(radical!.height).toBeGreaterThanOrEqual(held!.height);
+    expect(held!.left - radical!.left).toBeGreaterThan(4);
+    const ink = await paintedRows(page, formulas.nth(2).locator('msqrt'), {
+      x: Math.floor(radical!.left),
+      y: Math.floor(radical!.top),
+      width: Math.floor(held!.left - radical!.left),
+      height: Math.ceil(radical!.height),
+    });
+    expect(ink.first).toBeGreaterThanOrEqual(0);
+    expect(ink.last - ink.first + 1).toBeGreaterThanOrEqual(held!.height * 0.9);
 
     // A sum with limits: one above the sign, one below.
     const [sign, lower, upper] = await childBoxes(formulas.nth(3), 'munderover');
@@ -227,6 +277,23 @@ test.describe('Formulas laid out', () => {
     expect(Math.abs(centre(cells[0]!) - centre(cells[2]!))).toBeLessThan(2);
     expect(Math.abs(centre(cells[1]!) - centre(cells[3]!))).toBeLessThan(2);
     expect(centre(cells[1]!)).toBeGreaterThan(centre(cells[0]!) + 5);
+    // Its rows stand apart: each cell keeps the padding a formula's cell has
+    // (Tome's reset once took it, and the rows ran together), and the letters
+    // of the second row begin below the letters of the first.
+    const rows = await formulas.nth(4).evaluate((wrapper) => {
+      const cellsOf = [...wrapper.querySelectorAll('mtd')];
+      const letters = cellsOf.map((cell) => cell.querySelector('mi')!.getBoundingClientRect());
+      const style = getComputedStyle(cellsOf[0]!);
+      return {
+        paddingTop: parseFloat(style.paddingTop),
+        paddingBottom: parseFloat(style.paddingBottom),
+        firstRowBottom: letters[0]!.bottom,
+        secondRowTop: letters[2]!.top,
+      };
+    });
+    expect(rows.paddingTop).toBeGreaterThan(1);
+    expect(rows.paddingBottom).toBeGreaterThan(1);
+    expect(rows.secondRowTop).toBeGreaterThanOrEqual(rows.firstRowBottom + rows.paddingTop);
 
     // Its brackets stretch: at least half as tall again as a bracket in a line.
     const [stretched] = await signs(formulas.nth(4), '(');
@@ -313,7 +380,14 @@ test.describe('Formulas laid out', () => {
     const faces = await page.evaluate(() =>
       [...document.fonts].map((face) => `${face.family.replace(/["']/g, '')}:${face.status}`),
     );
+    // Loaded by the page itself (`open()` waits and does not fetch), and the
+    // family every formula is set in.
     expect(faces).toContain('Tome Math:loaded');
+    const families = await page
+      .locator('article.tome-prose math')
+      .evaluateAll((all) => [...new Set(all.map((math) => getComputedStyle(math).fontFamily))]);
+    expect(families).toHaveLength(1);
+    expect(families[0]).toMatch(/^["']?Tome Math["']?\s*,/);
     expect(await page.evaluate(() => document.fonts.check('16px "Tome Math"', '∑√α'))).toBe(true);
 
     const origin = new URL(baseURL!).origin;
@@ -412,6 +486,37 @@ test.describe('Formulas laid out', () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await entry.click();
     await expect(page.locator('#the-emc2-law')).toBeInViewport();
+  });
+
+  // INT-0030 AC7, T-079 clauses 5 and 9, in a browser on the built site: a
+  // formula in a heading is found by what it shows, and the result opens at
+  // its section.
+  test('test_math_search_opens_section', async ({ page }) => {
+    await open(page, '/1-proof');
+    await page.waitForSelector('html[data-search-ready="true"]');
+    await page.keyboard.press('/');
+    const input = page.getByRole('combobox');
+    await expect(input).toBeFocused();
+    await input.fill('mc2');
+    const result = page.getByRole('option').getByRole('link').first();
+    await expect(result).toHaveAttribute('href', '/2-more#the-emc2-law');
+    await expect(page.getByRole('option').first()).toContainText('The E = mc² law');
+    await result.click();
+    await expect(page).toHaveURL(/\/2-more#the-emc2-law$/);
+    await expect(page.locator('#the-emc2-law')).toBeInViewport();
+    // A symbol is found by the name it was typed with.
+    // (The page just opened is a new one; its search answers the key once it
+    // is ready, so the key is pressed until the field is there.)
+    await page.waitForSelector('html[data-search-ready="true"]');
+    await expect(async () => {
+      await page.keyboard.press('/');
+      await expect(page.getByRole('combobox')).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15000 });
+    await page.getByRole('combobox').fill('alpha');
+    await expect(page.getByRole('option').getByRole('link').first()).toHaveAttribute(
+      'href',
+      /^\/1-proof/,
+    );
   });
 
   // T-081 clause 11

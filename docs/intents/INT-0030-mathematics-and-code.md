@@ -180,6 +180,32 @@ code. Tome today shows `$x^2$` as the characters typed.
   that one could not be read; a count of formulas per chapter was weighed
   and left out as noise for a book that is mostly mathematics. Such text
   belongs in code, and the tutorial says so.
+- Sprint 25's Test phase found more of the rule's edges, kept as they are:
+  - A formula between single dollar signs cannot hold `\$` either (a `\$`
+    before the closing sign refuses the pair): `$\text{\$5}$` stays text,
+    and `$$\text{\$5}$$` is laid out.
+  - A dollar sign inside an inline HTML tag's attribute
+    (`<span title="$x">`) is a dollar sign like any other, so it can pair
+    with one before it and break the tag.
+  - Inside a formula `%` begins a comment, as in LaTeX: `$r = 5% per year$`
+    is laid out as `r = 5`, and nothing is reported. A percent sign is
+    written `\%`. The tutorial says so.
+  - A formula that cannot be read is shown as typed with one difference:
+    one written `$$…$$` inside a line, a heading or a cell is shown between
+    single dollar signs, because that is how it would have been set.
+  - A formula with nothing in it is one that cannot be read.
+  - Search does not read a bare web address (`www.…`) as a link, as the
+    page does, so dollar signs in two such addresses on one line can pair
+    in search where they do not on the page.
+- In a plain-text place a whole number hard against a fraction is kept
+  apart from it (`3 1/2`, never `31/2`), as are two fractions side by side.
+  A stack with no bar (a binomial coefficient) has no honest one-line
+  form, and is shown there as typed.
+- A Word equation is left out, with its mark and its count, when it holds a
+  box with a stroke through it or a side hidden, or text that is Word's and
+  not the equation's (a tracked deletion among them). A part Word marks as
+  hidden is carried over as a space of the same size; one Word marks only as
+  taking no height is shown.
 - In a table, a `|` inside a formula ends the cell, as it does for any
   text there; `\vert` is written instead. Search does not read tables as
   the page does (it never has), so dollar signs in two cells of one row
@@ -211,3 +237,8 @@ code. Tome today shows `$x^2$` as the characters typed.
 - 2026-11-23: `planned` to `active` in Sprint 25's Build phase, as T-077
   began. The plans were locked after a third review returned
   proceed-with-caveats.
+- 2026-11-23: revised in Sprint 25's Test phase. Consequences gained the
+  edges an independent review of the tests found and the sprint kept (what
+  single dollar signs cannot hold, `%`, an empty formula, search and bare
+  web addresses), how a plain-text place writes a mixed number and a
+  binomial, and which Word equations are left out. State unchanged.

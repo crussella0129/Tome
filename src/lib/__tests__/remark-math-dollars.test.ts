@@ -369,3 +369,79 @@ describe('formulas in the build', () => {
     expect(settings.rehype).toEqual(['rehypeMath']);
   });
 });
+
+// Found by the Test phase's review: inputs the cases above did not try.
+describe('formulas in Markdown: line ends as Windows writes them, and code above a fence', () => {
+  const CRLF = String.fromCharCode(13, 10);
+  const windows = (...parts: string[]) => parts.join(CRLF);
+
+  // T-077 clauses 5, 6, 7 — a file saved with `\r\n` line ends reads the same.
+  it('test_dollars_crlf: every `$$` shape reads with Windows line ends as with Unix ones', () => {
+    const shapes: string[][] = [
+      ['Text above', '$$ x = y $$', 'and below.'],
+      ['Text above', '$$ x = y $$'],
+      ['Before.', '', '$$', 'a = b', '$$', '', 'After.'],
+      ['Text', '$$', 'a = b', '+ c', '$$', 'more text.'],
+      [R`$$\begin{align}`, 'a &= b', R`\end{align}$$`, 'a line of text directly under it'],
+      [R`$$\begin{aligned}`, 'a &= b', R`\end{aligned}$$`, '', 'After stays.'],
+      ['$$a = b', '$$', '', 'After stays.'],
+      ['- item', '', '  $$', '  a = b', '  $$', '', 'After.'],
+      ['It costs $5 and', 'then $10. And $x$ too.'],
+    ];
+    for (const shape of shapes) {
+      const unix = read(lines(...shape));
+      const win = read(windows(...shape));
+      const label = shape.join(' / ');
+      expect(kinds(win), label).toEqual(kinds(unix));
+      // The same formulas, set apart or not, their own line ends aside.
+      expect(
+        formulas(win).map((value) => value.replaceAll(CRLF, '\n')),
+        label,
+      ).toEqual(formulas(unix));
+      expect(
+        all(win, 'math').map((node) => fenceClosed(node, windows(...shape))),
+        label,
+      ).toEqual(all(unix, 'math').map((node) => fenceClosed(node, lines(...shape))));
+    }
+    // And they are the shapes meant: set apart, with the text round them kept.
+    const between = read(windows('Text above', '$$ x = y $$', 'and below.'));
+    expect(kinds(between)).toEqual(['paragraph', 'math', 'paragraph']);
+    expect(all(between, 'text').map((node) => node.value)).toEqual(['Text above', 'and below.']);
+    const numbered = read(
+      windows(R`$$\begin{align}`, 'a &= b', R`\end{align}$$`, 'a line of text directly under it'),
+    );
+    expect(kinds(numbered)).toEqual(['math', 'paragraph']);
+  });
+
+  // T-077 clauses 5, 9 — a `$$` named in inline code is not an unclosed formula.
+  it('test_dollars_code_above_fence: `$$` in inline code directly above a fence leaves the fence a fence', () => {
+    const tree = read(
+      lines(
+        'Write `$$` on its own line:',
+        '$$',
+        'a = b',
+        '$$',
+        '',
+        'After the formula.',
+        '',
+        '## Later heading',
+        '',
+        'Later text.',
+      ),
+    );
+    expect(kinds(tree)).toEqual(['paragraph', 'math', 'paragraph', 'heading', 'paragraph']);
+    expect(formulas(tree)).toEqual(['apart:a = b']);
+    expect(all(tree, 'inlineCode').map((node) => node.value)).toEqual(['$$']);
+    expect(all(tree, 'math').map((node) => fenceClosed(node, ''))).toBeDefined();
+
+    // Two code spans, and a longer run of backticks, are left out of the count too.
+    const twice = read(lines('Use `$$` or ``a `$$` b`` here:', '$$', 'c = d', '$$', '', 'After.'));
+    expect(formulas(twice)).toEqual(['apart:c = d']);
+    expect(kinds(twice)).toEqual(['paragraph', 'math', 'paragraph']);
+
+    // An unclosed `$$` outside code is still closed by the `$$` line under it.
+    const open = read(lines('See `code` then $$a = b', '$$', '', 'After.'));
+    expect(formulas(open).map((value) => value.trim())).toEqual(['inline:a = b']);
+    expect(kinds(open)).toEqual(['paragraph', 'paragraph']);
+  });
+});

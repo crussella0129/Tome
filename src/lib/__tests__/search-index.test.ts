@@ -258,6 +258,13 @@ describe('parseChapter with formulas', () => {
     }
     const tagged = parseChapter(joined('$$', R`x = y \tag{7}`, '$$')).text;
     expect(tagged).toBe('x=y');
+
+    // With Windows line ends (found by the Test phase's review): read set
+    // apart all the same, with a line of text directly under it.
+    const crlf = [R`$$\begin{align}`, 'E &= mc^2', R`\end{align}$$`, 'Text under it.'].join(
+      String.fromCharCode(13, 10),
+    );
+    expect(parseChapter(crlf).text).toBe('E=mc2 Text under it.');
   });
 
   // T-079 clause 2

@@ -148,6 +148,8 @@ In a table a `|` ends the cell, even inside a formula. Write `\vert` for it:
 - A formula that cannot be read is shown as you typed it, underlined, and the
   build prints a line naming the chapter. A missing brace is the usual cause,
   as in `\frac{a}{`. The build goes on.
+- Inside a formula `%` begins a comment, as it does in LaTeX, and the rest of
+  the line is not shown. Write `\%` for a percent sign: `$5\%$` gives $5\%$.
 - Referring to an equation by its number, with `\ref`, is not offered yet.
 - A link or a picture cannot be put inside a formula.
 - The form mdBook itself uses for mathematics, `\\(` and `\\)`, is not laid

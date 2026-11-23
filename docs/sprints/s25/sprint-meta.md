@@ -23,13 +23,20 @@
   not hold with that number. The threshold is 16 characters (about 250 px
   at the reader's largest text). The rule and its test are otherwise as
   planned; `test_math_long_inline` tries eighteen terms and `x^2`, on either
-  side of both numbers.
+  side of both numbers. The Test phase's review found that this held for
+  any threshold from 3 to about 70; `test_math_long_threshold` now holds the
+  number itself, with a formula of 16 characters and one of 17.
 - **Resolved during T-080 (a reset the plan did not know of):** Tailwind's
   reset takes the padding off every element, the cells of a formula among
   them, so a matrix and a set of cases stood with their rows run together in
   the real reader, though not in the trial pages, which had no reset.
   `math.css` gives a formula's cells the padding the browsers' own sheet
-  for mathematics gives them. T-081 measures a matrix's rows.
+  for mathematics gives them. As built, T-081 checked only that a matrix's
+  rows stood at different heights, which rows run together would also pass
+  (the Test phase's review said so). `test_math_positions` now reads a
+  cell's padding in the browser and asks that the second row's letters
+  begin below the first row's by at least that much, and
+  `test_math_css_rules` holds the rule.
 - **Resolved during T-080 (how a clause is tested):** the clause says
   `math.css` holds "no `http:` or `https:` address anywhere". Temml's rules,
   taken whole as the plan says, hold one picture written into the sheet as
@@ -39,3 +46,15 @@
   package's file or a `data:` picture, that there is no `@import`, and that
   no `http` remains once that namespace is set aside; T-081 checks in a
   browser that every request goes to Tome's own origin.
+- **Resolved during the Test phase (source changed after Build):** Test
+  found faults that tests had not tried, and they were corrected in the
+  phase with a test each, not carried as failures: none needed a new
+  design. A file Word itself saved showed a style wrapped round a sign
+  (`1e782cf`). The independent review of the tests then found four more:
+  a `$$…$$` line with Windows line ends was not set apart; `$$` inside
+  inline code directly above a fence turned the fence over and the rest of
+  the chapter was taken; a plain-text title ran a whole number into a
+  fraction and wrote a binomial as a division; two Word equations with
+  nothing between them became one unreadable formula with nothing reported.
+  The review's record and each answer are in
+  `sprint-tests/critique-round-1.md`.

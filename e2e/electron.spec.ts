@@ -54,12 +54,18 @@ test.describe('Tome desktop shell', () => {
     await page.goto(`${ORIGIN}/tome/write-mathematics`);
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByRole('heading', { level: 1, name: 'Write Mathematics' })).toBeVisible();
+    // The page's own formulas bring the font in; the test does not fetch it.
+    await page.waitForFunction(() =>
+      [...document.fonts].some(
+        (face) => face.family.replace(/["']/g, '') === 'Tome Math' && face.status === 'loaded',
+      ),
+    );
     const state = await page.evaluate(async () => {
-      await document.fonts.load('16px "Tome Math"', '∑√α');
       await document.fonts.ready;
       const math = document.querySelector('article.tome-prose math')!;
       const box = math.getBoundingClientRect();
       return {
+        family: getComputedStyle(math).fontFamily,
         formulas: document.querySelectorAll('article.tome-prose math').length,
         width: box.width,
         height: box.height,
@@ -71,6 +77,7 @@ test.describe('Tome desktop shell', () => {
     expect(state.width).toBeGreaterThan(1);
     expect(state.height).toBeGreaterThan(1);
     expect(state.faces).toContain('Tome Math:loaded');
+    expect(state.family).toMatch(/^["']?Tome Math["']?\s*,/);
     expect(state.used).toBe(true);
     // Every request went to the app's own origin, the font among them.
     const fetched = requests.filter((url) => /^(https?|app):/.test(url));

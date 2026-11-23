@@ -164,6 +164,10 @@ describe('the styles of a formula', () => {
     expect(long).toContain('overflow-x: auto');
     expect(long).toContain('overflow-y: hidden');
 
+    // A formula's cells keep their padding: Tome's reset takes it off every
+    // element, and a matrix's rows then run together.
+    expect(rule(mathCss, 'math mtd')).toMatch(/^padding: 0\.5ex 0\.4em;?$/);
+
     const error = rule(mathCss, '.tome-prose code.tome-math-error');
     expect(error).toContain('underline dashed');
     expect(error).not.toMatch(/(^|[;\s])color:/);

@@ -794,7 +794,7 @@ describe('docx-to-markdown.mjs — equations carried over', () => {
     expect(count(out.markdown, '\\frac')).toBe(1);
     expect(out.markdown).not.toContain('\\\\frac');
     expect(out.markdown).not.toContain(MARKS.equation);
-    expect(out.markdown).not.toMatch(/tomeEquation\d+carried/);
+    expect(out.markdown).not.toMatch(/tomeEquation/);
     expect(out.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
   });
 
@@ -979,5 +979,67 @@ describe('docx-to-markdown.mjs — equations carried over', () => {
     expect(nodesOfType(md, ['text']).some((node) => node.value?.includes(MARKS.equation))).toBe(
       true,
     );
+  });
+});
+
+// Found by the Test phase's review: shapes the cases above did not try.
+describe('docx-to-markdown.mjs — equations beside one another, and beside a backslash', () => {
+  const convert = async (bytes: Buffer) => convertDocx(bytes, { name: 'paper.docx' });
+  const density = (markdown: string) =>
+    nodesIn(readBack(markdown), 'paragraph').find((node) =>
+      JSON.stringify(node).includes('Density'),
+    );
+
+  // T-082 clause 5
+  it('test_docx_adjacent_equations: two equations with nothing between them are two formulas', async () => {
+    const out = await convert(await withFirst(`${eq(mr('a'))}${eq(mr('b'))}`));
+    expect(out.markdown).toContain('Density is $a$ $b$(see the table)');
+    expect(formulasIn(density(out.markdown)!)).toEqual([
+      { type: 'inlineMath', value: 'a' },
+      { type: 'inlineMath', value: 'b' },
+    ]);
+    expect(out.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
+
+    // Three in a row, the middle one needing two dollar signs.
+    const three = await convert(await withFirst(`${eq(mr('a'))}${eq(mr('c$d'))}${eq(mr('b'))}`));
+    expect(formulasIn(density(three.markdown)!).map((formula) => formula.value)).toEqual([
+      'a',
+      R`c\$d`,
+      'b',
+    ]);
+  });
+
+  // T-082 clause 5
+  it('test_docx_backslash_before_equation: a backslash of the document’s own does not unmake the formula', async () => {
+    const out = await convert(
+      await variant((text) =>
+        text.replace(
+          '<w:r><w:t xml:space="preserve">Density is </w:t></w:r>',
+          '<w:r><w:t xml:space="preserve">Density is C:\\</w:t></w:r>',
+        ),
+      ),
+    );
+    expect(formulasIn(density(out.markdown)!)).toEqual([
+      { type: 'inlineMath', value: R`\frac{m}{V}` },
+    ]);
+    expect(reads(out.markdown)).toContain('Density is C:\\');
+  });
+
+  // T-082 clause 7 (never the place-holder, and never a crash on one)
+  it('test_docx_token_in_text: a document that holds the place-holder’s own letters is read as written', async () => {
+    const out = await convert(
+      await variant((text) =>
+        text.replace(
+          '<w:r><w:t xml:space="preserve">Density is </w:t></w:r>',
+          '<w:r><w:t xml:space="preserve">Density tomeEquation9carried and tomeEquation0carried is </w:t></w:r>',
+        ),
+      ),
+    );
+    // The words stay words; the two real equations are still carried over.
+    expect(reads(out.markdown)).toContain('Density tomeEquation9carried and ');
+    expect(
+      formulasIn(readBack(out.markdown)).filter((formula) => formula.value === 'E=mc^{2}'),
+    ).toHaveLength(1);
+    expect(out.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
   });
 });
