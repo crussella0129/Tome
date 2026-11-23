@@ -141,11 +141,16 @@ of Tome already works.
   shown as plain text: the places they point to do not survive conversion.
 - Word's "Quote", "Intense Quote" and "Block Text" paragraphs are block
   quotations. A paragraph that is only indented to look like one is not.
-- A table cell holds one line. Where a Word cell holds several paragraphs
-  or a list, they are set in the cell with a line break between them, and a
-  list's items are marked as text (`• item`, `1. item`). A table whose
-  first row is empty, as a table used for layout often is, gets an empty
-  header row.
+- A table cell holds one line. Where a Word cell holds several paragraphs,
+  a list, a quotation or a table of its own, they are set in the cell with
+  a line break between them: a list's items are marked as text (`• item`,
+  `1. item`, indented when nested), a quotation is its paragraphs without
+  the quotation's look, and a table inside the cell is one line to a row
+  with ` / ` between its cells. A table whose first row is empty, as a
+  table used for layout often is, gets an empty header row.
+- A picture a Word document links to and does not hold is named by the
+  load; no mark is left where it stood, since the Word reader does not say
+  where that was.
 - A Word document named `README` or `index` opens a tome when no Markdown
   file of that name does.
 - A Markdown document is shown as written. Its `##` and `###` headings are
@@ -160,6 +165,9 @@ of Tome already works.
 - An image a Markdown document names by a full path on the machine
   (`C:\pictures\a.png`, `file:///…`) is judged like any other: staged
   when it lies inside the document's folder, marked and reported when not.
+  Where full paths begin with `/` (Linux, macOS), a reference that begins
+  with `/` is an address on the site, as it is in any chapter, and is left
+  as written; only the `file:` spelling names a file there.
 - A Markdown document's images are staged when they are PNG, JPEG, GIF,
   WebP, SVG or AVIF. A file with one of those names that is damaged is
   not caught by the load and stops the build, as it does in an mdBook.
@@ -174,8 +182,13 @@ of Tome already works.
   diagrams are found by Tome itself (criterion 4).
 - Search no longer takes HTML tags for words. An mdBook chapter that holds
   HTML is searched by its words alone, where before `sup` or `div` could
-  be found as if written in it. Nothing else about an mdBook's search
-  changes.
+  be found as if written in it. A tag that sits inside a word or phrase
+  (`sub`, `sup`, `span`, `em` and their like) lets the text either side of
+  it meet, so `H<sub>2</sub>O` is found as `H2O`; every other tag, a line
+  break among them, keeps its neighbours apart, so both words of
+  `alpha<br>beta` are found, and so are the cells of a table written in
+  HTML, which ran together before. A chapter with no HTML is searched as it
+  was.
 - A folder is read to any depth, leaving out dot-folders, version control,
   dependency and build folders (`node_modules`, `target`, `dist`, `vendor`,
   `__pycache__`, `venv`, `site-packages`), and any subfolder that is itself
@@ -219,4 +232,7 @@ of Tome already works.
   that block quotations were lost and that a list in a table cell broke the
   table; both are now carried over, and criterion 3 names quotations. The
   test review added which Word file may open a tome, images named by a full
-  path, and the `Summary.md` case.
+  path, and the `Summary.md` case. A second test review found faults in
+  those fixes, corrected the same day: which tags join the text beside them
+  in search, a quotation or a table inside a table cell, and which of the
+  Word reader's messages count as something left out.

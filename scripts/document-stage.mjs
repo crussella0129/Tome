@@ -69,7 +69,15 @@ function collect(tree, types) {
 function localPath(url) {
   // A full path on this machine (`C:\pics\a.png`, `file:///…`) names a local
   // file as much as a relative one does; it is judged like any other.
-  if (/^[A-Za-z]:[\\/]/.test(url ?? '')) return { path: path.normalize(url), suffix: '' };
+  if (/^[A-Za-z]:[\\/]/.test(url ?? '')) {
+    let decoded = url;
+    try {
+      decoded = decodeURIComponent(url); // `My%20Pics`, as a relative reference is decoded
+    } catch {
+      /* not percent-encoded: take it as written */
+    }
+    return { path: path.normalize(decoded), suffix: '' };
+  }
   if (/^file:/i.test(url ?? '')) {
     try {
       return { path: fileURLToPath(url), suffix: '' };

@@ -107,6 +107,37 @@ describe('parseChapter with HTML', () => {
     expect(text).toBe('Washed in H2O, area x2.');
   });
 
+  // Only tags that sit inside a word join it. A line break, a rule or a block
+  // keeps the words either side apart, or the second could not be found.
+  it('test_search_text_drops_tags: a line break, a rule and a cell boundary part their words', () => {
+    expect(parseChapter('alpha<br>beta gamma').text).toBe('alpha beta gamma');
+    expect(parseChapter('alpha<br/>beta<br />gamma').text).toBe('alpha beta gamma');
+    expect(parseChapter('one <img src="x.png" alt="">two').text).toBe('one two');
+    // A two-line table cell, as a Word cell with two paragraphs becomes.
+    expect(parseChapter('| Tablet |\n| - |\n| First<br>second line |').text).toContain(
+      'First second line',
+    );
+    // HTML inside a list item or a quotation is a block there, not part of a line.
+    expect(parseChapter('- one\n\n  <hr>\n\n  two').text).toBe('one two');
+    expect(parseChapter('> quoted\n>\n> <hr>\n>\n> again').text).toBe('quoted again');
+    // Adjacent cells of an HTML table are separate words.
+    expect(parseChapter('<table><tr><td>alpha</td><td>beta</td></tr></table>').text).toBe(
+      'alpha beta',
+    );
+    // A joining tag inside a block of HTML still joins.
+    expect(parseChapter('<div>Washed in H<sub>2</sub>O</div>').text).toBe('Washed in H2O');
+    // A span keeps a word whole; a tag at a paragraph's end joins nothing across blocks.
+    expect(parseChapter('re<span>mark</span>able\n\nnext').text).toBe('remarkable next');
+    expect(parseChapter('ends <b>bold</b>\n\n<i>starts</i> here').text).toBe(
+      'ends bold starts here',
+    );
+  });
+
+  it('test_search_text_drops_tags: a heading skips every tag, as the page’s id does', () => {
+    const { headings } = parseChapter('## Alpha<br>Beta');
+    expect(headings).toEqual([{ text: 'AlphaBeta', slug: 'alphabeta', depth: 2 }]);
+  });
+
   it('test_search_text_drops_tags: a heading with a tag is slugged by its words', () => {
     const { headings, text } = parseChapter('## Washing in H<sub>2</sub>O\n\nRinsed.');
     expect(headings).toEqual([{ text: 'Washing in H2O', slug: 'washing-in-h2o', depth: 2 }]);

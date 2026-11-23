@@ -250,6 +250,28 @@ describe('document-stage.mjs — a Markdown document', () => {
     expect(snapshot(base)).toEqual(before);
   });
 
+  it('test_prepare_markdown_missing_image: a drive-letter path with backslashes or %20 is read as written', async (context) => {
+    const base = vault({ 'vault/My Pics/a plate.png': PNG, 'vault/note.md': 'placeholder\n' });
+    const root = join(base, 'vault');
+    const picture = join(root, 'My Pics', 'a plate.png');
+    // Only where full paths begin with a drive letter (Windows).
+    if (!/^[A-Za-z]:\\/.test(picture)) context.skip();
+    const encoded = picture.replace(/\\/g, '/').replace(/ /g, '%20');
+    const source =
+      `![with backslashes](<${picture}>)\n\n![percent-encoded](${encoded})\n\n` +
+      `![gone](<${join(root, 'My Pics', 'missing.png')}>)\n`;
+    writeFileSync(join(root, 'note.md'), source);
+
+    const out = await prepareDocument(markdownDoc(root, 'note.md'), { root });
+    const staged = './__tome_parent_assets__/My%20Pics/a%20plate.png';
+    expect(nodes(out.markdown, 'image').map((node) => node.url)).toEqual([staged, staged]);
+    expect(out.files.map((file) => file.to)).toEqual([
+      '__tome_parent_assets__/My Pics/a plate.png',
+    ]);
+    expect(out.leftOut.map((entry) => entry.kind)).toEqual(['image']);
+    expect(reads(out.markdown)).toContain('[image not shown]');
+  });
+
   it('test_prepare_markdown_html_image: an HTML image is left as written and listed', async () => {
     const source =
       '# Note\n\n<img src="plate.png" alt="a plate">\n\n<img src="https://example.com/x.png">\n';

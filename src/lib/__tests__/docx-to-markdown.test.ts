@@ -351,7 +351,9 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
           quote('Quote', 'First quoted line.') +
             quote('Quote', 'Second quoted line.') +
             '<w:p><w:r><w:t>Plain between.</w:t></w:r></w:p>' +
-            quote('IntenseQuote', 'An intense line.'),
+            quote('IntenseQuote', 'An intense line.') +
+            '<w:p><w:r><w:t>Plain again.</w:t></w:r></w:p>' +
+            quote('BlockText', 'A block text line.'),
         ),
         {
           'word/styles.xml': (text) =>
@@ -359,6 +361,7 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
               '</w:styles>',
               '<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/></w:style>' +
                 '<w:style w:type="paragraph" w:styleId="IntenseQuote"><w:name w:val="Intense Quote"/></w:style>' +
+                '<w:style w:type="paragraph" w:styleId="BlockText"><w:name w:val="Block Text"/></w:style>' +
                 '</w:styles>',
             ),
         },
@@ -367,7 +370,77 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
     expect(out.markdown).toContain('> First quoted line.\n>\n> Second quoted line.');
     expect(out.markdown).toContain('\nPlain between.\n');
     expect(out.markdown).toContain('> An intense line.');
-    expect(nodesOfType(out.markdown, ['blockquote'])).toHaveLength(2);
+    expect(out.markdown).toContain('> A block text line.');
+    expect(nodesOfType(out.markdown, ['blockquote'])).toHaveLength(3);
+  });
+
+  it('test_docx_table_cells_stay_one_line: a quotation, a nested list and a table inside a cell', async () => {
+    const para = (words: string, style = '') =>
+      `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ''}<w:r><w:t>${words}</w:t></w:r></w:p>`;
+    const item = (level: number, words: string) =>
+      `<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="${level}"/>` +
+      `<w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>${words}</w:t></w:r></w:p>`;
+    const cell = (inner: string) => `<w:tc>${inner}</w:tc>`;
+    const innerTable =
+      `<w:tbl><w:tr>${cell(para('inner A'))}${cell(para('inner B'))}</w:tr>` +
+      `<w:tr>${cell(para('inner C'))}${cell(para('inner D'))}</w:tr></w:tbl>`;
+    const out = await convert(
+      await variant(
+        (text) =>
+          text
+            .replace(
+              '<w:tc><w:p><w:r><w:t>First</w:t></w:r></w:p></w:tc>',
+              cell(para('Quoted one.', 'Quote') + para('Quoted two.', 'Quote')),
+            )
+            .replace(
+              '<w:tc><w:p><w:r><w:t>nine stone</w:t></w:r></w:p></w:tc>',
+              cell(item(0, 'outer') + item(1, 'inner') + innerTable + para('after')),
+            ),
+        {
+          'word/styles.xml': (text) =>
+            text.replace(
+              '</w:styles>',
+              '<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/></w:style></w:styles>',
+            ),
+          'word/numbering.xml': (text) =>
+            text.replace(
+              '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/></w:lvl>',
+              '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/></w:lvl>' +
+                '<w:lvl w:ilvl="1"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="o"/></w:lvl>',
+            ),
+        },
+      ),
+    );
+    const rows = out.markdown.split('\n').filter((line) => line.startsWith('|'));
+    // Still the header, the divider and one body row of two cells; and no line
+    // of the chapter is a stray quotation or an extra table row.
+    expect(rows).toHaveLength(3);
+    for (const row of rows) expect(row.replace(/\\\|/g, '').split('|')).toHaveLength(4);
+    expect(out.markdown).not.toMatch(/^> ?Quoted/m);
+    expect(rows[2]).toContain('Quoted one.<br>Quoted two.');
+    // The nested item is indented by two no-break spaces.
+    const nbsp = String.fromCharCode(160);
+    expect(rows[2]).toContain(`• outer<br>${nbsp}${nbsp}• inner<br>`);
+    // The table inside the cell is one line to a row, and appears once.
+    expect(rows[2]).toContain('inner A / inner B<br>inner C / inner D<br>after');
+    expect(out.markdown.split('inner A')).toHaveLength(2);
+  });
+
+  it('test_docx_reader_messages: a message that merely holds the word "style" is still listed', async () => {
+    // A symbol the reader cannot map, in a font whose name ends in "Style".
+    const out = await convert(
+      await variant(
+        beforeEnd(
+          '<w:p><w:r><w:t xml:space="preserve">A bullet </w:t></w:r>' +
+            '<w:r><w:sym w:font="Bookman Old Style" w:char="F0B7"/></w:r>' +
+            '<w:r><w:t xml:space="preserve"> here.</w:t></w:r></w:p>',
+        ),
+      ),
+    );
+    expect(out.markdown).toContain('A bullet');
+    const others = out.leftOut.filter((entry) => entry.kind === 'other');
+    expect(others).toHaveLength(1);
+    expect(others[0]!.detail).toMatch(/Bookman Old Style/);
   });
 
   it('test_docx_table_cells_stay_one_line: paragraphs and lists in a cell do not break the table', async () => {

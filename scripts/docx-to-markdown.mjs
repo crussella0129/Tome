@@ -170,35 +170,48 @@ function settleHeadings(tree, fallbackTitle) {
   return fallbackTitle;
 }
 
+/** The rows of a table, not those of a table nested in one of its cells. */
+function rowsOf(table) {
+  const rows = [];
+  const walk = (node) => {
+    for (const child of node.children ?? []) {
+      if (isElement(child, 'tr')) rows.push(child);
+      else if (child.type === 'element' && child.tagName !== 'table') walk(child);
+    }
+  };
+  walk(table);
+  return rows;
+}
+
 /** A Word table has no header row of its own: its first row becomes one. */
 function headTables(tree) {
   visit(tree, 'element', (node) => {
     if (node.tagName !== 'table') return;
     if (node.children.some((child) => isElement(child, 'thead'))) return;
-    const rows = [];
-    visit(node, 'element', (child) => {
-      if (child.tagName === 'tr') rows.push(child);
-    });
+    const rows = rowsOf(node);
     if (rows.length === 0) return;
     const [first, ...rest] = rows;
     for (const cell of first.children) if (isElement(cell, 'td')) cell.tagName = 'th';
     node.children = [element('thead', {}, [first]), element('tbody', {}, rest)];
-    return SKIP;
   });
 }
 
 /**
  * A Markdown table cell holds one line. A Word cell may hold several
- * paragraphs or a list, which would break the table apart, so each cell's
- * blocks are set on one line with a line break between them and a list's
- * items marked as text (`• item`, `1. item`).
+ * paragraphs, a list, a quotation or a table of its own, any of which would
+ * break the table apart. So each cell's blocks are set on one line with a line
+ * break between them: a list's items are marked as text (`• item`, `1. item`,
+ * indented when nested), a quotation is its paragraphs, and a nested table is
+ * one line to a row with ` / ` between its cells.
  */
 function flattenCells(tree) {
   const text = (value) => ({ type: 'text', value });
+  const indent = String.fromCharCode(160).repeat(2); // two no-break spaces a level
+  const CONTAINERS = new Set(['blockquote', 'div', 'section', 'article']);
   const lines = (nodes, depth, out) => {
     for (const node of nodes) {
       if (node.type === 'text' && !node.value.trim()) continue;
-      if (isElement(node, 'p')) {
+      if (isElement(node, 'p') || /^h[1-6]$/.test(node.tagName ?? '')) {
         out.push(node.children);
       } else if (isElement(node, 'ul') || isElement(node, 'ol')) {
         const items = node.children.filter((child) => isElement(child, 'li'));
@@ -211,9 +224,23 @@ function flattenCells(tree) {
             else if (isElement(child, 'p')) own.push(...child.children);
             else own.push(child);
           }
-          out.push([text(`${'  '.repeat(depth)}${marker}`), ...own]);
+          out.push([text(`${indent.repeat(depth)}${marker}`), ...own]);
           lines(nested, depth + 1, out);
         });
+      } else if (isElement(node, 'table')) {
+        for (const row of rowsOf(node)) {
+          const cells = row.children.filter((c) => isElement(c, 'td') || isElement(c, 'th'));
+          out.push(
+            cells.flatMap((cell, i) => {
+              const inner = lines(cell.children, 0, []).flatMap((block, j) =>
+                j === 0 ? block : [text(' '), ...block],
+              );
+              return i === 0 ? inner : [text(' / '), ...inner];
+            }),
+          );
+        }
+      } else if (node.type === 'element' && CONTAINERS.has(node.tagName)) {
+        lines(node.children, depth, out);
       } else {
         out.push([node]);
       }
@@ -276,17 +303,22 @@ const handlers = {
 };
 
 /**
- * A reader message that says something was left out. The reader also remarks
- * on styles it has no mapping for, or that a document names but never defines;
- * in both cases the text is kept, so those are not omissions. An image it
- * doubts a browser can show is counted as an image, not here.
+ * The reader's messages that do not mean something was left out: a style it
+ * has no mapping for, a style a document names but never defines (the text is
+ * kept in both cases), and its doubt that a browser can show an image (which
+ * is counted as an image, not here). Each is matched by its own wording, so a
+ * message that merely holds the word "style" (a font named "Bookman Old
+ * Style", a folder named "Style Guide") is still an omission.
  */
+const NOT_OMISSIONS = [
+  /^Unrecognised (?:paragraph|run|table) style\b/i,
+  /\bstyle with ID \S+ was referenced but not defined\b/i,
+  /unlikely to display in web browsers/i,
+];
+
+/** A reader message that says something was left out. */
 function isOmission(message) {
-  return (
-    /\b(?:ignored|could not|cannot|unsupported)\b/i.test(message) &&
-    !/\bstyle\b/i.test(message) &&
-    !/unlikely to display in web browsers/i.test(message)
-  );
+  return !NOT_OMISSIONS.some((pattern) => pattern.test(message));
 }
 
 /**

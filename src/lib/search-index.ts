@@ -32,24 +32,70 @@ interface MdNode {
 }
 
 /**
- * The words of a raw HTML node, its tags left out. Within a line a tag is a
- * node of its own (`<sup>`), so nothing is left; a block keeps what its tags
- * enclose (`<div>words</div>` → `words`).
+ * Tags that sit inside a word or a phrase without parting it: the text on
+ * either side of one is one run (`H<sub>2</sub>O` is `H2O`). Every other tag
+ * parts what it stands between: `<br>`, `<hr>`, `<img>`, and anything that
+ * makes a block (`alpha<br>beta` is two words).
  */
-function htmlWords(value: string): string {
-  return value.replace(/<[^>]*>/g, '');
+const JOINING_TAGS = new Set([
+  'a',
+  'abbr',
+  'b',
+  'bdi',
+  'bdo',
+  'cite',
+  'code',
+  'data',
+  'del',
+  'dfn',
+  'em',
+  'font',
+  'i',
+  'ins',
+  'kbd',
+  'mark',
+  'q',
+  's',
+  'samp',
+  'small',
+  'span',
+  'strong',
+  'sub',
+  'sup',
+  'time',
+  'u',
+  'var',
+  'wbr',
+]);
+
+/** Block containers: HTML directly inside one is a block, not part of a line. */
+const BLOCK_PARENTS = new Set(['root', 'listItem', 'blockquote', 'footnoteDefinition']);
+
+const TAG = /<[^>]*>/g;
+function joins(tag: string): boolean {
+  return JOINING_TAGS.has((tag.match(/^<\/?\s*([A-Za-z][\w-]*)/)?.[1] ?? '').toLowerCase());
 }
 
-/** Stands where a tag within a line was, so its neighbours join without a space. */
+/**
+ * The words of raw HTML, its tags left out. A joining tag leaves nothing in
+ * its place; any other tag leaves a space, so `<td>a</td><td>b</td>` is two
+ * words and `<div>block words</div>` is `block words`.
+ */
+function htmlWords(value: string): string {
+  return value.replace(TAG, (tag) => (joins(tag) ? '' : ' '));
+}
+
+/** Stands where a joining tag was within a line, so its neighbours meet. */
 const GLUE = String.fromCharCode(0);
 const GLUE_WITH_SPACES = new RegExp(` ?${GLUE} ?`, 'g');
 
 /**
  * Concatenate the raw text of an inline subtree (for a heading's own text).
- * HTML tags are skipped, as Astro skips them when it gives the heading its id.
+ * Every HTML tag is skipped outright, as Astro skips them when it gives the
+ * heading its id, so the slug made here is that id.
  */
 function inlineText(node: MdNode): string {
-  if (node.type === 'html') return htmlWords(node.value ?? '');
+  if (node.type === 'html') return (node.value ?? '').replace(TAG, '');
   if (typeof node.value === 'string') return node.value;
   return (node.children ?? []).map(inlineText).join('');
 }
@@ -80,11 +126,16 @@ export function parseChapter(raw: string): { text: string; headings: SearchHeadi
       return; // heading text captured; don't descend again
     }
     if (node.type === 'html') {
-      // The words, never the tags. A tag within a line (`H<sub>2</sub>O`) joins
-      // the text on either side of it, as it does in a heading; a block of HTML
-      // stands apart like any other block.
-      const words = htmlWords(node.value ?? '');
-      parts.push(parent && parent.type !== 'root' && !words.trim() ? GLUE : words);
+      // The words, never the tags. Within a line, a joining tag alone
+      // (`H<sub>2</sub>O`) lets the text either side of it meet; any other tag
+      // (`alpha<br>beta`) keeps them apart. A block of HTML stands apart like
+      // any other block.
+      const value = node.value ?? '';
+      const withinLine = parent !== undefined && !BLOCK_PARENTS.has(parent.type);
+      const tags = value.match(TAG) ?? [];
+      const onlyJoiningTags =
+        tags.length > 0 && tags.every(joins) && !value.replace(TAG, '').trim();
+      parts.push(withinLine && onlyJoiningTags ? GLUE : htmlWords(value));
       return;
     }
     if (typeof node.value === 'string') {
