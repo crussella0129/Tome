@@ -174,6 +174,7 @@ describe('fixture commands — real CLI failure and preservation paths', { timeo
     'check-search.mjs',
     'check-live-reload.mjs',
     'check-documents.mjs',
+    'check-math.mjs',
   ])(
     'test_fixture_commands_refuse_dirty_content: %s exits before setup or cleanup',
     (script) => {
@@ -318,6 +319,100 @@ process.exit(29);
     expectSample();
     expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
   });
+
+  // INT-0030 (T-081): the mathematics gate reads what its build prints. A
+  // failed build must still be shown, reported, and leave the sample as it was.
+  it('test_math_gate_cleans_up_on_failure: a failed build restores the sample', () => {
+    write(
+      root,
+      'package.json',
+      JSON.stringify({ scripts: { build: 'node build.mjs' } }),
+    );
+    write(
+      root,
+      'build.mjs',
+      `
+import { existsSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const proofs = process.env.TOME_BOOK ?? '';
+writeFileSync('build-saw.json', JSON.stringify({
+  proofs,
+  first: existsSync(join(proofs, '1-proof.md')),
+  second: existsSync(join(proofs, '2-more.md')),
+  config: process.env.TOME_CONFIG ?? '',
+}));
+writeFileSync(${JSON.stringify(samplePath)}, '# Failed build wrote content\\n');
+writeFileSync('${contentPath}/residue.txt', 'build residue');
+console.log('MATH BUILD FAILURE');
+console.error('MATH BUILD STDERR');
+process.exit(31);
+`.trimStart(),
+    );
+
+    const result = run('check-math.mjs');
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).not.toBe(0);
+    // What the build printed is still shown, both streams.
+    expect(result.stdout).toContain('MATH BUILD FAILURE');
+    expect(result.stderr).toContain('MATH BUILD STDERR');
+    expect(result.stderr).toContain('check-math: FAIL');
+    const saw = JSON.parse(readFileSync(join(root, 'build-saw.json'), 'utf8'));
+    // The build was given the two pages of formulas and the empty manifest.
+    expect(saw).toMatchObject({ first: true, second: true });
+    expect(basename(saw.proofs)).toBe('proofs');
+    expect(basename(saw.config)).toBe('empty-library.toml');
+    expectSample();
+    expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
+  });
+
+  // INT-0030 (T-081): the formulas are checked in two engines, and only by
+  // the mathematics gate; the default suite is what it was.
+  it('test_math_e2e_mode: the mathematics mode lists one spec in Chromium and WebKit', () => {
+    const list = (env: NodeJS.ProcessEnv) => {
+      const result = spawnSync('npx --no-install playwright test --list', {
+        cwd: projectRoot,
+        env: { ...process.env, ...env },
+        encoding: 'utf8',
+        shell: true,
+      });
+      expect(result.status, result.stderr).toBe(0);
+      return result.stdout
+        .split(/\r?\n/)
+        .map((line) => line.match(/^\s*(?:\[(\w+)\] › )?([\w.-]+\.spec\.ts):/))
+        .filter((match): match is RegExpMatchArray => match !== null)
+        // With no projects set, the list names no engine: the default one.
+        .map((match) => ({ project: match[1] ?? 'default', file: match[2]! }));
+    };
+    const unique = (values: string[]) => [...new Set(values)].sort();
+
+    const math = list({ TOME_MATH_E2E: '1' });
+    expect(math.length).toBeGreaterThan(10);
+    expect(unique(math.map((entry) => entry.file))).toEqual(['math.spec.ts']);
+    expect(unique(math.map((entry) => entry.project))).toEqual([
+      'chromium',
+      'webkit',
+    ]);
+    // Every test runs in both.
+    expect(math.filter((entry) => entry.project === 'chromium').length).toBe(
+      math.filter((entry) => entry.project === 'webkit').length,
+    );
+
+    const standard = list({
+      TOME_MATH_E2E: '',
+      TOME_DOCUMENTS_E2E: '',
+      TOME_EXTERNAL_BOOK_E2E: '',
+    });
+    expect(unique(standard.map((entry) => entry.file))).toEqual([
+      'reader.spec.ts',
+      'scaling.spec.ts',
+      'search.spec.ts',
+      'theme.spec.ts',
+    ]);
+    expect(unique(standard.map((entry) => entry.project))).not.toContain(
+      'webkit',
+    );
+  }, 60_000);
 
   it('test_live_reload_stops_before_restore_on_failure: real server stops before content and temp cleanup', () => {
     cpSync(

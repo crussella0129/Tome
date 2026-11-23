@@ -453,6 +453,58 @@ describe('fixture-gate.mjs — guarded fixture lifecycle', () => {
     expectRestored();
   });
 
+  // INT-0030 (T-081): a check may need what a build printed.
+  it('test_fixture_gate_build_output: returns both streams from the isolated environment, and rejects on failure', () => {
+    write(
+      root,
+      'package.json',
+      JSON.stringify({ scripts: { build: 'node build.mjs' } }),
+    );
+    write(
+      root,
+      'build.mjs',
+      `console.log('to standard output');\n` +
+        `console.error('to standard error');\n` +
+        `console.log(JSON.stringify({ book: process.env.TOME_BOOK ?? null, books: process.env.TOME_BOOKS ?? null, config: process.env.TOME_CONFIG ?? null, dest: process.env.TOME_BOOK_DEST ?? null }));\n` +
+        `if (process.env.FAIL_BUILD) process.exit(41);\n`,
+    );
+    const gate = createFixtureGate({
+      root,
+      env: {
+        ...process.env,
+        TOME_BOOKS: 'caller-books',
+        TOME_CONFIG: 'caller-config',
+        TOME_BOOK_DEST: 'caller-destination',
+      },
+    });
+
+    const output = gate.buildWithOutput({ TOME_BOOK: 'explicit-book' });
+
+    expect(output).toContain('to standard output');
+    expect(output).toContain('to standard error');
+    const saw = JSON.parse(
+      output.split(/\r?\n/).find((line) => line.startsWith('{'))!,
+    );
+    // The same environment the plain build runs in.
+    expect(saw).toEqual({
+      book: 'explicit-book',
+      books: null,
+      config: join(projectRoot, 'fixtures', 'empty-library.toml'),
+      dest: join(root, libraryPath),
+    });
+    expect(saw).toMatchObject({
+      config: gate.env({ TOME_BOOK: 'explicit-book' }).TOME_CONFIG,
+      dest: gate.env({ TOME_BOOK: 'explicit-book' }).TOME_BOOK_DEST,
+    });
+
+    expect(() => gate.buildWithOutput({ FAIL_BUILD: '1' })).toThrow(
+      expect.objectContaining({ status: 41 }),
+    );
+    // Its existing callers have what they had.
+    expect(typeof gate.build).toBe('function');
+    expect(typeof gate.command).toBe('function');
+  });
+
   it('test_fixture_gate_isolates_environment: rebuildDefault invokes the real loader with the sample', async () => {
     const caller = makeBook(root, 'caller-book');
     write(

@@ -1,7 +1,7 @@
 // Shared lifecycle for checks that temporarily replace the content library.
 // A dirty preflight must never enter cleanup: restoring HEAD would erase the
 // local changes that caused the refusal. Checks run serially on clean content.
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -127,6 +127,40 @@ export function createFixtureGate({
     runCommand('npm run build', overrides);
   }
 
+  /**
+   * As `runCommand`, in the same isolated environment, but returns what the
+   * command printed, standard output and standard error together, and still
+   * shows it. For a check that must read what a build says (INT-0030: a
+   * formula that could not be read is named when the library is built).
+   * @param {string} command
+   * @param {NodeJS.ProcessEnv} overrides
+   * @returns {string}
+   */
+  function runCommandWithOutput(command, overrides = {}) {
+    const result = spawnSync(command, {
+      cwd: root,
+      env: environment(overrides),
+      shell: true,
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+      windowsHide: true,
+    });
+    process.stdout.write(result.stdout ?? '');
+    process.stderr.write(result.stderr ?? '');
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      throw Object.assign(new Error(`Command failed: ${command}`), {
+        status: result.status,
+      });
+    }
+    return `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  }
+
+  /** @param {NodeJS.ProcessEnv} overrides @returns {string} what the build printed */
+  function buildWithOutput(overrides = {}) {
+    return runCommandWithOutput('npm run build', overrides);
+  }
+
   /** @template T
    * @param {() => T | Promise<T>} action
    * @param {{ beforeRestore?: () => void | Promise<void> }} lifecycle
@@ -175,7 +209,9 @@ export function createFixtureGate({
     root,
     env: environment,
     command: runCommand,
+    commandWithOutput: runCommandWithOutput,
     build,
+    buildWithOutput,
     withFixture,
     rebuildDefault,
   };
