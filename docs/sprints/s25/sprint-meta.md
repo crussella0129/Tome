@@ -57,4 +57,7 @@
   fraction and wrote a binomial as a division; two Word equations with
   nothing between them became one unreadable formula with nothing reported.
   The review's record and each answer are in
-  `sprint-tests/critique-round-1.md`.
+  `sprint-tests/critique-round-1.md`. A second review found one more: a
+  Word equation hard against bold or italic text was lost, and the
+  place-holder that stood for it was shown in the chapter with nothing
+  reported (`b452443`; `sprint-tests/critique-round-2.md`).

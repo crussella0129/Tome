@@ -1,15 +1,13 @@
 # Sprint 25 End-to-End Verification
 
-- **Tested head:** `eec6432`. Every suite and gate below was run on this
-  Windows machine at `b39d962` (the build's last task), at `1e782cf`, and
-  again at `9cf62ed` (the answers to the first review of the tests), and
-  each exited 0 every time. `eec6432` differs from `9cf62ed` in two
-  unit-test files only, which no browser suite or gate reads; CI ran its
-  suites on a later commit that adds records only to `eec6432`
-  (`test-report.md` names it). The suites and gates: `npx playwright
-  test`, `check:math`, `check:documents`, `check:external`,
+- **Tested head:** `b452443`. Every suite and gate below was run on this
+  Windows machine at `b39d962` (the build's last task), at `1e782cf`, at
+  `9cf62ed` (the answers to the first review of the tests) and at `b452443`
+  (the answers to the second), and each exited 0 every time: `npx
+  playwright test`, `check:math`, `check:documents`, `check:external`,
   `check:multibook`, `check:search`, and `check:electron` with
-  `TOME_CONFIG=fixtures/empty-library.toml`.
+  `TOME_CONFIG=fixtures/empty-library.toml`. `test-report.md`, written
+  after the final review, cites the CI run on Linux.
 - **Status:** possible, and run. Browsers: Chromium 151 and WebKit 26.5 as
   Playwright 1.62 provides them.
 
@@ -18,7 +16,7 @@
 `e2e/math.spec.ts` against the build of `fixtures/proofs/`, in two projects.
 **22 passed, 0 failed: the same eleven tests in Chromium and in WebKit**
 (twenty at `1e782cf`; one test was added and three were tightened to answer
-the review). A test that passed in one engine only would be a failure; none
+the first review; the second review changed none of them). A test that passed in one engine only would be a failure; none
 did. No test fetches the mathematical font: each waits until the page's own
 formulas have brought a `Tome Math` face to `loaded`, then for
 `document.fonts.ready`, before it measures. A page whose formulas did not
@@ -66,8 +64,8 @@ apart; both have boxes. The other five tests are unedited.
   went to `app://tome`, the font file among them.
 - `check:external`, `check:multibook`, `check:search`: exit 0, unchanged.
 - `check:livereload`, which Sprint 24 found intermittent (T-075), exited 0 on
-  both of its two runs at `b39d962`. It was not run again at `1e782cf` or
-  `9cf62ed`: nothing those commits change is read by it.
+  both of its two runs at `b39d962`. It was not run again at the later
+  heads: nothing those commits change is read by it.
 
 ## Not run
 
@@ -82,7 +80,8 @@ apart; both have boxes. The other five tests are unedited.
 
 ## By eye
 
-Captured at `9cf62ed` from the built site, 1100 px wide, full page, in
+Captured at `9cf62ed` (no later commit changes what a page shows) from the
+built site, 1100 px wide, full page, in
 `evidence/` (the captures made at `b39d962` were replaced by these):
 
 - the guide's chapter: `tutorial-{light,dark,sanguine}-{chromium,webkit}.jpg`;

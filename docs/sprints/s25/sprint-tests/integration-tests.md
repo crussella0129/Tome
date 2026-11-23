@@ -1,10 +1,9 @@
 # Sprint 25 Integration Verification
 
-- **Tested head:** `eec6432`. The Vitest cases below ran in the whole-suite
-  run recorded in `unit-tests.md` (329 tests, 328 passed, 1 skipped). The
-  gates ran on this Windows machine at `9cf62ed`, from which `eec6432`
-  differs in two unit-test files only, and in CI on Linux on a later commit
-  that adds records only to `eec6432` (`test-report.md` names it).
+- **Tested head:** `b452443`. The Vitest cases below ran in the whole-suite
+  run recorded in `unit-tests.md` (331 tests, 330 passed, 1 skipped). The
+  gates ran on this Windows machine at that head. `test-report.md`, written
+  after the final review, cites the CI run on Linux.
 
 ## The loader with Word equations
 
@@ -41,8 +40,8 @@ stand-in `build` script.
 
 Astro composes T-077's reader, T-078's layout step, T-079's search index and
 T-080's stylesheet in a real build of `fixtures/proofs/`. The gate reads the
-built files before any browser opens. Exit 0 at `b39d962`, at `1e782cf` and
-at `9cf62ed`.
+built files before any browser opens. Exit 0 at `b39d962`, `1e782cf`,
+`9cf62ed` and `b452443`.
 
 | Check | Clause | What it showed |
 |---|---|---|
@@ -51,7 +50,7 @@ at `9cf62ed`.
 | `check_math_heading_slugs` | T-081 4 | for both chapters the heading `id`s of the page equal the search index's slugs, in order, `the-emc2-law` among them; the first page's record holds `E=mc2`, holds `\frac` only inside the mistake, and holds no `\sqrt`, `\sum` or `\begin` |
 | `check_math_rail` | T-079 6, T-081 10 | the second page's rail entry for the formula heading reads `The E = mc² law` and links to `#the-emc2-law`; the entry for `A wide formula` reads as its heading |
 
-The documents gate, `npm run check:documents`, also exits 0 at all three heads: a
+The documents gate, `npm run check:documents`, also exits 0 at all four heads: a
 Word document built on its own shows its two equations and no mark
 (T-082 clause 10).
 
@@ -96,7 +95,7 @@ settled "against a file Word saved". Word was driven again, the same way, to
 write twelve more equations: a phantom, a smash, a box, an underbrace, an
 overbrace, floor brackets, a norm, angle brackets, a prime, two letters, a
 tilde, and a fraction within a line. The file is not committed. Read at
-`9cf62ed`:
+`9cf62ed`, and again at `b452443` with the same result:
 
 | | |
 |---|---|
