@@ -2,7 +2,7 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0029
-- **State:** planned
+- **State:** active
 - **Work evidence:** [Sprint 24 build plan (T-065–T-074)](../sprints/s24/sprint-plans/build-plan.md)
 - **Completion evidence:** none
 - **Code evidence:** none
@@ -198,3 +198,4 @@ of Tome already works.
   second review added: a tome's own address in a library of several, a
   document in a folder that cannot be opened, charts and diagrams, which
   kinds of image a note may hold, and what the rail lists.
+- 2026-11-23: `planned` → `active`. Sprint 24's Build began with T-065.
