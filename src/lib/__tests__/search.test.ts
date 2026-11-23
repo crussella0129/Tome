@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { search } from '../search';
+import { search, tokenize } from '../search';
 import type { SearchRecord } from '../search-index';
 
 const records: SearchRecord[] = [
@@ -54,5 +54,32 @@ describe('search', () => {
     expect(search('', records)).toEqual([]);
     expect(search('   ', records)).toEqual([]);
     expect(search('zzzznomatch', records)).toEqual([]);
+  });
+});
+
+// INT-0030, T-079 clause 9
+describe('words with raised and lowered characters', () => {
+  it('test_search_words_fold_raised: a raised or lowered character counts as the plain one', () => {
+    expect(tokenize('E = mc² and aᵢ')).toEqual(['e', 'mc2', 'and', 'ai']);
+    expect(tokenize('xⁿ⁺¹ and H₂O')).toEqual(['xn', '1', 'and', 'h2o']);
+    // Everything else is split as it always was.
+    expect(tokenize('café x10 naïve')).toEqual(['caf', 'x10', 'na', 've']);
+
+    const law: SearchRecord = {
+      tomeSlug: 'tome',
+      tomeTitle: 'Tome',
+      chapterTitle: 'More Proofs',
+      url: '/2-more',
+      headings: [
+        { text: 'More Proofs', slug: 'more-proofs', depth: 1 },
+        { text: 'The E = mc² law', slug: 'the-emc2-law', depth: 2 },
+        { text: 'A wide formula', slug: 'a-wide-formula', depth: 2 },
+      ],
+      text: 'More Proofs The E = mc² law A second page. A wide formula',
+    };
+    const hits = search('mc2', [law]);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.url).toBe('/2-more#the-emc2-law');
+    expect(hits[0]!.heading?.text).toBe('The E = mc² law');
   });
 });

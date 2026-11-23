@@ -1,5 +1,8 @@
 import { fromMarkdown } from 'mdast-util-from-markdown';
+import { mathFromMarkdown } from 'mdast-util-math';
 import GithubSlugger from 'github-slugger';
+import { fenceClosed, mathSyntax, setApart } from '../../scripts/remark-math-dollars.mjs';
+import { asTyped, formulaText, titleText } from '../../scripts/rehype-math.mjs';
 import { chapterUrlIn } from './paths';
 import { isContentKeyFor, type Book } from './book';
 
@@ -28,7 +31,62 @@ interface MdNode {
   type: string;
   value?: string;
   depth?: number;
+  /** A code block's language. */
+  lang?: string | null;
   children?: MdNode[];
+}
+
+// --- Formulas (INT-0030) -----------------------------------------------------
+// A formula is found by what it shows: `$E = mc^2$` is the word `E=mc2`, not
+// its LaTeX. One it cannot lay out is held as typed, as the page shows it.
+
+/** Characters the layout writes that show nothing (a function applied to its argument). */
+const INVISIBLE = new RegExp(
+  `[${String.fromCharCode(0x2061)}-${String.fromCharCode(0x2064)}]`,
+  'g',
+);
+const symbolCommands = new Map<string, boolean>();
+
+/**
+ * The names a formula's symbols were typed with: `alpha` for `\alpha`, `le` for
+ * `\le`. Search reads only a to z and digits, so a formula of Greek letters and
+ * signs would otherwise be found by nothing. A command counts when its whole
+ * output is one character outside ASCII; one that builds a structure
+ * (`\frac`, `\begin`) does not.
+ */
+function symbolNames(tex: string): string[] {
+  const names = new Set<string>();
+  for (const [, name] of tex.matchAll(/\\([A-Za-z]+)/g)) {
+    let counts = symbolCommands.get(name);
+    if (counts === undefined) {
+      const shown = formulaText(`\\${name}`)?.replace(INVISIBLE, '') ?? '';
+      counts = [...shown].length === 1 && /[^\x00-\x7f]/.test(shown) && /\S/.test(shown);
+      symbolCommands.set(name, counts);
+    }
+    if (counts) names.add(name);
+  }
+  return [...names];
+}
+
+/** What search holds for a formula. `closed` is false for a fence never closed. */
+function formulaWords(tex: string, display: boolean, closed = true): string {
+  const shown = closed ? formulaText(tex, display) : null;
+  if (shown === null) return asTyped(tex, display);
+  return [shown.replace(INVISIBLE, ''), ...symbolNames(tex)].join(' ');
+}
+
+/** A formula in a heading, as the page's heading collector reads it. */
+const formulaInSlug = (tex: string): string => formulaText(tex) ?? asTyped(tex, false);
+/** A formula in a heading, as a rail or a result shows it. */
+const formulaInHeading = (tex: string): string => titleText(tex) ?? asTyped(tex, false);
+
+function headingSymbols(node: MdNode): string[] {
+  if (node.type === 'inlineMath') return symbolNames(node.value ?? '');
+  return (node.children ?? []).flatMap(headingSymbols);
+}
+
+function holdsFormula(node: MdNode): boolean {
+  return node.type === 'inlineMath' || (node.children ?? []).some(holdsFormula);
 }
 
 /**
@@ -103,6 +161,7 @@ function collapseWhitespace(text: string): string {
  * slug made from this is the `id` on the built page.
  */
 function slugText(node: MdNode): string {
+  if (node.type === 'inlineMath') return formulaInSlug(node.value ?? '');
   if (node.type === 'html') return /^\n?<.*>\n?$/.test(node.value ?? '') ? '' : (node.value ?? '');
   if (typeof node.value === 'string') return node.value;
   return (node.children ?? []).map(slugText).join('');
@@ -114,6 +173,7 @@ function slugText(node: MdNode): string {
  * apart, so both halves of `Alpha<br>Beta` can be found.
  */
 function headingWords(node: MdNode): string {
+  if (node.type === 'inlineMath') return formulaInHeading(node.value ?? '');
   if (node.type === 'break') return ' ';
   if (node.type === 'html') return htmlWords(node.value ?? '');
   if (typeof node.value === 'string') return node.value;
@@ -173,20 +233,62 @@ function joinParts(parts: Part[]): string {
  * tag, or a line break, keeps its neighbours apart.
  */
 export function parseChapter(raw: string): { text: string; headings: SearchHeading[] } {
-  const tree = fromMarkdown(raw) as unknown as MdNode;
+  const { text, headings } = readChapter(raw);
+  return { text, headings: headings.map(({ text, slug, depth }) => ({ text, slug, depth })) };
+}
+
+/**
+ * The text of each heading of a chapter that holds a formula, by the heading's
+ * slug, written so that it still says what it said (`The E = mc² law`). The
+ * page's own collector flattens a formula (`E=mc2`); the "on this page" rail
+ * takes its text from here for these headings, and from the collector for
+ * every other.
+ */
+export function formulaHeadings(raw: string): Map<string, string> {
+  const shown = new Map<string, string>();
+  for (const heading of readChapter(raw).headings) {
+    if (heading.formula) shown.set(heading.slug, heading.text);
+  }
+  return shown;
+}
+
+function readChapter(raw: string): {
+  text: string;
+  headings: (SearchHeading & { formula: boolean })[];
+} {
+  // Formulas are read by the page's own rule, and set apart where the page
+  // sets them apart, so search and page agree on what is a formula.
+  const tree = fromMarkdown(raw, {
+    extensions: mathSyntax(),
+    mdastExtensions: [mathFromMarkdown()],
+  }) as unknown as MdNode;
+  setApart(tree, raw);
   const slugger = new GithubSlugger();
-  const headings: SearchHeading[] = [];
+  const headings: (SearchHeading & { formula: boolean })[] = [];
   const parts: Part[] = [];
 
   const walk = (node: MdNode, parent?: MdNode): void => {
+    if (node.type === 'math' || (node.type === 'code' && node.lang === 'math')) {
+      // A set-apart formula, from `$$` or from a `math` code block.
+      const closed = node.type === 'code' || fenceClosed(node, raw);
+      parts.push(SEPARATOR, formulaWords(node.value ?? '', true, closed), SEPARATOR);
+      return;
+    }
     if (node.type === 'code') return; // skip fenced code entirely
+    if (node.type === 'inlineMath') {
+      parts.push(formulaWords(node.value ?? '', false)); // a word of its own
+      return;
+    }
     if (node.type === 'heading') {
       const forSlug = slugText(node);
       const words = headingWords(node);
       // A heading with no tag and no line break reads exactly as it is slugged.
       const text = words === forSlug ? forSlug : collapseWhitespace(words);
-      headings.push({ text, slug: slugger.slug(forSlug), depth: node.depth ?? 1 });
-      parts.push(SEPARATOR, text, SEPARATOR);
+      const formula = holdsFormula(node);
+      headings.push({ text, slug: slugger.slug(forSlug), depth: node.depth ?? 1, formula });
+      // The names of a heading's symbols are words of the chapter too.
+      const names = formula ? headingSymbols(node) : [];
+      parts.push(SEPARATOR, [text, ...names].join(' '), SEPARATOR);
       return; // heading text captured; don't descend again
     }
     if (node.type === 'break') {
