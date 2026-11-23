@@ -3,8 +3,8 @@
 - **Tested head:** `eec6432`. The Vitest cases below ran in the whole-suite
   run recorded in `unit-tests.md` (329 tests, 328 passed, 1 skipped). The
   gates ran on this Windows machine at `9cf62ed`, from which `eec6432`
-  differs in two unit-test files only, and in CI on Linux at `eec6432`
-  (`test-report.md`).
+  differs in two unit-test files only, and in CI on Linux on a later commit
+  that adds records only to `eec6432` (`test-report.md` names it).
 
 ## The loader with Word equations
 

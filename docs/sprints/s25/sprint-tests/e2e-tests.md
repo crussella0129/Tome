@@ -4,10 +4,12 @@
   Windows machine at `b39d962` (the build's last task), at `1e782cf`, and
   again at `9cf62ed` (the answers to the first review of the tests), and
   each exited 0 every time. `eec6432` differs from `9cf62ed` in two
-  unit-test files only, which no browser suite or gate reads; CI ran them
-  all at `eec6432` (`test-report.md`). The suites and gates: `npx playwright test`, `check:math`,
-  `check:documents`, `check:external`, `check:multibook`, `check:search`,
-  and `check:electron` with `TOME_CONFIG=fixtures/empty-library.toml`.
+  unit-test files only, which no browser suite or gate reads; CI ran its
+  suites on a later commit that adds records only to `eec6432`
+  (`test-report.md` names it). The suites and gates: `npx playwright
+  test`, `check:math`, `check:documents`, `check:external`,
+  `check:multibook`, `check:search`, and `check:electron` with
+  `TOME_CONFIG=fixtures/empty-library.toml`.
 - **Status:** possible, and run. Browsers: Chromium 151 and WebKit 26.5 as
   Playwright 1.62 provides them.
 
