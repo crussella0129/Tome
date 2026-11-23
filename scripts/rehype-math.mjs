@@ -22,8 +22,13 @@ import { UNCLOSED } from './remark-math-dollars.mjs';
 
 /** How much of an unreadable formula a message quotes. */
 const QUOTED = 60;
-/** Past this many characters of laid-out text, a formula within a line is "long". */
-const LONG = 30;
+/**
+ * Past this many characters of laid-out text, a formula within a line is
+ * "long" and gets a box of its own. Sixteen characters are about 250 px at the
+ * reader's largest text, which fits the column of a narrow phone; a formula of
+ * twenty-eight was seen to run 30 px past a 412 px column in WebKit.
+ */
+const LONG = 16;
 
 /**
  * Temml's MathML for a formula, or `null` when it cannot be laid out. Commands

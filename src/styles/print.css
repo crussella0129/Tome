@@ -37,4 +37,11 @@
   .tome-prose blockquote {
     break-inside: avoid;
   }
+
+  /* A formula is not cut across pages, and paper cannot scroll: show all of it. */
+  .tome-math,
+  .tome-math-long {
+    break-inside: avoid;
+    overflow: visible;
+  }
 }
