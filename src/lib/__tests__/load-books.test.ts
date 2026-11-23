@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdtempSync,
   mkdirSync,
@@ -16,6 +17,7 @@ import { userInfo } from 'node:os';
 import { slugify } from '../../../scripts/book-source.mjs';
 import { resolveOwner } from '../../../scripts/library-config.mjs';
 import { PARENT_ASSET_DIR } from '../../../scripts/parent-assets.mjs';
+import { buildDocx } from '../../../fixtures/word/build-docx.mjs';
 
 const root = process.cwd();
 const script = join(root, 'scripts', 'load-books.mjs');
@@ -224,7 +226,9 @@ describe('load-books.mjs — source detection', () => {
   });
 
   it('test_source_none_errors: no SUMMARY in src/docs/root → enumerated error', () => {
-    const book = makeBook(join(tmp, 'empty'), { 'README.md': '# nothing\n' });
+    // A folder of loose Markdown now loads (INT-0029), so the folder refused
+    // here holds nothing Tome reads.
+    const book = makeBook(join(tmp, 'empty'), { 'notes.txt': 'nothing\n' });
     const { code, stderr } = runExpectError(join(tmp, 'out-none'), {
       TOME_BOOK: book,
     });
@@ -727,3 +731,282 @@ describe('load-books.mjs — parent-relative assets', () => {
     );
   });
 });
+
+// INT-0029 — a Markdown file, a Word document, or a folder of them as a tome.
+// Reading a document loads the Word reader, which takes a couple of seconds a
+// run, so these cases get more than the default five.
+describe(
+  'load-books.mjs — documents and loose folders (INT-0029)',
+  {
+    timeout: 60_000,
+  },
+  () => {
+    let tmp: string;
+    let paper: Buffer;
+    const PNG = Buffer.from('a regular file with an image name');
+
+    function put(base: string, files: Record<string, string | Buffer>): string {
+      for (const [rel, content] of Object.entries(files)) {
+        const full = join(base, rel);
+        mkdirSync(dirname(full), { recursive: true });
+        writeFileSync(full, content);
+      }
+      return base;
+    }
+    /** Every file under `dir` with its hash, links not followed. */
+    function hashes(dir: string, base = dir): Record<string, string> {
+      const out: Record<string, string> = {};
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) Object.assign(out, hashes(full, base));
+        else
+          out[full.slice(base.length + 1).replace(/\\/g, '/')] = createHash(
+            'sha256',
+          )
+            .update(readFileSync(full))
+            .digest('hex');
+      }
+      return out;
+    }
+    const meta = (dir: string) =>
+      JSON.parse(readFileSync(join(dir, 'book.meta.json'), 'utf8'));
+    const text = (...parts: string[]) => readFileSync(join(...parts), 'utf8');
+
+    beforeAll(async () => {
+      tmp = mkdtempSync(join(tmpdir(), 'tome-docs-'));
+      paper = await buildDocx();
+    });
+    afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+    it('test_loader_markdown_file: one .md file is a tome of one chapter', () => {
+      const base = put(join(tmp, 'md'), {
+        'My Paper.md': '# The Real Title\n\nBody text.\n',
+        'untitled note.md': 'No heading at all.\n',
+      });
+      const dest = join(base, 'out');
+      run(dest, { TOME_BOOK: join(base, 'My Paper.md') });
+      const tome = join(dest, 'my-paper');
+      expect(text(tome, 'README.md')).toBe('# The Real Title\n\nBody text.\n');
+      expect(text(tome, 'SUMMARY.md')).toBe(
+        '# The Real Title\n\n[The Real Title](README.md)\n',
+      );
+      expect(meta(tome).title).toBe('The Real Title');
+      expect(readdirSync(dest)).toEqual(['my-paper']);
+
+      const dest2 = join(base, 'out2');
+      run(dest2, { TOME_BOOK: join(base, 'untitled note.md') });
+      expect(meta(join(dest2, 'untitled-note')).title).toBe('untitled note');
+    });
+
+    it('test_loader_word_file: one .docx file is converted, with its image', () => {
+      const base = put(join(tmp, 'word'), { 'paper.docx': paper });
+      const dest = join(base, 'out');
+      run(dest, { TOME_BOOK: join(base, 'paper.docx') });
+      const tome = join(dest, 'paper');
+      const chapter = text(tome, 'README.md');
+      expect(chapter).toContain('# On the Weight of Obsidian');
+      expect(chapter).toContain('## The Quarry');
+      expect(chapter).toContain(
+        '![A plate of the first tablet](./__tome_media__/README/image-1.png)',
+      );
+      expect(
+        existsSync(join(tome, '__tome_media__', 'README', 'image-1.png')),
+      ).toBe(true);
+      expect(meta(tome).title).toBe('On the Weight of Obsidian');
+      expect(text(tome, 'SUMMARY.md')).toContain(
+        '[On the Weight of Obsidian](README.md)',
+      );
+    });
+
+    it('test_loader_document_titles: a manifest title and slug win', () => {
+      const base = put(join(tmp, 'titles'), { 'paper.docx': paper });
+      const config = join(base, 'tome.config.toml');
+      writeFileSync(
+        config,
+        `[[book]]\npath = "paper.docx"\ntitle = "Chosen Title"\nslug = "chosen"\n`,
+      );
+      const dest = join(base, 'out');
+      run(dest, {}, ['--config', config]);
+      expect(readdirSync(dest)).toEqual(['chosen']);
+      expect(meta(join(dest, 'chosen')).title).toBe('Chosen Title');
+      expect(text(dest, 'chosen', 'SUMMARY.md')).toMatch(/^# Chosen Title\n/);
+    });
+
+    it('test_loader_document_folder: one chapter per document, in order, and nothing else', () => {
+      const base = put(join(tmp, 'folder', 'My Vault'), {
+        'README.md': '# Welcome\n\nStart here.\n',
+        '2-b.md': '# Second\n\n![a plate](img/plate.png)\n',
+        '10-a.docx': paper,
+        'letters/one.md': '# To Mara\n',
+        'img/plate.png': PNG,
+        'notes.pdf': 'not read',
+        'unused.png': PNG,
+      });
+      const dest = join(tmp, 'folder', 'out');
+      run(dest, { TOME_BOOK: base });
+      const tome = join(dest, 'my-vault');
+      expect(Object.keys(tree(tome))).toEqual([
+        '__tome_media__/10-a/image-1.png',
+        '__tome_parent_assets__/img/plate.png',
+        '10-a.md',
+        '2-b.md',
+        'book.meta.json',
+        'letters/one.md',
+        'README.md',
+        'SUMMARY.md',
+      ]);
+      expect(text(tome, 'SUMMARY.md')).toBe(
+        [
+          '# My Vault',
+          '',
+          '[Welcome](README.md)',
+          '',
+          '- [Second](2-b.md)',
+          '- [On the Weight of Obsidian](10-a.md)',
+          '',
+          '# letters',
+          '',
+          '- [To Mara](letters/one.md)',
+          '',
+        ].join('\n'),
+      );
+      expect(meta(tome).title).toBe('My Vault');
+      expect(text(tome, '2-b.md')).toContain(
+        '![a plate](./__tome_parent_assets__/img/plate.png)',
+      );
+    });
+
+    it('test_loader_word_images_apart: each Word chapter has its own image file', () => {
+      const base = put(join(tmp, 'apart', 'vault'), {
+        'a.docx': paper,
+        'letters/b.docx': paper,
+      });
+      const dest = join(tmp, 'apart', 'out');
+      run(dest, { TOME_BOOK: base });
+      const tome = join(dest, 'vault');
+      const imageOf = (chapter: string) => {
+        const target = text(tome, chapter).match(/!\[[^\]]*\]\(([^)]+)\)/)![1]!;
+        return join(dirname(join(tome, chapter)), target);
+      };
+      const first = imageOf('a.md');
+      const second = imageOf(join('letters', 'b.md'));
+      expect(existsSync(first)).toBe(true);
+      expect(existsSync(second)).toBe(true);
+      expect(first).not.toBe(second);
+      expect(text(tome, 'letters', 'b.md')).toContain(
+        '](../__tome_media__/letters/b/image-1.png)',
+      );
+    });
+
+    it('test_loader_reports_left_out: one line per document that left something out', () => {
+      const base = put(join(tmp, 'report', 'vault'), {
+        'paper.docx': paper,
+        'note.md': '# Note\n\n![gone](missing.png)\n',
+        'clean.md': '# Clean\n',
+      });
+      const out = run(join(tmp, 'report', 'out'), { TOME_BOOK: base });
+      expect(out).toMatch(/paper\.docx: left out 2 equations/);
+      expect(out).toMatch(/note\.md: left out 1 image/);
+      expect(out).not.toMatch(/clean\.md/);
+      expect(out.match(/left out/g)).toHaveLength(2);
+    });
+
+    it('test_loader_folder_unreadable_document: one bad Word file does not stop the rest', () => {
+      const base = put(join(tmp, 'unreadable', 'vault'), {
+        'good.md': '# Good\n',
+        'broken.docx': 'plain text under a Word name\n',
+      });
+      const dest = join(tmp, 'unreadable', 'out');
+      const out = run(dest, { TOME_BOOK: base });
+      const tome = join(dest, 'vault');
+      expect(out).toMatch(/broken\.docx: left out the whole document/);
+      expect(text(tome, 'SUMMARY.md')).toContain('- [broken](broken.md)');
+      expect(text(tome, 'SUMMARY.md')).toContain('- [Good](good.md)');
+      expect(text(tome, 'broken.md')).toContain('document not shown');
+      expect(text(tome, 'broken.md')).toMatch(/^# broken\n/);
+    });
+
+    it('test_loader_document_failure_keeps_library: a bad entry leaves the library as it was', () => {
+      const base = put(join(tmp, 'failure'), {
+        'broken.docx': 'plain text under a Word name\n',
+        'old.doc': 'the older Word format',
+      });
+      const dest = join(base, 'out');
+      run(dest, { TOME_BOOK: fixture });
+      const before = tree(dest);
+
+      for (const name of ['broken.docx', 'old.doc', 'missing.docx']) {
+        const { code, stderr } = runExpectError(dest, {
+          TOME_BOOK: join(base, name),
+        });
+        expect(code, name).not.toBe(0);
+        expect(stderr, name).toContain(name);
+        expect(tree(dest), name).toEqual(before);
+        expect(stageResidue(dest), name).toEqual([]);
+      }
+    });
+
+    it('test_loader_sources_untouched: nothing is changed or written in the source', () => {
+      const base = put(join(tmp, 'untouched', 'vault'), {
+        'paper.docx': paper,
+        'note.md': '---\ntitle: Settings\n---\n![a](img/plate.png)\n',
+        'letters/one.md': '# One\n',
+        'img/plate.png': PNG,
+      });
+      const before = hashes(base);
+      run(join(tmp, 'untouched', 'out'), { TOME_BOOK: base });
+      expect(hashes(base)).toEqual(before);
+      expect(readdirSync(join(tmp, 'untouched')).sort()).toEqual([
+        'out',
+        'vault',
+      ]);
+    });
+
+    it('test_loader_book_unchanged: an mdBook publishes exactly what it did before Sprint 24', () => {
+      // Digests of the published trees (sorted relative paths and their text,
+      // line endings normalized), recorded from the loader at commit 06cdbcd.
+      const recorded: Record<string, string> = {
+        handbook:
+          '0b97f999d3114c67dd7a9999a86d8864f4c35bede5b8991a3e4fcb97ea065fc0',
+        'docs-book':
+          '83cdf0ca0da69802494bf43a8039f508b28791a3278589c33322bf6992079d37',
+      };
+      for (const [name, digest] of Object.entries(recorded)) {
+        const dest = join(tmp, 'unchanged', name);
+        run(dest, { TOME_BOOK: join(root, 'fixtures', name) });
+        const hash = createHash('sha256');
+        for (const [rel, content] of Object.entries(tree(dest)).sort(
+          ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
+        )) {
+          hash.update(`${rel}\0`);
+          hash.update(`${content.split('\r\n').join('\n')}\0`);
+        }
+        expect(hash.digest('hex'), name).toBe(digest);
+      }
+    });
+
+    it('test_loader_mixes_kinds: documents and mdBooks side by side', () => {
+      const base = put(join(tmp, 'mixed'), {
+        'note.md': '# A Note\n',
+        'paper.docx': paper,
+      });
+      const config = join(base, 'tome.config.toml');
+      writeFileSync(
+        config,
+        `[[book]]\npath = ${JSON.stringify(fixture)}\n\n[[book]]\npath = "note.md"\n`,
+      );
+      const byManifest = join(base, 'out-manifest');
+      run(byManifest, {}, ['--config', config]);
+      expect(readdirSync(byManifest).sort()).toEqual(['handbook', 'note']);
+      expect(existsSync(join(byManifest, 'handbook', 'first.md'))).toBe(true);
+      expect(existsSync(join(byManifest, 'note', 'README.md'))).toBe(true);
+
+      const byEnv = join(base, 'out-env');
+      run(byEnv, { TOME_BOOKS: `${fixture},${join(base, 'paper.docx')}` });
+      expect(readdirSync(byEnv).sort()).toEqual(['handbook', 'paper']);
+      expect(meta(join(byEnv, 'paper')).title).toBe(
+        'On the Weight of Obsidian',
+      );
+    });
+  },
+);
