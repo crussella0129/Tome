@@ -193,19 +193,31 @@ code. Tome today shows `$x^2$` as the characters typed.
   - A formula that cannot be read is shown as typed with one difference:
     one written `$$…$$` inside a line, a heading or a cell is shown between
     single dollar signs, because that is how it would have been set.
-  - A formula with nothing in it is one that cannot be read.
+  - A formula with nothing in it, or nothing but a comment, is one that
+    cannot be read.
+  - A `$$` line directly under a paragraph closes a `$$` that paragraph left
+    open. A `$$` named in inline code there, or written `\$$`, is not one;
+    but a `$$` inside a link's address or an inline HTML tag's attribute
+    is counted, so the line under it is taken as closing it, and the formula
+    meant is shown as typed and named when the library is built. A blank
+    line before a `$$` line avoids it.
   - Search does not read a bare web address (`www.…`) as a link, as the
     page does, so dollar signs in two such addresses on one line can pair
     in search where they do not on the page.
 - In a plain-text place a whole number hard against a fraction is kept
-  apart from it (`3 1/2`, never `31/2`), as are two fractions side by side.
-  A stack with no bar (a binomial coefficient) has no honest one-line
-  form, and is shown there as typed.
+  apart from it (`3 1/2`, never `31/2`), as are two fractions side by side,
+  and a number or letter before a root that has an index (`2 ³√x` for twice
+  a cube root, beside `2³√x` for two cubed times a root). A stack with no
+  bar (a binomial coefficient) has no honest one-line form, and is shown
+  there as typed.
 - A Word equation is left out, with its mark and its count, when it holds a
   box with a stroke through it or a side hidden, or text that is Word's and
   not the equation's (a tracked deletion among them). A part Word marks as
   hidden is carried over as a space of the same size; one Word marks only as
-  taking no height is shown.
+  taking no height is shown. An equation directly beside bold or italic
+  text is carried over like any other. Should an equation's place in the
+  converted text ever not be found again, the mark is written there and
+  the equation is counted as left out: no internal place-holder is shown.
 - In a table, a `|` inside a formula ends the cell, as it does for any
   text there; `\vert` is written instead. Search does not read tables as
   the page does (it never has), so dollar signs in two cells of one row
@@ -238,7 +250,7 @@ code. Tome today shows `$x^2$` as the characters typed.
   began. The plans were locked after a third review returned
   proceed-with-caveats.
 - 2026-11-23: revised in Sprint 25's Test phase. Consequences gained the
-  edges an independent review of the tests found and the sprint kept (what
+  edges two independent reviews of the tests found and the sprint kept (what
   single dollar signs cannot hold, `%`, an empty formula, search and bare
   web addresses), how a plain-text place writes a mixed number and a
   binomial, and which Word equations are left out. State unchanged.

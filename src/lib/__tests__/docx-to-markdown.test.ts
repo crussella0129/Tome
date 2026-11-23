@@ -12,7 +12,12 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import { buildDocx, PAPER_PARTS } from '../../../fixtures/word/build-docx.mjs';
-import { convertDocx, MARKS } from '../../../scripts/docx-to-markdown.mjs';
+import {
+  convertDocx,
+  MARKS,
+  placeholders,
+  writeEquations,
+} from '../../../scripts/docx-to-markdown.mjs';
 import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
 
 // INT-0029 AC3–AC6, AC8 — a Word document becomes Markdown that keeps its meaning.
@@ -1035,11 +1040,124 @@ describe('docx-to-markdown.mjs — equations beside one another, and beside a ba
         ),
       ),
     );
-    // The words stay words; the two real equations are still carried over.
-    expect(reads(out.markdown)).toContain('Density tomeEquation9carried and ');
-    expect(
-      formulasIn(readBack(out.markdown)).filter((formula) => formula.value === 'E=mc^{2}'),
-    ).toHaveLength(1);
+    // The words stay words, both of them, the one numbered like a real
+    // equation too; the two real equations are still carried over.
+    expect(out.markdown).toContain(
+      R`Density tomeEquation9carried and tomeEquation0carried is $\frac{m}{V}$(see the table)`,
+    );
+    expect(formulasIn(density(out.markdown)!)).toEqual([
+      { type: 'inlineMath', value: R`\frac{m}{V}` },
+    ]);
+    expect(formulasIn(readBack(out.markdown)).map((formula) => formula.value)).toEqual([
+      R`\frac{m}{V}`,
+      'E=mc^{2}',
+    ]);
     expect(out.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
+  });
+});
+
+// Found by the Test phase's second review: an equation hard against bold or
+// italic text. The Markdown writer writes the letter beside emphasis as a
+// character reference, and that letter was the place-holder's own.
+describe('docx-to-markdown.mjs — an equation beside emphasis', () => {
+  const convert = async (bytes: Buffer) => convertDocx(bytes, { name: 'paper.docx' });
+  const BEFORE = '<w:r><w:t xml:space="preserve">Density is </w:t></w:r>';
+  const styled = (style: string, text: string) =>
+    `<w:r><w:rPr><w:${style}/></w:rPr><w:t xml:space="preserve">${text}</w:t></w:r>`;
+  const before = (run: string) =>
+    variant((text) => {
+      expect(text).toContain(BEFORE);
+      return text.replace(BEFORE, run);
+    });
+  const textOf = (node: MdNode): string => node.value ?? (node.children ?? []).map(textOf).join('');
+
+  // T-082 clauses 4, 5 and 8
+  it('test_docx_equation_beside_emphasis: bold or italic text before or after an equation leaves it an equation', async () => {
+    const shapes: [string, Promise<Buffer>, string, string][] = [
+      ['a bold label with its space', before(styled('b', 'Theorem 1. ')), 'strong', 'Theorem 1. '],
+      ['a bold label hard against it', before(styled('b', 'Theorem 1.')), 'strong', 'Theorem 1.'],
+      ['bold ending in a sign', before(styled('b', 'ρ =')), 'strong', 'ρ ='],
+      ['bold ending in a letter', before(styled('b', 'Density')), 'strong', 'Density'],
+      ['italic with its space', before(styled('i', 'where ')), 'emphasis', 'where '],
+      [
+        'bold after it',
+        withFirst(FIRST_EQUATION, styled('b', ', and so on.')),
+        'strong',
+        ', and so on.',
+      ],
+      [
+        'italic after it',
+        withFirst(FIRST_EQUATION, styled('i', 'see the table')),
+        'emphasis',
+        'see the table',
+      ],
+    ];
+    for (const [label, bytes, kind, words] of shapes) {
+      const out = await convert(await bytes);
+      // No place-holder, whole or in part, reaches the chapter.
+      expect(out.markdown, label).not.toMatch(/omeEquation/);
+      const tree = readBack(out.markdown);
+      expect(
+        formulasIn(tree).map((formula) => formula.value),
+        label,
+      ).toEqual([R`\frac{m}{V}`, 'E=mc^{2}']);
+      // The emphasis is still emphasis, with its words, in the formula's paragraph.
+      const paragraph = nodesIn(tree, 'paragraph').find((node) =>
+        formulasIn(node).some((formula) => formula.type === 'inlineMath'),
+      )!;
+      expect(nodesIn(paragraph, kind).map(textOf), label).toEqual([words]);
+      expect(
+        out.leftOut.filter((entry) => entry.kind === 'equation'),
+        label,
+      ).toEqual([]);
+    }
+  });
+
+  // T-082 clause 8 — a place-holder that cannot be known again is never shown,
+  // and never silent: it becomes the mark, and is counted.
+  it('test_docx_lost_placeholder_is_marked: what is left of a place-holder becomes the mark and is counted', () => {
+    const marks = placeholders();
+    const carried = [{ latex: 'a', display: false, cell: false }];
+    const token = marks.token(0);
+
+    // As written, and with an end written as the Markdown writer writes it.
+    expect(writeEquations(`A ${token} here.`, carried, marks)).toEqual({
+      markdown: 'A $a$ here.',
+      lost: 0,
+    });
+    expect(writeEquations(`**A.&#x20;**&#x74;${token.slice(1)} here.`, carried, marks)).toEqual({
+      markdown: '**A.&#x20;**$a$ here.',
+      lost: 0,
+    });
+    expect(writeEquations(`A ${token.slice(0, -1)}&#x64;**, so.**`, carried, marks)).toEqual({
+      markdown: 'A $a$**, so.**',
+      lost: 0,
+    });
+
+    // Ends changed in ways the exchange does not know: the mark, and a count.
+    const mark = MARKS.equation.replace('[', '\\[');
+    for (const garbled of [
+      `&#116;${token.slice(1)}`,
+      `&#x54;${token.slice(1)}`,
+      `${token.slice(0, -1)}&#100;`,
+      token.slice(1, -1),
+    ]) {
+      expect(writeEquations(`A ${garbled} here.`, carried, marks), garbled).toEqual({
+        markdown: `A ${mark} here.`,
+        lost: 1,
+      });
+    }
+    // The mark is read back as the mark's own text, and forms no link.
+    const back = readBack(`A ${mark}(see the table) here.`);
+    expect(nodesIn(back, 'link')).toEqual([]);
+    expect(textOf(back)).toContain(`${MARKS.equation}(see the table)`);
+
+    // A number no equation has is the document's own words.
+    expect(writeEquations(`A ${marks.token(7)} here.`, carried, marks)).toEqual({
+      markdown: `A ${marks.token(7)} here.`,
+      lost: 0,
+    });
+    // Each document has place-holders of its own.
+    expect(placeholders().token(0)).not.toBe(token);
   });
 });

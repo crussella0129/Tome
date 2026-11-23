@@ -513,6 +513,15 @@ describe('laid out: what the first cases did not try', () => {
     expect(all(inline.tree, 'code', 'tome-math-error').map(text)).toEqual(['$ $']);
     expect(inline.messages).toHaveLength(1);
     expect(warn).toHaveBeenCalledTimes(2);
+    // A formula that is all comment shows nothing, so it is one too; a
+    // percent sign written `\%` is not a comment.
+    const comment = render('A $%x$ here.');
+    expect(all(comment.tree, 'math')).toHaveLength(0);
+    expect(all(comment.tree, 'code', 'tome-math-error').map(text)).toEqual(['$%x$']);
+    expect(warn).toHaveBeenCalledTimes(3);
+    expect(readable('%x')).toBe(false);
+    expect(readable(R`5\%`)).toBe(true);
+    expect(readable(R`a \\% b`)).toBe(true);
     warn.mockRestore();
     expect(readable('')).toBe(false);
     expect(readable('   ', true)).toBe(false);
@@ -545,6 +554,13 @@ describe('laid out: what the first cases did not try', () => {
       [R`x\frac{1}{2}`, 'x 1/2'],
       [R`\frac{a}{b}\frac{c}{d}`, 'a/b c/d'], // two fractions, not `a/bc/d`
       [R`2\sqrt{3}`, '2√3'],
+      // Twice a cube root is not two cubed times a root (the second review).
+      [R`2\sqrt[3]{x}`, '2 ³√x'],
+      [R`2^3\sqrt{x}`, '2³√x'],
+      [R`x\sqrt[n]{y}`, 'x ⁿ√y'],
+      [R`x^n\sqrt{y}`, 'xⁿ√y'],
+      [R`x^2\sqrt[3]{y}`, 'x² ³√y'],
+      [R`\sqrt[3]{x}`, '³√x'],
       // A stack with no bar is not a division: no honest one-line form.
       [R`\binom{n}{k}`, null],
       [R`n \choose k`, null],

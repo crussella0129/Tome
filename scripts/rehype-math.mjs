@@ -41,7 +41,11 @@ const LONG = 16;
 function mathml(tex, display) {
   // Nothing between the dollar signs is nothing to lay out: shown as typed,
   // and named, like any formula that cannot be read.
-  if (tex.trim() === '') return null;
+  // So is a formula that is all comment (`%` to the end of its line).
+  const shown = tex.replace(/(\\*)%.*$/gm, (rest, slashes) =>
+    slashes.length % 2 === 1 ? rest : slashes,
+  );
+  if (shown.trim() === '') return null;
   let markup;
   try {
     markup = temml.renderToString(tex, {
@@ -259,13 +263,15 @@ function row(node) {
   for (const child of node.children) {
     const text = plain(child);
     const first = child.type === 'element' ? firstTag(child) : '';
-    if (/[\p{L}\p{N}]$/u.test(out) && first === 'mfrac') {
-      // `3\frac{1}{2}` is three and a half, not thirty-one halves; and two
-      // fractions side by side are two fractions.
+    if (/[\p{L}\p{N}]$/u.test(out) && (first === 'mfrac' || first === 'mroot')) {
+      // `3\frac{1}{2}` is three and a half, not thirty-one halves; two
+      // fractions side by side are two fractions; and `2\sqrt[3]{x}` is twice
+      // a cube root, not two cubed times a root.
       out += ' ';
     } else if (/\d$/.test(out) && /^\d/.test(text)) {
-      // Two numbers side by side are a product: `\sqrt{2}3` is not
-      // `\sqrt{23}`, and `2 \cdot 3^2` written `2 3^2` is not `23²`.
+      // Two numbers that the page shows apart are a product: `\sqrt{2}3` is
+      // not `\sqrt{23}`. (Digits typed with a space between them, `2 3`, are
+      // one number to TeX and to the page, and so here.)
       out += '·';
     } else if (PARTED.has(previous) && /^\d/.test(text)) {
       out += '·';

@@ -167,9 +167,44 @@ function openInParagraph(context) {
   }
   let text = '';
   for (; chunk; chunk = chunk.previous) text = `${context.sliceSerialize(chunk)}\n${text}`;
-  // A `$$` named in inline code is not one that opens a formula.
-  const outsideCode = text.replace(/(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g, '');
-  return (outsideCode.match(/\$\$/g) ?? []).length % 2 === 1;
+  return fencesIn(text) % 2 === 1;
+}
+
+/**
+ * How many `$$` a paragraph's text holds that could open or close a formula:
+ * one named in inline code is not counted, nor a dollar sign written `\$`.
+ * A backtick written `` \` `` opens no code.
+ * @param {string} text
+ */
+function fencesIn(text) {
+  const BACKTICK = '`';
+  /** The length of the run of backticks at `from`. */
+  const run = (from) => {
+    let length = 0;
+    while (text[from + length] === BACKTICK) length += 1;
+    return length;
+  };
+  let count = 0;
+  let index = 0;
+  while (index < text.length) {
+    const character = text[index];
+    if (character === '\\') {
+      index += 2; // the character after it is itself, whatever it is
+    } else if (character === BACKTICK) {
+      // Inline code runs to the next run of as many backticks; with none,
+      // these backticks are text.
+      const opening = run(index);
+      let close = index + opening;
+      while (close < text.length && run(close) !== opening) close += Math.max(run(close), 1);
+      index = close < text.length ? close + opening : index + opening;
+    } else if (character === '$' && text[index + 1] === '$') {
+      count += 1;
+      index += 2;
+    } else {
+      index += 1;
+    }
+  }
+  return count;
 }
 
 /**

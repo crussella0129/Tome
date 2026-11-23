@@ -443,5 +443,26 @@ describe('formulas in Markdown: line ends as Windows writes them, and code above
     const open = read(lines('See `code` then $$a = b', '$$', '', 'After.'));
     expect(formulas(open).map((value) => value.trim())).toEqual(['inline:a = b']);
     expect(kinds(open)).toEqual(['paragraph', 'paragraph']);
+
+    // Backticks written `\`` are not code (the second review): the `$$`
+    // between them is open, and the `$$` line under it closes it.
+    const escaped = lines('A \\`$$a = b\\` thing', '$$', '', 'After.');
+    const notCode = read(escaped);
+    expect(kinds(notCode)).toEqual(['paragraph', 'paragraph']);
+    expect(all(notCode, 'inlineCode')).toEqual([]);
+    expect(all(notCode, 'math')).toEqual([]);
+    expect(all(notCode, 'inlineMath')).toHaveLength(1);
+
+    // A lone backtick, with none to close it, is text: the `$$` after it counts.
+    const lone = read(lines('A ` then $$c = d', '$$', '', 'After.'));
+    expect(kinds(lone)).toEqual(['paragraph', 'paragraph']);
+    expect(all(lone, 'inlineMath')).toHaveLength(1);
+
+    // A dollar sign written `\$` before another is not a `$$`.
+    const price = lines('Write \\$$ for two:', '$$', 'e = f', '$$', '', 'After.');
+    const afterPrice = read(price);
+    expect(formulas(afterPrice)).toEqual(['apart:e = f']);
+    expect(kinds(afterPrice)).toEqual(['paragraph', 'math', 'paragraph']);
+    expect(all(afterPrice, 'math').map((node) => fenceClosed(node, price))).toEqual([true]);
   });
 });

@@ -49,14 +49,21 @@ const run = (text) => `<w:r><w:t xml:space="preserve">${text}</w:t></w:r>`;
 
 /**
  * What stands for a carried-over equation between the document's XML and the
- * finished Markdown: letters and digits only, so the Word reader and the
- * Markdown writer both carry it untouched.
+ * finished Markdown: letters and digits only, so the Word reader carries it
+ * untouched, and the Markdown writer changes at most its first or last letter.
+ *
+ * Exported for its tests.
  */
-function placeholders() {
+export function placeholders() {
   // Made anew for each document, with letters no document could hold by
   // chance, so its own words are never taken for an equation.
   const nonce = randomBytes(8).toString('hex');
-  const source = `tomeEquation${nonce}n(\\d+)carried`;
+  // Hard against emphasis (`**Theorem 1.** ` and then an equation) the
+  // Markdown writer writes the neighbouring letter as a character reference,
+  // so that the emphasis still reads as emphasis. The token's first or last
+  // letter may therefore come back as `&#x74;` or `&#x64;`.
+  const source = `(?:t|&#x74;)omeEquation${nonce}n(\\d+)carrie(?:d|&#x64;)`;
+  const reference = '&#[xX]?[0-9A-Fa-f]+;';
   return {
     /** @param {number} index */
     token: (index) => `tomeEquation${nonce}n${index}carried`,
@@ -64,6 +71,15 @@ function placeholders() {
     all: () => new RegExp(source, 'g'),
     /** A token at the very start of a text. */
     first: new RegExp(`^${source}`),
+    /**
+     * A fresh pattern for what is left of a token that `all()` did not know:
+     * its middle, with whatever became of its two ends.
+     */
+    debris: () =>
+      new RegExp(
+        `(?:${reference}|t)?omeEquation${nonce}n(\\d+)(?:carrie(?:${reference}|d)?)?`,
+        'g',
+      ),
   };
 }
 
@@ -168,9 +184,19 @@ function dollarForm(equation, next) {
   return latex.endsWith('$') ? `$$ ${latex} $$` : `$$${latex}$$`;
 }
 
-/** Exchange each token in a finished Markdown document for its equation. */
-function writeEquations(markdown, carried, marks) {
-  return markdown.replace(marks.all(), (token, index, offset) => {
+/**
+ * Exchange each token in a finished Markdown document for its equation.
+ *
+ * A token the Markdown writer changed past knowing is never left in the page:
+ * what remains of it becomes the mark, and `lost` counts it, so the equation
+ * is reported as left out. Exported for its tests.
+ * @param {string} markdown
+ * @param {{ latex: string, display: boolean, cell: boolean }[]} carried
+ * @param {ReturnType<typeof placeholders>} marks
+ * @returns {{ markdown: string, lost: number }}
+ */
+export function writeEquations(markdown, carried, marks) {
+  const exchanged = markdown.replace(marks.all(), (token, index, offset) => {
     const equation = carried[Number(index)];
     if (equation === undefined) return token; // the document's own words
     const after = markdown.slice(offset + token.length);
@@ -185,6 +211,14 @@ function writeEquations(markdown, carried, marks) {
     if (next && carried[Number(next[1])] !== undefined) written += ' ';
     return written;
   });
+  let lost = 0;
+  const settled = exchanged.replace(marks.debris(), (rest, index) => {
+    if (carried[Number(index)] === undefined) return rest; // the document's own words
+    lost += 1;
+    // As the Markdown writer writes the mark: text that can form no link.
+    return MARKS.equation.replace('[', '\\[');
+  });
+  return { markdown: settled, lost };
 }
 
 /**
@@ -597,8 +631,11 @@ export async function convertDocx(input, options = {}) {
     })
     .process(result.value);
 
+  const written = writeEquations(String(file), carried, marks);
   const leftOut = [];
-  if (equations > 0) leftOut.push({ kind: 'equation', count: equations });
+  if (equations + written.lost > 0) {
+    leftOut.push({ kind: 'equation', count: equations + written.lost });
+  }
   if (figures > 0) leftOut.push({ kind: 'figure', count: figures });
   for (const [type, count] of unsupported) leftOut.push({ kind: 'image', count, detail: type });
   const others = new Map();
@@ -608,7 +645,7 @@ export async function convertDocx(input, options = {}) {
   for (const [detail, count] of others) leftOut.push({ kind: 'other', count, detail });
 
   return {
-    markdown: writeEquations(String(file), carried, marks),
+    markdown: written.markdown,
     title: titleWithEquations(title, carried, marks),
     images,
     leftOut,
