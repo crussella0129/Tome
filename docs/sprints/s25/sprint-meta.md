@@ -60,4 +60,11 @@
   `sprint-tests/critique-round-1.md`. A second review found one more: a
   Word equation hard against bold or italic text was lost, and the
   place-holder that stood for it was shown in the chapter with nothing
-  reported (`b452443`; `sprint-tests/critique-round-2.md`).
+  reported (`b452443`; `sprint-tests/critique-round-2.md`). A third found
+  the same kind of loss by another road, a Word equation in a table cell
+  that ends in a bar. Besides that fix, the converter now reads its own
+  result back with Tome's reader and writes the mark, and counts, for any
+  equation that does not come back as a formula (`bf7ff46`;
+  `sprint-tests/critique-round-3.md`). That check is more than T-082's
+  locked clauses ask for; it holds clause 5 itself and adds no behaviour a
+  reader sees unless the clause would otherwise have been broken.
