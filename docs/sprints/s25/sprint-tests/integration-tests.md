@@ -1,8 +1,9 @@
 # Sprint 25 Integration Verification
 
-- **Tested head:** `1e782cf`. The Vitest cases below ran in the whole-suite
-  run recorded in `unit-tests.md` (318 tests, 317 passed, 1 skipped). The
-  gates ran on this Windows machine at that head, and in CI on Linux
+- **Tested head:** `eec6432`. The Vitest cases below ran in the whole-suite
+  run recorded in `unit-tests.md` (329 tests, 328 passed, 1 skipped). The
+  gates ran on this Windows machine at `9cf62ed`, from which `eec6432`
+  differs in two unit-test files only, and in CI on Linux at `eec6432`
   (`test-report.md`).
 
 ## The loader with Word equations
@@ -40,7 +41,8 @@ stand-in `build` script.
 
 Astro composes T-077's reader, T-078's layout step, T-079's search index and
 T-080's stylesheet in a real build of `fixtures/proofs/`. The gate reads the
-built files before any browser opens. Exit 0 at `b39d962` and at `1e782cf`.
+built files before any browser opens. Exit 0 at `b39d962`, at `1e782cf` and
+at `9cf62ed`.
 
 | Check | Clause | What it showed |
 |---|---|---|
@@ -49,7 +51,7 @@ built files before any browser opens. Exit 0 at `b39d962` and at `1e782cf`.
 | `check_math_heading_slugs` | T-081 4 | for both chapters the heading `id`s of the page equal the search index's slugs, in order, `the-emc2-law` among them; the first page's record holds `E=mc2`, holds `\frac` only inside the mistake, and holds no `\sqrt`, `\sum` or `\begin` |
 | `check_math_rail` | T-079 6, T-081 10 | the second page's rail entry for the formula heading reads `The E = mc² law` and links to `#the-emc2-law`; the entry for `A wide formula` reads as its heading |
 
-The documents gate, `npm run check:documents`, also exits 0 at both heads: a
+The documents gate, `npm run check:documents`, also exits 0 at all three heads: a
 Word document built on its own shows its two equations and no mark
 (T-082 clause 10).
 
@@ -86,6 +88,32 @@ wraps the letters and digits of its run and leaves the signs beside them:
 One result is as Word saved it and looks odd: the accent was typed with a
 space before it, so Word saved an accent over nothing, after `x`. Tome shows
 what the file holds.
+
+### A second document, for the rules the first did not reach
+
+The first review of the tests asked that the rule for a hidden part be
+settled "against a file Word saved". Word was driven again, the same way, to
+write twelve more equations: a phantom, a smash, a box, an underbrace, an
+overbrace, floor brackets, a norm, angle brackets, a prime, two letters, a
+tilde, and a fraction within a line. The file is not committed. Read at
+`9cf62ed`:
+
+| | |
+|---|---|
+| Equations | 12 |
+| Carried over as LaTeX | 12 |
+| Left as the mark | 0 |
+
+What it settled: for a phantom Word writes `m:show` with the value `0`; for
+a smash it writes heights of nought and no `m:show` at all. The converter
+had hidden both. A part is now hidden only when Word says so, and the smash
+is shown (`test_omml_other_rules` holds both shapes as Word wrote them).
+
+Two results are as Word saved them and are not what was typed. Two
+fractions typed one after the other in one line were built by Word into one
+fraction inside another, so that is what Tome shows; two equations side by
+side are therefore tried by hand (`test_docx_adjacent_equations`). And the
+two letters were typed bold and saved plain.
 
 What this did not cover: a paper of the owner's own; a Google Docs download;
 an equation inside a tracked change or a link in a file Word wrote (those

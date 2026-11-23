@@ -1,10 +1,13 @@
 # Sprint 25 Unit Verification
 
-- **Tested head:** `1e782cf` (the eight tasks, then one Test-phase fix found
-  by reading a document Word saved; see `integration-tests.md`).
-  `npx vitest run` on this Windows machine: **35 files, 318 tests: 317
-  passed, 0 failed, 1 skipped**. Before the sprint the suite was 30 files,
-  258 tests.
+- **Tested head:** `eec6432` (the eight tasks; one Test-phase fix found by
+  reading a document Word saved, `1e782cf`; the fixes and tests that answer
+  the first review of the tests, `9cf62ed`, `critique-round-1.md`; and two
+  of those tests made to assert what they name, `eec6432`, which changes
+  two test files and nothing else).
+  `npx vitest run` on this Windows machine: **35 files, 329 tests: 328
+  passed, 0 failed, 1 skipped**. At `1e782cf` it was 318 tests (317 passed,
+  1 skipped). Before the sprint the suite was 30 files, 258 tests.
 - The one skip is the loader case for a note named `Summary.md`, which needs
   a file system that tells it from `SUMMARY.md`; it runs in CI on Linux, where
   the staging case for a drive-letter path is skipped instead. The CI run and
@@ -25,16 +28,16 @@ New and changed files, with their counts:
 
 | File | Tests | Task |
 |---|---|---|
-| `remark-math-dollars.test.ts` (new) | 13/13 | T-077 (and the config clause of T-078) |
-| `rehype-math.test.ts` (new) | 16/16 | T-078 |
-| `search-index.test.ts` | 18/18 (8 new; the 10 earlier unedited) | T-079 |
+| `remark-math-dollars.test.ts` (new) | 15/15 (2 added in the Test phase) | T-077 (and the config clause of T-078) |
+| `rehype-math.test.ts` (new) | 20/20 (4 added in the Test phase) | T-078 |
+| `search-index.test.ts` | 18/18 (8 new; the 10 earlier unedited; one case added to a new test in the Test phase) | T-079 |
 | `search.test.ts` | 4/4 (1 new; the 3 earlier unedited) | T-079 |
-| `styles/__tests__/math.test.ts` (new) | 4/4 | T-080 |
+| `styles/__tests__/math.test.ts` (new) | 4/4 (one assertion added in the Test phase) | T-080 |
 | `fixture-commands.test.ts` | 11/11 (2 new; 1 list extended) | T-081 |
 | `fixture-gate.test.ts` | 18/18 (1 new) | T-081 |
 | `ci-workflow.test.ts` | 1/1 (two assertions added) | T-081 |
-| `omml-to-latex.test.ts` (new) | 4/4 | T-082 |
-| `docx-to-markdown.test.ts` | 32/32 (7 new, 2 of them replacing cases of the same name; 2 edited) | T-082 |
+| `omml-to-latex.test.ts` (new) | 6/6 (2 added in the Test phase) | T-082 |
+| `docx-to-markdown.test.ts` | 35/35 (7 new, 2 of them replacing cases of the same name; 2 edited; 3 added in the Test phase) | T-082 |
 | `document-stage.test.ts` | 12/12 (2 new; 1 edited) | T-082, T-084 |
 | `load-books.test.ts` | 42/43, 1 skipped (1 new; 2 edited) | T-082 |
 | `tutorial-math.test.ts` (new) | 1/1 | T-083 |
@@ -147,6 +150,30 @@ unedited (clause 7).
 | 1 | `test_tutorial_covers_mathematics` (`tutorial-math.test.ts`) | linked after "Panels & Tables"; fifteen things shown as source; eight said in words; laid out by the build's own plugins: a fraction, roots, a sum with limits, three tables, numbers `(1)`, `(2)`, `(3)`, no error element, the price line |
 | 2 | `test_tutorial_covers_documents` (`tutorial.test.ts`) | the guide and the README say equations are carried over and name the mark; the README links the chapter |
 | 5 | `test_books_library`, `test_pager_prev_next` (`book.test.ts`) | the chapter in its place; the last chapter's neighbours unedited |
+
+## Added in the Test phase
+
+The first review of the tests (`critique-round-1.md`) found inputs no test
+had tried. Each fault it found was fixed, and each of these was added with
+the fix. None of the sprint's earlier tests was weakened; one assertion in
+`test_docx_equations_carried` now reads "no place-holder of any kind" where
+it named the old place-holder.
+
+| Clause | Test | What it showed |
+|---|---|---|
+| T-077 5, 6, 7, with Windows line ends | `test_dollars_crlf` | nine shapes (a `$$…$$` line under and over a line of text, a fence after a blank line and under text, a numbered environment hard against its fences with text under it, the aligned form, `$$a = b` closed on its own line, a fence in a list item, a price line with a formula over a line end): each gives the same blocks, the same formulas set apart or not, and the same closed fences with `\r\n` as with `\n`; the line between two lines of text is set apart with the text round it kept |
+| T-077 5, 9 | `test_dollars_code_above_fence` | `` `$$` `` in inline code directly above a `$$` fence: the fence opens and is closed, the formula is `a = b`, the heading after it is a heading; so with two code spans, one of them in doubled backticks; and a real open `$$` beside a code span is still closed by the `$$` line under it |
+| T-078 7 (the number itself) | `test_math_long_threshold` | a formula whose laid-out text is 16 characters has no box; one of 17 has; the formula of 28 that ran past its column in WebKit has |
+| T-078 8 | `test_math_empty` | an empty `$$` fence, and spaces between `$$` pairs within a line: an error element each, a message and a `console.warn` each, no `math` element; `readable('')` false, `formulaText('')` and `titleText(' ')` nothing |
+| T-078 2, with Windows line ends | `test_math_crlf` | as Astro, a numbered environment hard against its `$$` with a line of text directly under it, in `\r\n`: one `div.tome-math`, numbered `(1)`, no error element, the text in a paragraph of its own |
+| T-078 12 | `test_math_title_text_neighbours` | `3 1/2` and never `31/2` (which `\frac{31}{2}` alone gives); `12 3/4`; `x 1/2`; `a/b c/d`; `2√3`; `\binom`, `\choose`, `\atop` and a no-bar `\genfrac` give no one-line form (shown as typed); `2 3^2` gives `23²`, as `23^2` does and as TeX itself sets it |
+| T-079 1, with Windows line ends | `test_search_set_apart_environment` (one case added) | the same derivation with `\r\n` and a line of text under it: `E=mc2 Text under it.` |
+| T-080 3 | `test_math_css_rules` (one assertion added) | `math mtd { padding: 0.5ex 0.4em }` |
+| T-082 1 | `test_omml_other_rules` | twenty-eight more equations, each giving the LaTeX named and accepted by `readable()`: a box, a bordered box, a phantom hidden, shown and with no properties, a smash, under- and overbraces, a separator, double bars round a part and round a matrix, angle, floor and ceiling brackets, six more accent forms, bold italic, sans-serif, monospace, italic, a sum with no limits, a fraction in a fraction, `<` and `>` |
+| T-082 3 | `test_omml_other_unknowns` | nothing for a box with a stroke, a box with a side hidden, a box with every side hidden and a stroke, text of Word's own inside an equation, a tracked deletion round a run, an equation of spaces; a side named as not hidden is still a plain box |
+| T-082 5 | `test_docx_adjacent_equations` | two equations with nothing between them are read back as two formulas, `a` and `b`, with nothing reported left out; three in a row, the middle one holding a dollar sign |
+| T-082 5 | `test_docx_backslash_before_equation` | Word text ending in a backslash directly before an equation: the formula is still `\frac{m}{V}` and the text still ends in the backslash |
+| T-082 7 | `test_docx_token_in_text` | a document whose text holds the old place-holder's letters is read as written, does not throw, and its two real equations are carried over |
 
 ## Existing tests edited, and why
 
