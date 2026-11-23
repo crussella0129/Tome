@@ -9,6 +9,34 @@ const WARM_DARK = 'rgb(22, 19, 14)'; //   #16130e
 const TOME = '/tome';
 
 test.describe('Tome reader', () => {
+  // INT-0030 (T-083) — the guide's chapter on mathematics, in the default
+  // build: its formulas are laid out, none is left as source, none is unread.
+  test('test_reader_math_chapter', async ({ page }) => {
+    await page.goto(`${TOME}/write-mathematics`);
+    const article = page.locator('article.tome-prose');
+    await expect(article.locator('h1')).toHaveText('Write Mathematics');
+    await page.evaluate(() => document.fonts.ready);
+    const boxes = await article
+      .locator('math')
+      .evaluateAll((all) => all.map((math) => math.getBoundingClientRect()).map((box) => [box.width, box.height]));
+    expect(boxes.length).toBeGreaterThanOrEqual(8);
+    for (const [width, height] of boxes) {
+      expect(width).toBeGreaterThan(1);
+      expect(height).toBeGreaterThan(1);
+    }
+    await expect(article.locator('.tome-math-error')).toHaveCount(0);
+    await expect(article.locator('code.language-math')).toHaveCount(0);
+    // Its source is shown beside it, as code, and a price is still a price.
+    await expect(article.locator('pre').first()).toContainText('$');
+    await expect(article).toContainText('It costs $5 on Monday and $10 by Friday.');
+    // Listed in the sidebar, in the Guide part.
+    const nav = page.getByRole('navigation', { name: 'Table of contents' });
+    await expect(nav.getByRole('link', { name: 'Write Mathematics' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
   // INT-0014 #1 — the default `/` is the Bibliotheca, listing both bundled tomes.
   test('test_reader_bibliotheca_default', async ({ page }) => {
     await page.goto('/');

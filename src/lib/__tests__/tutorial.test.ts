@@ -104,3 +104,21 @@ describe('adding a document, in the guide', () => {
     expect(live).toEqual([]);
   });
 });
+
+// INT-0030 AC8 (T-083) — the guide says a Word document's equations are carried
+// over. (How to write a formula is checked in tutorial-math.test.ts, which
+// lays the chapter out and so runs where the Markdown parser can.)
+describe('equations in a Word document, in the guide', () => {
+  const path = 'src/content/books/tome/write-mathematics.md';
+
+  it('test_tutorial_covers_documents: a Word document’s equations are carried over', () => {
+    const guide = read(CHAPTERS[0]!).replace(/\s+/g, ' ');
+    expect(guide).toContain('An equation is carried over and laid out as mathematics');
+    expect(guide).toContain('[equation not shown]');
+    expect(guide).toContain('](write-mathematics.md)');
+    const about = readmeSection.replace(/\s+/g, ' ');
+    expect(about).toContain('its equations carried over and laid out');
+    expect(about).toContain('[equation not shown]');
+    expect(readme).toContain(`](${path})`);
+  });
+});

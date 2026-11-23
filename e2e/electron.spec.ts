@@ -46,6 +46,42 @@ test.describe('Tome desktop shell', () => {
     await expect(nav.getByRole('link', { name: 'About' })).toBeVisible();
   });
 
+  // INT-0030 (T-083) — a formula in the desktop app: laid out, in the
+  // mathematical font, with nothing fetched from outside the app.
+  test('test_electron_math_chapter', async () => {
+    const requests: string[] = [];
+    page.on('request', (request) => requests.push(request.url()));
+    await page.goto(`${ORIGIN}/tome/write-mathematics`);
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('heading', { level: 1, name: 'Write Mathematics' })).toBeVisible();
+    const state = await page.evaluate(async () => {
+      await document.fonts.load('16px "Tome Math"', '∑√α');
+      await document.fonts.ready;
+      const math = document.querySelector('article.tome-prose math')!;
+      const box = math.getBoundingClientRect();
+      return {
+        formulas: document.querySelectorAll('article.tome-prose math').length,
+        width: box.width,
+        height: box.height,
+        faces: [...document.fonts].map((face) => `${face.family.replace(/["']/g, '')}:${face.status}`),
+        used: document.fonts.check('16px "Tome Math"', '∑√α'),
+      };
+    });
+    expect(state.formulas).toBeGreaterThanOrEqual(8);
+    expect(state.width).toBeGreaterThan(1);
+    expect(state.height).toBeGreaterThan(1);
+    expect(state.faces).toContain('Tome Math:loaded');
+    expect(state.used).toBe(true);
+    // Every request went to the app's own origin, the font among them.
+    const fetched = requests.filter((url) => /^(https?|app):/.test(url));
+    expect(fetched.length).toBeGreaterThan(0);
+    expect(fetched.filter((url) => !url.startsWith(`${ORIGIN}/`))).toEqual([]);
+    expect(fetched.some((url) => /stix-two-math[^/]*\.woff2$/.test(url))).toBe(true);
+    // Back where the later tests expect the window to be.
+    await page.goto(`${ORIGIN}/tome`);
+    await page.waitForLoadState('domcontentloaded');
+  });
+
   // Criterion 4 — the search index is reachable and searchable, offline.
   test('test_electron_search_index', async () => {
     const result = await page.evaluate(async () => {

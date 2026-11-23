@@ -104,8 +104,12 @@ npm run dev                            # http://localhost:4321
 
 A library entry need not be an mdBook. A `.md` file, a `.docx` file (a Google Doc downloaded as
 Word included), or a folder of them is read as a tome with no `SUMMARY.md`. A Word document is
-converted when the library is built; what cannot be shown yet, such as an equation, is marked
+converted when the library is built, its equations carried over and laid out (one Tome cannot
+convert is marked `[equation not shown]`); what cannot be shown yet, such as a chart, is marked
 on the page and named by the build.
+
+Mathematics written in LaTeX notation, `$…$` within a line and `$$…$$` set apart, is laid out
+in any chapter. [Write Mathematics](src/content/books/tome/write-mathematics.md) shows how.
 
 Your library lives in **`tome.local.toml`** (git-ignored) and is copied into
 `src/content/library/` (also git-ignored), so the checkout stays clean. The copy

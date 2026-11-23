@@ -149,20 +149,22 @@ Headings, bold, italic, strikethrough, superscript and subscript, lists, links
 to web and mail addresses, tables, footnotes and endnotes, block quotations
 (Word's Quote styles), and pictures (PNG, JPEG, GIF, WebP). The document's
 Title heads the page, and its headings become the page's sections. A list or
-several paragraphs inside a table cell stay in the cell, one to a line.
+several paragraphs inside a table cell stay in the cell, one to a line. An
+equation is carried over and laid out as mathematics, as
+[Write Mathematics](write-mathematics.md) describes.
 
 Some things are not shown yet. Where one stood, the page says so:
 
 | In the document | On the page |
 |---|---|
-| An equation | `[equation not shown]` |
+| An equation Tome cannot convert (one inside a tracked change, for example) | `[equation not shown]` |
 | A chart or a SmartArt diagram | `[figure not shown]` |
 | A picture of another kind (EMF, TIFF, HEIC), or one a note points to that is missing | `[image not shown]` |
 | A Word file in a folder that cannot be opened | a chapter that reads `[document not shown]` |
 | A cross-reference or a table of contents entry | its words, without the link |
 
 The build prints a line for each document that left something out, for example
-`left out 2 equations`. Page headers and footers, comments, colours, fonts and
+`left out 1 equation`. Page headers and footers, comments, colours, fonts and
 underlining are not carried over and are not reported.
 
 ### What to know about Markdown notes
