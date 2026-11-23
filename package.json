@@ -39,6 +39,8 @@
     "jszip": "^3.10.2",
     "mammoth": "^1.13.0",
     "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-math": "^3.0.0",
+    "micromark-extension-math": "^3.1.0",
     "rehype-parse": "^9.0.1",
     "rehype-remark": "^10.0.1",
     "remark-gfm": "^4.0.1",
@@ -59,6 +61,7 @@
     "@types/node": "^24.3.0",
     "electron": "^43.4.0",
     "jsdom": "^30.0.1",
+    "remark-parse": "^11.0.0",
     "typescript": "^5.7.0",
     "vite-plugin-solid": "^2.11.14",
     "vitest": "^4.1.10"

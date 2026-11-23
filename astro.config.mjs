@@ -8,6 +8,7 @@ import { syncPath } from './scripts/book-source.mjs';
 import { liveReloadNotice, resolveSource } from './scripts/document-source.mjs';
 import { prepareChapterParentAssets } from './scripts/parent-assets.mjs';
 import remarkAlerts from './scripts/remark-alerts.mjs';
+import remarkMathDollars from './scripts/remark-math-dollars.mjs';
 
 // The generated, git-ignored library (scripts/load-books.mjs publishes it); the
 // committed sample at src/content/books/ is only ever read.
@@ -89,8 +90,9 @@ export default defineConfig({
     // layer. Code renders as plain <pre><code>, styled monochrome in ink by
     // prose.css — the sacred / ink-on-paper look.
     syntaxHighlight: false,
-    // GitHub-style admonitions (`> [!NOTE]` …) → titled sacred blocks.
-    remarkPlugins: [remarkAlerts],
+    // GitHub-style admonitions (`> [!NOTE]` …) → titled sacred blocks; and
+    // formulas, `$…$` and `$$…$$`, read by Tome's rule for dollar signs.
+    remarkPlugins: [remarkAlerts, remarkMathDollars],
   },
   vite: {
     plugins: [tailwindcss()],
