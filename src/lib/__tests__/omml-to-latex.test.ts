@@ -195,6 +195,13 @@ describe('omml-to-latex.mjs — one rule for each element', () => {
       `<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr><m:deg/><m:e>${r('x')}</m:e></m:rad></m:den></m:f>`;
     expect(latex(saved)).toBe(R`\frac{1}{\sqrt{x}}`);
     expect(latex(saved)).toBe(latex(bare));
+    // As Word saved `x∈ℝ` (found at the Test phase, in a file Word wrote): a
+    // double-struck run that holds the sign as well as the letter. Only the
+    // letter is double-struck.
+    const struck = latex(`${r('x')}${r('∈R', '<m:rPr><m:scr m:val="double-struck"/></m:rPr>')}`);
+    expect(struck).toBe(R`x∈\mathbb{R}`);
+    expect(formulaText(struck!)).toBe('x∈ℝ');
+    expect(latex(r('a+b', '<m:rPr><m:sty m:val="b"/></m:rPr>'))).toBe(R`\mathbf{a}+\mathbf{b}`);
     // A bookmark inside an equation holds none of it, and is passed over.
     expect(latex(`<w:bookmarkStart w:id="0" w:name="x"/>${r('a')}<w:bookmarkEnd w:id="0"/>`)).toBe(
       'a',

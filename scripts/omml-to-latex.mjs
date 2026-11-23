@@ -185,7 +185,17 @@ function runToLatex(run, context) {
   // An upright run of letters is a name (as Word writes "sin" in a function);
   // an upright run of anything else is the same as no style at all.
   if (style === 'mathrm' && !/^[\p{L}]+$/u.test(text)) return escaped;
-  return style ? `${cmd(style)}{${escaped}}` : escaped;
+  if (!style) return escaped;
+  // A style is a style of letters and digits. Word saves `x∈ℝ` as a
+  // double-struck run holding `∈R`: the sign beside the letter is not part of
+  // what is double-struck, and inside the command it would not be laid out.
+  return (text.match(/[\p{L}\p{N}]+|[^\p{L}\p{N}]+/gu) ?? [])
+    .map((piece) =>
+      /^[\p{L}\p{N}]/u.test(piece)
+        ? `${cmd(style)}{${escapeText(piece, context.aligned)}}`
+        : escapeText(piece, context.aligned),
+    )
+    .join('');
 }
 
 /** Everything under an argument element (`m:e`, `m:num`, `m:sub`, …). @param {any} node @param {Context} context */
