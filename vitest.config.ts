@@ -16,6 +16,11 @@ export default defineConfig({
     alias: { '@library': fileURLToPath(new URL('./src/content/books', import.meta.url)) },
   },
   test: {
+    // Several suites spawn the real loader or a gate script a few times in one
+    // test. Each run is under a second alone, but with the whole suite running
+    // in parallel a four-spawn test has taken six, so the default five-second
+    // limit is too tight. This only gives them room; nothing waits on it.
+    testTimeout: 20_000,
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
