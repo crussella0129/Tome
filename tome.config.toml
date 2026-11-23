@@ -27,6 +27,8 @@
 #   path   (required) — the book's root directory (absolute, or relative to this
 #                       file). Its source is auto-detected: book.toml [book].src,
 #                       else src/ → docs/ → the root (whichever has SUMMARY.md).
+#                       It may also be a document: a .md file, a .docx file, or
+#                       a folder of them with no SUMMARY.md.
 #   title  (optional) — overrides the book.toml title / directory name.
 #   slug   (optional) — the URL segment + library dir (default: the directory
 #                       name, slugified). Collisions are de-duplicated.
@@ -40,3 +42,7 @@
 # [[book]]
 # path = "../my-notes"
 # slug = "notes"
+#
+# [[book]]
+# path = "../papers/thesis-draft.docx"
+# title = "Thesis Draft"

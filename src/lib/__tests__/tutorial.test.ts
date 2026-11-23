@@ -60,3 +60,47 @@ describe('the find-and-deploy tutorial', () => {
     expect(readme).toContain('tome.local.toml');
   });
 });
+
+// INT-0029 AC8 (T-074) — the guide tells a person how to add a document.
+describe('adding a document, in the guide', () => {
+  const chapter = read(CHAPTERS[0]!);
+  // Wrapped lines are joined, so a phrase is found wherever the prose breaks.
+  const section = chapter
+    .slice(chapter.indexOf('## Add a document'), chapter.indexOf('## For agents'))
+    .replace(/\s+/g, ' ');
+
+  it('test_tutorial_covers_documents: files, folders, Google Docs, what is marked, what is not carried over', () => {
+    expect(section.length).toBeGreaterThan(500);
+    for (const topic of [
+      '.md', // a Markdown file
+      '.docx', // a Word document
+      'tome.local.toml', // the same in the manifest
+      'Google Docs', // downloaded as Word
+      'README.md', // what opens a folder
+      '2-notes.md', // how a folder is ordered
+      'node_modules', // which folders are skipped
+      '[equation not shown]',
+      '[figure not shown]',
+      '[image not shown]',
+      '[document not shown]',
+      'without the link', // cross-references become plain text
+      'underlining', // not carried over
+      'front matter',
+      'does not lead to that note', // links between notes
+      'restart', // npm run dev
+    ]) {
+      expect(section, topic).toContain(topic);
+    }
+    // A books:add line that names a Word file.
+    expect(section).toMatch(/npm run books:add -- .*\.docx/);
+    expect(readmeSection).toMatch(/npm run books:add -- .*\.docx/);
+  });
+
+  it('test_config_template_mentions_documents: the tracked manifest says a path may be a document', () => {
+    const template = read('tome.config.toml');
+    expect(template).toMatch(/^#.*\.docx/m);
+    // Still a template: every line is a comment or blank, so it lists no book.
+    const live = template.split(/\r?\n/).filter((line) => line.trim() && !line.startsWith('#'));
+    expect(live).toEqual([]);
+  });
+});
