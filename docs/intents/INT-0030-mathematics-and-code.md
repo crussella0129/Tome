@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0030
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 25 build plan](../sprints/s25/sprint-plans/build-plan.md) (T-077 to T-084)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-077 completion](../work/completed-tasks.md#t-077-sprint-25), [T-078 completion](../work/completed-tasks.md#t-078-sprint-25), [T-079 completion](../work/completed-tasks.md#t-079-sprint-25), [T-080 completion](../work/completed-tasks.md#t-080-sprint-25), [T-081 completion](../work/completed-tasks.md#t-081-sprint-25), [T-082 completion](../work/completed-tasks.md#t-082-sprint-25), [T-083 completion](../work/completed-tasks.md#t-083-sprint-25), [T-084 completion](../work/completed-tasks.md#t-084-sprint-25)
+- **Code evidence:** [formulas in Markdown](../../scripts/remark-math-dollars.mjs), [laid out at build](../../scripts/rehype-math.mjs), [Word equations to LaTeX](../../scripts/omml-to-latex.mjs), [Word to Markdown](../../scripts/docx-to-markdown.mjs), [search index](../../src/lib/search-index.ts), [the font and the styles](../../src/styles/math.css), [mathematics gate](../../scripts/check-math.mjs)
 - **Test evidence:** [Sprint 25 test report](../sprints/s25/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [Write Mathematics](../../src/content/books/tome/write-mathematics.md), [Find Your Books](../../src/content/books/tome/find-your-books.md), [README](../../README.md)
 
 ## Intent
 
@@ -267,3 +267,8 @@ code. Tome today shows `$x^2$` as the characters typed.
   single dollar signs cannot hold, `%`, an empty formula, search and bare
   web addresses), how a plain-text place writes a mixed number and a
   binomial, and which Word equations are left out. State unchanged.
+- 2026-11-23: `active` to `realized` in Sprint 25's Loop phase. T-077 to
+  T-084 are complete; the eight acceptance criteria are verified in the
+  sprint's test report, at `0eb7dd4`, with CI green; the final review of
+  the tests returned proceed-with-caveats after five rounds. What was not
+  run (Safari itself, Firefox, the Tauri window) is in Consequences.
