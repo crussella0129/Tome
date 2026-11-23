@@ -3,7 +3,6 @@
 - [ ] T-052 (backlog) [intent: INT-0020]: Implement native folder selection, per-user library persistence, and staged atomic library publication across supported desktop shells — touches: Bibliotheca desktop island, Electron/Tauri native adapters, runtime builder, tests, documentation
 - [ ] T-063 (backlog) [intent: INT-0024]: Opt-in service worker so tablets reopen visited chapters offline — touches: build config, a service-worker entry, BookLayout/Bibliotheca registration, E2E offline test, Take It to the Table chapter
 - [ ] T-064 (backlog) [intent: INT-0024]: Base-path builds for sub-path static hosting — touches: astro.config base, a base-aware URL helper (paths.ts, search, Bibliotheca, init-theme), serve-dist, E2E sub-path build, tutorial
-- [ ] T-066 (sprint 24) [intent: INT-0029]: Convert a Word document to Markdown that keeps its meaning — touches: scripts/docx-to-markdown.mjs, package.json, package-lock.json, fixtures/word/, src/lib/__tests__/docx-to-markdown.test.ts
 - [ ] T-067 (sprint 24) [intent: INT-0029]: Leave HTML tags out of a chapter's search text — touches: src/lib/search-index.ts, src/lib/__tests__/search-index.test.ts
 - [ ] T-068 (sprint 24) [intent: INT-0029]: Make one document ready for the library — touches: scripts/document-stage.mjs, src/lib/__tests__/document-stage.test.ts
 - [ ] T-069 (sprint 24) [intent: INT-0029]: Publish documents and loose folders from the loader — touches: scripts/load-books.mjs, src/lib/__tests__/load-books.test.ts

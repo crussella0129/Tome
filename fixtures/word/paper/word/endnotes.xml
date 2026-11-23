@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:endnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:endnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>
+  <w:endnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:endnote>
+  <w:endnote w:id="1">
+    <w:p>
+      <w:pPr><w:pStyle w:val="EndnoteText"/></w:pPr>
+      <w:r><w:rPr><w:rStyle w:val="EndnoteReference"/></w:rPr><w:endnoteRef/></w:r>
+      <w:r><w:t xml:space="preserve"> Weighed on the mason's own scale.</w:t></w:r>
+    </w:p>
+  </w:endnote>
+</w:endnotes>
