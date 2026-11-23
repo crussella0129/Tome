@@ -67,4 +67,11 @@
   equation that does not come back as a formula (`bf7ff46`;
   `sprint-tests/critique-round-3.md`). That check is more than T-082's
   locked clauses ask for; it holds clause 5 itself and adds no behaviour a
-  reader sees unless the clause would otherwise have been broken.
+  reader sees unless the clause would otherwise have been broken. A fourth
+  review passed the phase with caveats, and its answers changed the
+  converter once more (`0eb7dd4`; `sprint-tests/critique-round-4.md`): the
+  check also asks the layout engine about each equation's LaTeX as it is
+  written where it stands; a title names the mark for an equation the
+  check refused, where T-082's clause 7 gives the mark only when the
+  converter returns nothing; and a place-holder that stands twice in the
+  text is one equation, counted once.

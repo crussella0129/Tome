@@ -6,7 +6,7 @@
 - **Work evidence:** [Sprint 25 build plan](../sprints/s25/sprint-plans/build-plan.md) (T-077 to T-084)
 - **Completion evidence:** none
 - **Code evidence:** none
-- **Test evidence:** none
+- **Test evidence:** [Sprint 25 test report](../sprints/s25/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent
@@ -223,8 +223,12 @@ code. Tome today shows `$x^2$` as the characters typed.
   formula holding its own LaTeX, or whose place in the converted text is
   not found again, or whose LaTeX as it must be written where it stands
   cannot be laid out (plain words that hold a bar, in a table cell), is
-  written as the mark and counted as left out. A title names the mark when
-  its chapter shows the mark. No
+  written as the mark and counted as left out. A title names the mark for
+  an equation that check refused.
+- A Word equation is set apart when it is a paragraph of its own. One that
+  shares its paragraph with a note reference, a line break or a picture is
+  written within the line, and so looks smaller than in Word; nothing of
+  it is lost (T-085). No
   equation is left as text between dollar signs that nothing reports, and
   no internal place-holder is shown.
 - In a table, a `|` inside a formula ends the cell, as it does for any
