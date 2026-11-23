@@ -415,24 +415,24 @@ describe('formulas in Markdown: line ends as Windows writes them, and code above
 
   // T-077 clauses 5, 9 — a `$$` named in inline code is not an unclosed formula.
   it('test_dollars_code_above_fence: `$$` in inline code directly above a fence leaves the fence a fence', () => {
-    const tree = read(
-      lines(
-        'Write `$$` on its own line:',
-        '$$',
-        'a = b',
-        '$$',
-        '',
-        'After the formula.',
-        '',
-        '## Later heading',
-        '',
-        'Later text.',
-      ),
+    const source = lines(
+      'Write `$$` on its own line:',
+      '$$',
+      'a = b',
+      '$$',
+      '',
+      'After the formula.',
+      '',
+      '## Later heading',
+      '',
+      'Later text.',
     );
+    const tree = read(source);
     expect(kinds(tree)).toEqual(['paragraph', 'math', 'paragraph', 'heading', 'paragraph']);
     expect(formulas(tree)).toEqual(['apart:a = b']);
     expect(all(tree, 'inlineCode').map((node) => node.value)).toEqual(['$$']);
-    expect(all(tree, 'math').map((node) => fenceClosed(node, ''))).toBeDefined();
+    // The fence is one that was closed: nothing is marked as never closed.
+    expect(all(tree, 'math').map((node) => fenceClosed(node, source))).toEqual([true]);
 
     // Two code spans, and a longer run of backticks, are left out of the count too.
     const twice = read(lines('Use `$$` or ``a `$$` b`` here:', '$$', 'c = d', '$$', '', 'After.'));

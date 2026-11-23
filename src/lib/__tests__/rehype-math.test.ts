@@ -507,6 +507,13 @@ describe('laid out: what the first cases did not try', () => {
     expect(all(tree, 'code', 'tome-math-error').map(text)).toEqual(['$$$$']);
     expect(messages).toHaveLength(1);
     expect(warn).toHaveBeenCalledTimes(1);
+    // Within a line too: spaces between two pairs of dollar signs.
+    const inline = render('An $$ $$ here.');
+    expect(all(inline.tree, 'math')).toHaveLength(0);
+    expect(all(inline.tree, 'code', 'tome-math-error').map(text)).toEqual(['$ $']);
+    expect(inline.messages).toHaveLength(1);
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
     expect(readable('')).toBe(false);
     expect(readable('   ', true)).toBe(false);
     expect(formulaText('')).toBeNull();
