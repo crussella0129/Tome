@@ -43,6 +43,9 @@ jobs:
       - name: Search build gate
         run: node scripts/check-search.mjs
 
+      - name: Documents build gate
+        run: node scripts/check-documents.mjs
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}

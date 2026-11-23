@@ -173,6 +173,7 @@ describe('fixture commands — real CLI failure and preservation paths', { timeo
     'check-multibook.mjs',
     'check-search.mjs',
     'check-live-reload.mjs',
+    'check-documents.mjs',
   ])(
     'test_fixture_commands_refuse_dirty_content: %s exits before setup or cleanup',
     (script) => {
@@ -268,6 +269,52 @@ if (process.env.TOME_BOOKS) {
     expect(readFileSync(join(root, 'final-build-evidence.txt'), 'utf8')).toBe(
       'default build saw restored sample',
     );
+    expectSample();
+    expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
+  });
+
+  // INT-0029 (T-073): the documents gate builds on a temporary copy of its
+  // fixtures. A failed build must leave neither that folder nor changed content.
+  it('test_documents_gate_cleans_up_on_failure: a failed build restores the sample and removes its temporary folder', () => {
+    write(
+      root,
+      'package.json',
+      JSON.stringify({ scripts: { build: 'node build.mjs' } }),
+    );
+    write(
+      root,
+      'build.mjs',
+      `
+import { existsSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const papers = process.env.TOME_BOOK ?? '';
+writeFileSync('build-saw.json', JSON.stringify({
+  papers,
+  note: existsSync(join(papers, '1-first-note.md')),
+  word: existsSync(join(papers, '3-paper.docx')),
+  nested: existsSync(join(papers, 'letters', 'paper.docx')),
+}));
+writeFileSync(${JSON.stringify(samplePath)}, '# Failed build wrote content\\n');
+writeFileSync('${contentPath}/residue.txt', 'build residue');
+console.log('DOCUMENTS BUILD FAILURE');
+process.exit(29);
+`.trimStart(),
+    );
+
+    const result = run('check-documents.mjs');
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('DOCUMENTS BUILD FAILURE');
+    expect(result.stderr).toContain('check-documents: FAIL');
+    const saw = JSON.parse(readFileSync(join(root, 'build-saw.json'), 'utf8'));
+    // The build was given a temporary folder holding the notes and both papers…
+    expect(saw).toMatchObject({ note: true, word: true, nested: true });
+    expect(basename(saw.papers)).toBe('papers');
+    expect(basename(dirname(saw.papers))).toMatch(/^tome-docs-/);
+    expect(relative(tempParent, saw.papers).startsWith('..')).toBe(false);
+    // …which is gone, with the sample as it was.
+    expect(existsSync(dirname(saw.papers))).toBe(false);
     expectSample();
     expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
   });
