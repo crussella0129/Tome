@@ -7,6 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { syncPath } from './scripts/book-source.mjs';
 import { liveReloadNotice, resolveSource } from './scripts/document-source.mjs';
 import { prepareChapterParentAssets } from './scripts/parent-assets.mjs';
+import rehypeMath from './scripts/rehype-math.mjs';
 import remarkAlerts from './scripts/remark-alerts.mjs';
 import remarkMathDollars from './scripts/remark-math-dollars.mjs';
 
@@ -93,6 +94,9 @@ export default defineConfig({
     // GitHub-style admonitions (`> [!NOTE]` …) → titled sacred blocks; and
     // formulas, `$…$` and `$$…$$`, read by Tome's rule for dollar signs.
     remarkPlugins: [remarkAlerts, remarkMathDollars],
+    // Each formula is laid out here, as the browser's own mathematics, so a
+    // chapter's page holds the finished equation and no script.
+    rehypePlugins: [rehypeMath],
   },
   vite: {
     plugins: [tailwindcss()],

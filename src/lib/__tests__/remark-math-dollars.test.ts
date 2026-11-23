@@ -366,5 +366,6 @@ describe('formulas in the build', () => {
     const settings = JSON.parse(report.trim().split('\n').pop()!);
     expect(settings.highlight).toBe(false);
     expect(settings.remark).toEqual([remarkAlerts.name, remarkMathDollars.name]);
+    expect(settings.rehype).toEqual(['rehypeMath']);
   });
 });
