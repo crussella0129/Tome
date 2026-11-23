@@ -8,8 +8,12 @@ import { tmpdir } from 'node:os';
 import { join, relative, sep } from 'node:path';
 import JSZip from 'jszip';
 import { fromMarkdown } from 'mdast-util-from-markdown';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
 import { buildDocx, PAPER_PARTS } from '../../../fixtures/word/build-docx.mjs';
 import { convertDocx, MARKS } from '../../../scripts/docx-to-markdown.mjs';
+import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
 
 // INT-0029 AC3–AC6, AC8 — a Word document becomes Markdown that keeps its meaning.
 
@@ -143,22 +147,6 @@ describe('docx-to-markdown.mjs — the sample paper', () => {
       'https://example.com/source',
       'mailto:scribe@example.com',
     ]);
-  });
-
-  it('test_docx_marks_are_literal: a mark is text and can never form a link', () => {
-    const md = paper.markdown;
-    // The fixture sets "(see the table)" directly after an equation.
-    expect(reads(md)).toContain(`Density is ${MARKS.equation}(see the table) for every tablet.`);
-    const linkish = nodesOfType(md, ['link', 'linkReference', 'definition', 'imageReference']);
-    for (const node of linkish) expect(JSON.stringify(node)).not.toContain('not shown');
-  });
-
-  it('test_docx_equations_marked: one mark per equation, the words around it kept', () => {
-    const text = reads(paper.markdown);
-    expect(count(text, MARKS.equation)).toBe(2);
-    expect(text).toContain('Density is ');
-    expect(text).toContain('(see the table) for every tablet.');
-    expect(paper.leftOut).toContainEqual({ kind: 'equation', count: 2 });
   });
 
   it('test_docx_images: the picture is returned and referenced under the media path', () => {
@@ -471,7 +459,7 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
     expect(bookmarked).toBe(true);
     expect(quiet.markdown).toContain('Spaced style text');
     expect(quiet.markdown).toMatch(/^\| First\s+\| nine stone\s+\|$/m);
-    expect(quiet.leftOut).toEqual([{ kind: 'equation', count: 2 }]);
+    expect(quiet.leftOut).toEqual([]);
 
     // A picture the document links to and does not hold: named, with no mark,
     // since the reader does not say where it stood (INT-0029's consequences).
@@ -703,8 +691,8 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
       'https://example.com/source',
       'mailto:scribe@example.com',
     ]);
-    // …and nothing is reported beyond the paper's two equations.
-    expect(out.leftOut).toEqual([{ kind: 'equation', count: 2 }]);
+    // …and nothing is reported: the paper's two equations are carried over.
+    expect(out.leftOut).toEqual([]);
   });
 });
 
@@ -732,5 +720,264 @@ describe('docx-to-markdown.mjs — the source is only read (INT-0029 AC6)', () =
     expect(sha(good)).toBe(before.good);
     expect(sha(bad)).toBe(before.bad);
     expect(readdirSync(tmp).sort()).toEqual(before.listing);
+  });
+});
+
+// --- Equations carried over as LaTeX (INT-0030, T-082) -------------------------
+
+const R = String.raw;
+const eq = (inner: string) => `<m:oMath>${inner}</m:oMath>`;
+const mr = (text: string) => `<m:r><m:t>${text}</m:t></m:r>`;
+const FIRST_EQUATION =
+  '<m:oMath><m:f><m:num><m:r><m:t>m</m:t></m:r></m:num><m:den><m:r><m:t>V</m:t></m:r></m:den></m:f></m:oMath>';
+const AFTER_FIRST = '<w:r><w:t xml:space="preserve">(see the table) for every tablet.</w:t></w:r>';
+const ROOT_TWO = eq(
+  `<m:rad><m:radPr><m:degHide m:val="1"/></m:radPr><m:deg/><m:e>${mr('2')}</m:e></m:rad>`,
+);
+const MATRIX_EQUATION = eq(
+  `<m:d><m:dPr><m:begChr m:val="("/><m:endChr m:val=")"/></m:dPr><m:e><m:m>` +
+    `<m:mr><m:e>${mr('a')}</m:e><m:e>${mr('b')}</m:e></m:mr>` +
+    `<m:mr><m:e>${mr('c')}</m:e><m:e>${mr('d')}</m:e></m:mr></m:m></m:e></m:d>`,
+);
+const UNKNOWN_EQUATION = eq(`<m:mystery>${mr('a')}</m:mystery>`);
+const asPara = (equation: string) => `<w:p><m:oMathPara>${equation}</m:oMathPara></w:p>`;
+
+/** The paper with its first equation exchanged for another. */
+const withFirst = (equation: string, after = AFTER_FIRST) =>
+  variant((text) => {
+    expect(text).toContain(FIRST_EQUATION);
+    expect(text).toContain(AFTER_FIRST);
+    return text.replace(FIRST_EQUATION, equation).replace(AFTER_FIRST, after);
+  });
+
+interface Formula {
+  type: string;
+  value: string;
+}
+/** A document as Tome's own reader reads it (remark-math-dollars.mjs). */
+function readBack(markdown: string) {
+  const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMathDollars);
+  return processor.runSync(processor.parse(markdown), { value: markdown }) as unknown as MdNode;
+}
+function formulasIn(node: MdNode): Formula[] {
+  const found: Formula[] = [];
+  const walk = (each: MdNode): void => {
+    if (each.type === 'inlineMath' || each.type === 'math') {
+      found.push({ type: each.type, value: each.value ?? '' });
+    }
+    for (const child of each.children ?? []) walk(child);
+  };
+  walk(node);
+  return found;
+}
+function nodesIn(node: MdNode, type: string): MdNode[] {
+  const found: MdNode[] = [];
+  const walk = (each: MdNode): void => {
+    if (each.type === type) found.push(each);
+    for (const child of each.children ?? []) walk(child);
+  };
+  walk(node);
+  return found;
+}
+
+describe('docx-to-markdown.mjs — equations carried over', () => {
+  const convert = async (bytes: Buffer, fallbackTitle = 'notes') =>
+    convertDocx(bytes, { name: 'paper.docx', fallbackTitle });
+
+  // T-082 clause 4
+  it('test_docx_equations_carried: an equation is LaTeX between dollar signs where it stood', async () => {
+    const out = await convert(await buildDocx());
+    expect(out.markdown).toContain(R`Density is $\frac{m}{V}$(see the table) for every tablet.`);
+    // The one that is a paragraph of its own: one line, two dollar signs.
+    expect(out.markdown).toMatch(/(^|\n)\$\$E=mc\^\{2\}\$\$(\n|$)/);
+    // No backslash of the LaTeX was doubled or dropped by the Markdown writer.
+    expect(count(out.markdown, '\\frac')).toBe(1);
+    expect(out.markdown).not.toContain('\\\\frac');
+    expect(out.markdown).not.toContain(MARKS.equation);
+    expect(out.markdown).not.toMatch(/tomeEquation\d+carried/);
+    expect(out.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
+  });
+
+  // T-082 clause 5
+  it('test_docx_equations_read_back: Tome’s own reader reads back exactly the LaTeX written', async () => {
+    const plain = formulasIn(readBack((await convert(await buildDocx())).markdown));
+    expect(plain).toEqual([
+      { type: 'inlineMath', value: R`\frac{m}{V}` },
+      { type: 'math', value: 'E=mc^{2}' },
+    ]);
+
+    const cases: [string, string, string, string][] = [
+      // label, the equation, the text after it, the LaTeX expected back
+      ['directly before a digit', FIRST_EQUATION, '<w:r><w:t>2 parts.</w:t></w:r>', R`\frac{m}{V}`],
+      ['holding a dollar sign', eq(mr('a$b')), AFTER_FIRST, R`a\$b`],
+      ['ending in a dollar sign', eq(mr('cost=5$')), AFTER_FIRST, R`cost=5\$`],
+      ['holding a backtick', eq(mr('a`b')), AFTER_FIRST, 'a`b'],
+      ['holding ://', eq(mr('a://b')), AFTER_FIRST, 'a://b'],
+      [
+        'holding ](',
+        eq(
+          `<m:d><m:dPr><m:begChr m:val="["/><m:endChr m:val="]"/></m:dPr><m:e>${mr('a')}</m:e></m:d>${mr('(x)')}`,
+        ),
+        AFTER_FIRST,
+        R`\left[ a \right](x)`,
+      ],
+    ];
+    for (const [label, equation, after, expected] of cases) {
+      const out = await convert(await withFirst(equation, after));
+      const paragraph = nodesIn(readBack(out.markdown), 'paragraph').find((node) =>
+        JSON.stringify(node).includes('Density is'),
+      );
+      expect(paragraph, label).toBeDefined();
+      expect(formulasIn(paragraph!), label).toEqual([{ type: 'inlineMath', value: expected }]);
+      expect(
+        out.leftOut.filter((entry) => entry.kind === 'equation'),
+        label,
+      ).toEqual([]);
+    }
+  });
+
+  // T-082 clauses 4, 5
+  it('test_docx_equation_in_containers: in a cell, a heading, a list item, a quotation and a note', async () => {
+    // A table cell: a `|` in the equation must not end the cell.
+    const inCell = await convert(
+      await variant((text) =>
+        text.replace(
+          '<w:tc><w:p><w:r><w:t>nine stone</w:t></w:r></w:p></w:tc>',
+          `<w:tc><w:p><w:r><w:t xml:space="preserve">nine </w:t></w:r>${eq(mr('a|b'))}</w:p></w:tc>`,
+        ),
+      ),
+    );
+    const before = readBack((await convert(await buildDocx())).markdown);
+    const table = readBack(inCell.markdown);
+    expect(nodesIn(table, 'tableCell')).toHaveLength(nodesIn(before, 'tableCell').length);
+    const cell = nodesIn(table, 'tableCell').find((node) => formulasIn(node).length > 0);
+    expect(formulasIn(cell!)).toEqual([{ type: 'inlineMath', value: R`a\vert b` }]);
+
+    // A heading: within its line.
+    const inHeading = await convert(
+      await variant((text) =>
+        text.replace(
+          '<w:r><w:t>The Measure</w:t></w:r>',
+          `<w:r><w:t xml:space="preserve">The Measure of </w:t></w:r>${ROOT_TWO}`,
+        ),
+      ),
+    );
+    expect(inHeading.markdown).toContain(R`## The Measure of $\sqrt{2}$`);
+    const heading = nodesIn(readBack(inHeading.markdown), 'heading').find((node) =>
+      JSON.stringify(node).includes('The Measure'),
+    );
+    expect(formulasIn(heading!)).toEqual([{ type: 'inlineMath', value: R`\sqrt{2}` }]);
+
+    // A list item, a quotation and a footnote, each holding an equation that
+    // is a paragraph of its own: set apart inside its container.
+    const listItem =
+      '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>';
+    const contained = await convert(
+      await buildDocx(PAPER_PARTS, {
+        replace: {
+          'word/document.xml': (text: string) =>
+            text
+              .replace(
+                `${listItem}<w:r><w:t>a mallet</w:t></w:r></w:p>`,
+                `${listItem}<w:r><w:t>a mallet</w:t></w:r></w:p>${listItem}<m:oMathPara>${ROOT_TWO}</m:oMathPara></w:p>`,
+              )
+              .replace(
+                '<w:sectPr/>',
+                `<w:p><w:pPr><w:pStyle w:val="Quote"/></w:pPr><w:r><w:t>A quoted line.</w:t></w:r></w:p>` +
+                  `<w:p><w:pPr><w:pStyle w:val="Quote"/></w:pPr><m:oMathPara>${MATRIX_EQUATION}</m:oMathPara></w:p><w:sectPr/>`,
+              ),
+          'word/styles.xml': (text: string) =>
+            text.replace(
+              '</w:styles>',
+              '<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/></w:style></w:styles>',
+            ),
+          'word/footnotes.xml': (text: string) =>
+            text.replace(
+              '</w:p>\n  </w:footnote>\n</w:footnotes>',
+              `</w:p>${asPara(eq(mr('x=y')))}\n  </w:footnote>\n</w:footnotes>`,
+            ),
+        },
+      }),
+    );
+    const tree = readBack(contained.markdown);
+    const apartIn = (type: string) =>
+      nodesIn(tree, type).flatMap((node) =>
+        formulasIn(node).filter((formula) => formula.type === 'math'),
+      );
+    expect(apartIn('listItem')).toEqual([{ type: 'math', value: R`\sqrt{2}` }]);
+    expect(apartIn('blockquote')).toEqual([
+      { type: 'math', value: R`\begin{pmatrix} a & b \\ c & d \end{pmatrix}` },
+    ]);
+    expect(apartIn('footnoteDefinition')).toEqual([{ type: 'math', value: 'x=y' }]);
+    expect(contained.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
+  });
+
+  // T-082 clause 6
+  it('test_docx_dollar_in_text: a dollar sign the document’s own text holds stays a dollar sign', async () => {
+    const out = await convert(
+      await variant((text) =>
+        text.replace(
+          '<w:r><w:t xml:space="preserve">Density is </w:t></w:r>',
+          '<w:r><w:t xml:space="preserve">It costs $a and $b; density is </w:t></w:r>',
+        ),
+      ),
+    );
+    expect(out.markdown).toContain(R`It costs \$a and \$b; density is $\frac{m}{V}$`);
+    const paragraph = nodesIn(readBack(out.markdown), 'paragraph').find((node) =>
+      JSON.stringify(node).includes('It costs'),
+    );
+    expect(formulasIn(paragraph!)).toEqual([{ type: 'inlineMath', value: R`\frac{m}{V}` }]);
+    expect(reads(out.markdown)).toContain('It costs $a and $b; density is ');
+  });
+
+  // T-082 clause 7
+  it('test_docx_title_with_equation: a title shows an equation on one line, never the place-holder', async () => {
+    const titled = (equation: string) =>
+      variant((text) =>
+        text.replace(
+          '<w:r><w:t>On the Weight of Obsidian</w:t></w:r></w:p>',
+          `<w:r><w:t xml:space="preserve">On the Weight of </w:t></w:r>${equation}</w:p>`,
+        ),
+      );
+
+    const root = await convert(await titled(ROOT_TWO));
+    expect(root.title).toBe('On the Weight of √2');
+    expect(root.markdown).toContain(R`# On the Weight of $\sqrt{2}$`);
+
+    const matrix = await convert(await titled(MATRIX_EQUATION));
+    expect(matrix.title).toBe(R`On the Weight of $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$`);
+
+    const unknown = await convert(await titled(UNKNOWN_EQUATION));
+    expect(unknown.title).toBe(`On the Weight of ${MARKS.equation}`);
+
+    for (const out of [root, matrix, unknown]) expect(out.title).not.toMatch(/tomeEquation/);
+  });
+
+  // T-082 clause 8
+  it('test_docx_equations_marked: one the converter does not know keeps the mark and is counted', async () => {
+    const out = await convert(await withFirst(UNKNOWN_EQUATION));
+    const text = reads(out.markdown);
+    expect(count(text, MARKS.equation)).toBe(1);
+    expect(text).toContain(`Density is ${MARKS.equation}(see the table) for every tablet.`);
+    // The other equation is still carried over.
+    expect(out.markdown).toMatch(/(^|\n)\$\$E=mc\^\{2\}\$\$(\n|$)/);
+    expect(out.leftOut).toContainEqual({ kind: 'equation', count: 1 });
+
+    // With every equation carried over, none is listed.
+    const whole = await convert(await buildDocx());
+    expect(whole.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
+  });
+
+  // T-082 clause 8 (INT-0029: a mark can never form a link)
+  it('test_docx_marks_are_literal: a mark is text and can never form a link', async () => {
+    // "(see the table)" stands directly after the equation: a mark there must
+    // not become the text of a link to "see the table".
+    const md = (await convert(await withFirst(UNKNOWN_EQUATION))).markdown;
+    expect(reads(md)).toContain(`Density is ${MARKS.equation}(see the table) for every tablet.`);
+    const linkish = nodesOfType(md, ['link', 'linkReference', 'definition', 'imageReference']);
+    for (const node of linkish) expect(JSON.stringify(node)).not.toContain('not shown');
+    expect(nodesOfType(md, ['text']).some((node) => node.value?.includes(MARKS.equation))).toBe(
+      true,
+    );
   });
 });

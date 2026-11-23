@@ -3,9 +3,11 @@
 // mammoth reads the document into HTML; rehype-remark turns that into Markdown.
 // On the way this module holds the rules the two do not: one top heading per
 // chapter, real footnotes, a table header, superscript and subscript kept, no
-// link that is not a web or mail address, and a mark wherever something that
-// carries meaning cannot be carried over (an equation, a chart, an image of a
-// kind a browser does not show). It only reads: the caller writes the files.
+// link that is not a web or mail address, an equation carried over as LaTeX
+// notation (INT-0030), and a mark wherever something that carries meaning
+// cannot be carried over (an equation the converter does not know, a chart, an
+// image of a kind a browser does not show). It only reads: the caller writes
+// the files.
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import JSZip from 'jszip';
@@ -16,6 +18,8 @@ import rehypeRemark from 'rehype-remark';
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import { SKIP, visit } from 'unist-util-visit';
+import { ommlToLatex } from './omml-to-latex.mjs';
+import { readable, titleText } from './rehype-math.mjs';
 
 /** What a chapter reads where something could not be carried over. */
 export const MARKS = Object.freeze({
@@ -43,25 +47,43 @@ const NOTE_ID = /^(foot|end)note-(\d+)$/;
 const run = (text) => `<w:r><w:t xml:space="preserve">${text}</w:t></w:r>`;
 
 /**
- * Replace what the Word reader would drop without a trace by a mark it will
- * carry: equations (Office Math), and drawings that are charts or diagrams.
+ * What stands for a carried-over equation between the document's XML and the
+ * finished Markdown: letters and digits only, so the Word reader and the
+ * Markdown writer both carry it untouched.
+ */
+const EQUATION_TOKEN = /tomeEquation(\d+)carried/g;
+const equationToken = (index) => `tomeEquation${index}carried`;
+
+/**
+ * Replace what the Word reader would drop without a trace by something it will
+ * carry: an equation (Office Math) by a token that stands for its LaTeX, or by
+ * a mark when the converter does not know it; a drawing that is a chart or a
+ * diagram by a mark.
  * @param {JSZip} zip the opened document, changed in memory only
+ * @returns {Promise<{ equations: number, figures: number, carried: { latex: string, display: boolean, cell: boolean }[] }>}
+ *   `equations` counts those left out; `carried` holds the LaTeX of the rest,
+ *   by the number in each token.
  */
 async function markUnreadable(zip) {
   let equations = 0;
   let figures = 0;
+  const carried = [];
+  const equation = (xml) => {
+    // Laid out once here: LaTeX the layout engine refuses is never written.
+    const latex = ommlToLatex(xml, { readable });
+    if (latex === null) {
+      equations += 1;
+      return run(MARKS.equation);
+    }
+    carried.push({ latex, display: false, cell: false });
+    return run(equationToken(carried.length - 1));
+  };
   for (const name of Object.keys(zip.files)) {
     if (!TEXT_PARTS.test(name)) continue;
     const xml = await zip.file(name).async('string');
     const marked = xml
-      .replace(/<m:oMathPara\b[^>]*>[\s\S]*?<\/m:oMathPara>/g, () => {
-        equations += 1;
-        return run(MARKS.equation);
-      })
-      .replace(/<m:oMath\b[^>]*>[\s\S]*?<\/m:oMath>/g, () => {
-        equations += 1;
-        return run(MARKS.equation);
-      })
+      .replace(/<m:oMathPara\b[^>]*>[\s\S]*?<\/m:oMathPara>/g, equation)
+      .replace(/<m:oMath\b[^>]*>[\s\S]*?<\/m:oMath>/g, equation)
       // A drawing sits inside a run, so only its text takes its place.
       .replace(/<w:drawing\b[^>]*>[\s\S]*?<\/w:drawing>/g, (drawing) => {
         if (!FIGURE_GRAPHIC.test(drawing)) return drawing;
@@ -70,7 +92,80 @@ async function markUnreadable(zip) {
       });
     if (marked !== xml) zip.file(name, marked);
   }
-  return { equations, figures };
+  return { equations, figures, carried };
+}
+
+/**
+ * Where each carried-over equation stands, which decides how it is written: one
+ * that is a paragraph of its own is set apart; one in a table cell must not
+ * hold a `|`, which would end the cell.
+ * @param {any} tree the document as HTML
+ * @param {{ latex: string, display: boolean, cell: boolean }[]} carried
+ */
+function placeEquations(tree, carried) {
+  if (carried.length === 0) return;
+  const tokens = (text) => [...text.matchAll(EQUATION_TOKEN)].map((match) => Number(match[1]));
+  const walk = (node, inCell, inHeading) => {
+    if (node.type === 'text') {
+      for (const index of tokens(node.value)) if (inCell) carried[index].cell = true;
+      return;
+    }
+    if (node.type !== 'element' && node.type !== 'root') return;
+    const cell = inCell || node.tagName === 'td' || node.tagName === 'th';
+    const heading = inHeading || /^h[1-6]$/.test(node.tagName ?? '');
+    // A paragraph that is one equation and nothing else; a list item's one
+    // paragraph is written as the item itself.
+    if ((node.tagName === 'p' || node.tagName === 'li') && !cell && !heading) {
+      const text = textOf(node).trim();
+      const only = tokens(text);
+      if (only.length === 1 && text === equationToken(only[0])) carried[only[0]].display = true;
+    }
+    for (const child of node.children ?? []) walk(child, cell, heading);
+  };
+  walk(tree, false, false);
+}
+
+/**
+ * A carried-over equation as the Markdown holds it, written so that Tome's own
+ * reader (remark-math-dollars.mjs) reads exactly this LaTeX back.
+ * @param {{ latex: string, display: boolean, cell: boolean }} equation
+ * @param {string | undefined} next the character that follows it in the Markdown
+ */
+function dollarForm(equation, next) {
+  // In a table cell a `|` ends the cell, whatever stands round it.
+  const latex = equation.cell ? equation.latex.replaceAll('|', '\\vert ') : equation.latex;
+  // Single dollar signs refuse a formula that holds a dollar sign, a backtick,
+  // `](` or `://`, and one followed by a digit; two dollar signs take all of
+  // those. A formula that ends in a dollar sign is kept clear of the two that
+  // close it by a space.
+  const single =
+    !equation.display &&
+    !/[$`]/.test(latex) &&
+    !latex.includes('](') &&
+    !latex.includes('://') &&
+    !/\d/.test(next ?? '');
+  if (single) return `$${latex}$`;
+  // A space each side is dropped again by the reader, as for inline code.
+  return latex.endsWith('$') ? `$$ ${latex} $$` : `$$${latex}$$`;
+}
+
+/** Exchange each token in a finished Markdown document for its equation. */
+function writeEquations(markdown, carried) {
+  return markdown.replace(EQUATION_TOKEN, (token, index, offset) =>
+    dollarForm(carried[Number(index)], markdown[offset + token.length]),
+  );
+}
+
+/**
+ * A title is plain text: a sidebar and a tab cannot show a formula. An equation
+ * in it is written on one line that keeps what it says (`√2`), or, where it has
+ * no such form, between dollar signs as the chapter has it.
+ */
+function titleWithEquations(title, carried) {
+  return title.replace(EQUATION_TOKEN, (token, index) => {
+    const { latex } = carried[Number(index)];
+    return titleText(latex) ?? `$${latex}$`;
+  });
 }
 
 /**
@@ -416,7 +511,7 @@ export async function convertDocx(input, options = {}) {
     );
   }
 
-  const { equations, figures } = await markUnreadable(zip);
+  const { equations, figures, carried } = await markUnreadable(zip);
   const images = [];
   const unsupported = new Map();
   let result;
@@ -454,10 +549,19 @@ export async function convertDocx(input, options = {}) {
       flattenCells(tree);
       plainUnsafeLinks(tree);
       markUnsupportedImages(tree);
+      placeEquations(tree, carried);
     })
     .use(rehypeRemark, { handlers })
     .use(remarkGfm)
-    .use(remarkStringify, { bullet: '-', emphasis: '_', rule: '-' })
+    .use(remarkStringify, {
+      bullet: '-',
+      emphasis: '_',
+      rule: '-',
+      // Tome reads `$…$` as a formula (INT-0030). A dollar sign the document's
+      // own text holds is written `\$`, so the only bare ones in the result
+      // are those round an equation.
+      unsafe: [{ character: '$', inConstruct: 'phrasing' }],
+    })
     .process(result.value);
 
   const leftOut = [];
@@ -470,5 +574,10 @@ export async function convertDocx(input, options = {}) {
   }
   for (const [detail, count] of others) leftOut.push({ kind: 'other', count, detail });
 
-  return { markdown: String(file), title, images, leftOut };
+  return {
+    markdown: writeEquations(String(file), carried),
+    title: titleWithEquations(title, carried),
+    images,
+    leftOut,
+  };
 }

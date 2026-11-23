@@ -330,8 +330,10 @@ describe('document-stage.mjs — a Word document', () => {
     expect(top.markdown).toContain(
       '![A plate of the first tablet](./__tome_media__/README/image-1.png)',
     );
-    expect(top.leftOut).toEqual([{ kind: 'equation', count: 2 }]);
-    expect(describeLeftOut(top.leftOut)).toBe('2 equations');
+    // The paper's two equations are carried over as LaTeX (INT-0030).
+    expect(top.leftOut).toEqual([]);
+    expect(describeLeftOut(top.leftOut)).toBe('');
+    expect(top.markdown).toContain('$$E=mc^{2}$$');
 
     const nested = await prepareDocument(
       wordDoc(root, 'letters/Paper Two.docx', 'letters/paper-two.md'),
