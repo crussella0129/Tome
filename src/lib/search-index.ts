@@ -32,10 +32,9 @@ interface MdNode {
 }
 
 /**
- * Tags that sit inside a word or a phrase without parting it: the text on
- * either side of one is one run (`H<sub>2</sub>O` is `H2O`). Every other tag
- * parts what it stands between: `<br>`, `<hr>`, `<img>`, and anything that
- * makes a block (`alpha<br>beta` is two words).
+ * Tags that sit inside a word or a phrase without parting it (`H<sub>2</sub>O`
+ * is the word `H2O`). Every other tag parts what it stands between: `<br>`,
+ * `<hr>`, `<img>`, a comment, and anything that makes a block.
  */
 const JOINING_TAGS = new Set([
   'a',
@@ -71,33 +70,26 @@ const JOINING_TAGS = new Set([
 /** Block containers: HTML directly inside one is a block, not part of a line. */
 const BLOCK_PARENTS = new Set(['root', 'listItem', 'blockquote', 'footnoteDefinition']);
 
-const TAG = /<[^>]*>/g;
-function joins(tag: string): boolean {
-  return JOINING_TAGS.has((tag.match(/^<\/?\s*([A-Za-z][\w-]*)/)?.[1] ?? '').toLowerCase());
+/**
+ * One HTML tag or comment, whole: a `>` inside a quoted attribute or inside a
+ * comment does not end it.
+ */
+const TAG_SOURCE = `<!--[\\s\\S]*?-->|</?[A-Za-z][^\\s>/]*(?:"[^"]*"|'[^']*'|[^'">])*>`;
+const TAG = new RegExp(TAG_SOURCE, 'g');
+const SINGLE_TAG = new RegExp(`^(?:${TAG_SOURCE})$`);
+
+function tagName(tag: string): string {
+  return (tag.match(/^<\/?([A-Za-z][^\s>/]*)/)?.[1] ?? '').toLowerCase();
 }
+const joins = (tag: string): boolean => JOINING_TAGS.has(tagName(tag));
 
 /**
- * The words of raw HTML, its tags left out. A joining tag leaves nothing in
- * its place; any other tag leaves a space, so `<td>a</td><td>b</td>` is two
- * words and `<div>block words</div>` is `block words`.
+ * The words of a block of raw HTML, its tags left out. A joining tag leaves
+ * nothing in its place; any other tag leaves a space, so `<td>a</td><td>b</td>`
+ * is two words and `<div>H<sub>2</sub>O</div>` is `H2O`.
  */
 function htmlWords(value: string): string {
   return value.replace(TAG, (tag) => (joins(tag) ? '' : ' '));
-}
-
-/** Stands where a joining tag was within a line, so its neighbours meet. */
-const GLUE = String.fromCharCode(0);
-const GLUE_WITH_SPACES = new RegExp(` ?${GLUE} ?`, 'g');
-
-/**
- * Concatenate the raw text of an inline subtree (for a heading's own text).
- * Every HTML tag is skipped outright, as Astro skips them when it gives the
- * heading its id, so the slug made here is that id.
- */
-function inlineText(node: MdNode): string {
-  if (node.type === 'html') return (node.value ?? '').replace(TAG, '');
-  if (typeof node.value === 'string') return node.value;
-  return (node.children ?? []).map(inlineText).join('');
 }
 
 function collapseWhitespace(text: string): string {
@@ -105,56 +97,128 @@ function collapseWhitespace(text: string): string {
 }
 
 /**
+ * The text Astro slugs for a heading's `id`: every text and inline-code value,
+ * joined as they stand, with a raw HTML node skipped whole when it is one tag
+ * (the rule in Astro's own heading collector). A line break adds nothing. The
+ * slug made from this is the `id` on the built page.
+ */
+function slugText(node: MdNode): string {
+  if (node.type === 'html') return /^\n?<.*>\n?$/.test(node.value ?? '') ? '' : (node.value ?? '');
+  if (typeof node.value === 'string') return node.value;
+  return (node.children ?? []).map(slugText).join('');
+}
+
+/**
+ * A heading's words, for reading and for search. As `slugText`, but a line
+ * break and any tag that is not a joining tag keep the words either side
+ * apart, so both halves of `Alpha<br>Beta` can be found.
+ */
+function headingWords(node: MdNode): string {
+  if (node.type === 'break') return ' ';
+  if (node.type === 'html') return htmlWords(node.value ?? '');
+  if (typeof node.value === 'string') return node.value;
+  return (node.children ?? []).map(headingWords).join('');
+}
+
+// What a line of a chapter is gathered into before it is joined: runs of text,
+// the opening and closing of a joining tag, and separators.
+const OPEN = Symbol('a joining tag opens');
+const CLOSE = Symbol('a joining tag closes');
+const SEPARATOR = Symbol('the words either side are apart');
+type Part = string | symbol;
+
+/**
+ * Join the gathered parts into text. Runs of text are set apart by a space, as
+ * they always were. The one exception: text hard against a joining tag joins
+ * what the tag holds (`x<sup>2</sup>` is `x2`), and what follows the tag joins
+ * on in turn only if that first join happened (`H<sub>2</sub>O` is `H2O`, but
+ * `<sup>a</sup>Corresponding` is `a Corresponding`: nothing stood before the
+ * tag, so the word after it is left whole to be found). A separator ends every
+ * join.
+ */
+function joinParts(parts: Part[]): string {
+  const out: string[] = [];
+  const open: boolean[] = [];
+  let attach = false; // the next run continues the last with no space between
+  let inLine = false; // a run has been seen since the last separator
+  for (const part of parts) {
+    if (part === SEPARATOR) {
+      attach = false;
+      inLine = false;
+      open.length = 0;
+    } else if (part === OPEN) {
+      const joined = inLine && /\S$/.test(out[out.length - 1] ?? '');
+      open.push(joined);
+      attach = joined;
+    } else if (part === CLOSE) {
+      attach = open.pop() ?? false;
+    } else if (typeof part === 'string') {
+      if (attach && out.length > 0 && /^\S/.test(part)) out[out.length - 1] += part;
+      else out.push(part);
+      attach = false;
+      inLine = true;
+    }
+  }
+  return collapseWhitespace(out.join(' '));
+}
+
+/**
  * Parse a chapter's Markdown into `{ text, headings }`. Headings are slugged in
  * document order (including the H1) by one github-slugger, so dedupe suffixes
  * (`-1`, `-2`) match Astro's per-page `id`s. Fenced code blocks are excluded from
- * the searchable text; inline code is kept. HTML tags are left out of both the
- * text and a heading's own text, so `H<sub>2</sub>O` is found as its words.
+ * the searchable text; inline code is kept. HTML tags are never text: a tag
+ * inside a word joins it (`H<sub>2</sub>O` is found as `H2O`), and any other
+ * tag, or a line break, keeps its neighbours apart.
  */
 export function parseChapter(raw: string): { text: string; headings: SearchHeading[] } {
   const tree = fromMarkdown(raw) as unknown as MdNode;
   const slugger = new GithubSlugger();
   const headings: SearchHeading[] = [];
-  const parts: string[] = [];
+  const parts: Part[] = [];
 
   const walk = (node: MdNode, parent?: MdNode): void => {
     if (node.type === 'code') return; // skip fenced code entirely
     if (node.type === 'heading') {
-      const text = inlineText(node);
-      headings.push({ text, slug: slugger.slug(text), depth: node.depth ?? 1 });
-      parts.push(text);
+      const forSlug = slugText(node);
+      const words = headingWords(node);
+      // A heading with no tag and no line break reads exactly as it is slugged.
+      const text = words === forSlug ? forSlug : collapseWhitespace(words);
+      headings.push({ text, slug: slugger.slug(forSlug), depth: node.depth ?? 1 });
+      parts.push(SEPARATOR, text, SEPARATOR);
       return; // heading text captured; don't descend again
     }
+    if (node.type === 'break') {
+      parts.push(SEPARATOR); // a line break parts the words either side of it
+      return;
+    }
     if (node.type === 'html') {
-      // The words, never the tags. Within a line, a joining tag alone
-      // (`H<sub>2</sub>O`) lets the text either side of it meet; any other tag
-      // (`alpha<br>beta`) keeps them apart. A block of HTML stands apart like
-      // any other block.
       const value = node.value ?? '';
       const withinLine = parent !== undefined && !BLOCK_PARENTS.has(parent.type);
-      const tags = value.match(TAG) ?? [];
-      const onlyJoiningTags =
-        tags.length > 0 && tags.every(joins) && !value.replace(TAG, '').trim();
-      parts.push(withinLine && onlyJoiningTags ? GLUE : htmlWords(value));
+      const tag = value.trim();
+      if (withinLine && SINGLE_TAG.test(tag) && joins(tag)) {
+        // `<sup>` opens, `</sup>` closes; `<wbr>` and `<x/>` do both at once.
+        const closes = tag.startsWith('</');
+        const alone = tag.endsWith('/>') || tagName(tag) === 'wbr';
+        if (!closes) parts.push(OPEN);
+        if (closes || alone) parts.push(CLOSE);
+      } else {
+        // Any other tag within a line, and every block of HTML, stands apart.
+        parts.push(SEPARATOR, htmlWords(value), SEPARATOR);
+      }
       return;
     }
     if (typeof node.value === 'string') {
       parts.push(node.value); // text, inlineCode
       return;
     }
-    const start = parts.length;
+    // A paragraph is a line of its own: nothing joins across its ends.
+    if (node.type === 'paragraph') parts.push(SEPARATOR);
     for (const child of node.children ?? []) walk(child, node);
-    if (node.type === 'paragraph') {
-      // A tag at either end of a paragraph has no neighbour in it to join, and
-      // must not join this paragraph to the block before or after.
-      while (parts.length > start && parts[parts.length - 1] === GLUE) parts.pop();
-      while (parts.length > start && parts[start] === GLUE) parts.splice(start, 1);
-    }
+    if (node.type === 'paragraph') parts.push(SEPARATOR);
   };
   walk(tree);
 
-  const joined = parts.join(' ').replace(GLUE_WITH_SPACES, '');
-  return { text: collapseWhitespace(joined), headings };
+  return { text: joinParts(parts), headings };
 }
 
 /**
@@ -171,9 +235,7 @@ export function buildSearchIndex(
   for (const book of library) {
     for (const route of book.chapters) {
       const href = route.chapter.href!;
-      const entry = Object.entries(rawByKey).find(([key]) =>
-        isContentKeyFor(key, book.slug, href),
-      );
+      const entry = Object.entries(rawByKey).find(([key]) => isContentKeyFor(key, book.slug, href));
       const { text, headings } = parseChapter(entry?.[1] ?? '');
       records.push({
         tomeSlug: book.slug,

@@ -73,11 +73,16 @@ async function markUnreadable(zip) {
   return { equations, figures };
 }
 
-/** The text of a hast node, tags left out. */
+/**
+ * The text of a hast node, tags left out. A line break counts as a space, so a
+ * title set over two lines ("On the Weight⏎of Obsidian") keeps its words apart.
+ */
 function textOf(node) {
   if (node.type === 'text') return node.value;
+  if (isElement(node, 'br')) return ' ';
   return (node.children ?? []).map(textOf).join('');
 }
+const oneLine = (text) => text.replace(/\s+/g, ' ').trim();
 
 const isElement = (node, tagName) => node?.type === 'element' && node.tagName === tagName;
 const element = (tagName, properties, children) => ({
@@ -148,26 +153,48 @@ function liftNotes(tree) {
  * @returns {string} the chapter's title
  */
 function settleHeadings(tree, fallbackTitle) {
+  // A heading inside a table is not a heading of the chapter: a table cell
+  // holds one line, so it becomes that cell's text (flattenCells). Only the
+  // headings outside tables are settled here.
   const headings = [];
-  visit(tree, 'element', (node) => {
-    if (/^h[1-6]$/.test(node.tagName)) headings.push(node);
-  });
+  const inTables = [];
+  const gather = (node, inTable) => {
+    for (const child of node.children ?? []) {
+      if (child.type !== 'element') continue;
+      if (/^h[1-6]$/.test(child.tagName)) (inTable ? inTables : headings).push(child);
+      gather(child, inTable || child.tagName === 'table');
+    }
+  };
+  gather(tree, false);
   const hasClass = (node) => [node.properties?.className ?? []].flat().includes(TITLE_CLASS);
-  const title = headings.find((node) => node.tagName === 'h1' && hasClass(node));
+  const isTitle = (node) => node.tagName === 'h1' && hasClass(node);
+  const title = headings.find(isTitle);
+  // A Title set inside a table (a cover laid out as one) still names the
+  // chapter: its words head the chapter, and stay in the table as they were.
+  const coverTitle = title ? undefined : inTables.find(isTitle);
   const shiftDown = (nodes) => {
     for (const node of nodes) node.tagName = `h${Math.min(Number(node.tagName[1]) + 1, 6)}`;
   };
-  for (const node of headings) if (node.properties) delete node.properties.className;
+  for (const node of [...headings, ...inTables]) {
+    if (node.properties) delete node.properties.className;
+  }
+  const head = (text) => {
+    tree.children.unshift(element('h1', {}, [{ type: 'text', value: text }]));
+    return text;
+  };
 
   if (title) {
     shiftDown(headings.filter((node) => node !== title));
-    return textOf(title).trim() || fallbackTitle;
+    return oneLine(textOf(title)) || fallbackTitle;
+  }
+  if (coverTitle && oneLine(textOf(coverTitle))) {
+    shiftDown(headings);
+    return head(oneLine(textOf(coverTitle)));
   }
   const tops = headings.filter((node) => node.tagName === 'h1');
-  if (tops.length === 1) return textOf(tops[0]).trim() || fallbackTitle;
+  if (tops.length === 1) return oneLine(textOf(tops[0])) || fallbackTitle;
   if (tops.length > 1) shiftDown(headings);
-  tree.children.unshift(element('h1', {}, [{ type: 'text', value: fallbackTitle }]));
-  return fallbackTitle;
+  return head(fallbackTitle);
 }
 
 /** The rows of a table, not those of a table nested in one of its cells. */
@@ -251,7 +278,7 @@ function flattenCells(tree) {
     if (node.tagName !== 'td' && node.tagName !== 'th') return;
     const blocks = lines(node.children, 0, []).filter((block) => block.length > 0);
     node.children = blocks.flatMap((block, i) =>
-      i === 0 ? block : [element('tome-br', {}, []), ...block],
+      i === 0 ? block : [element('br', {}, []), ...block],
     );
     return SKIP;
   });
@@ -288,7 +315,11 @@ const handlers = {
   sup: kept('sup'),
   sub: kept('sub'),
   // A line break inside a table cell (see flattenCells).
-  'tome-br': () => ({ type: 'html', value: '<br>' }),
+  // A line break is written `<br>`, in a paragraph, a heading or a table cell
+  // alike. Markdown's own break (a backslash before the line's end) cannot be
+  // written inside a table cell or a heading, and beside kept HTML it came out
+  // as a stray backslash with the break lost.
+  br: () => ({ type: 'html', value: '<br>' }),
   'tome-noteref': (_state, node) => ({
     type: 'footnoteReference',
     identifier: String(node.properties.label),
@@ -312,8 +343,10 @@ const handlers = {
  */
 const NOT_OMISSIONS = [
   /^Unrecognised (?:paragraph|run|table) style\b/i,
-  /\bstyle with ID \S+ was referenced but not defined\b/i,
+  /\bstyle with ID .+? was referenced but not defined\b/i,
   /unlikely to display in web browsers/i,
+  // A bookmark between two rows or cells: the table is converted whole.
+  /^unexpected non-(?:row|cell) element in table, cell merging may be incorrect$/i,
 ];
 
 /** A reader message that says something was left out. */

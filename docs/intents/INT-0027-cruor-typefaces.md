@@ -32,6 +32,22 @@ default themes are one of:
 The owner chooses between them by eye, from the two set side by side.
 Sanguine Atonement's pairing is not in question.
 
+Where the fonts come from was settled the same day. Asked where Cruor's web
+fonts should be kept for Tome to fetch when it builds, the owner answered
+with a larger thing: "How about the Cruor framework And it's everything you
+need to turn anything into sanguine atonement (which might be better called
+cruentous atonement perhaps) theme page (But like in the same way that
+sacred terminal is)."
+
+So Cruor's fonts reach Tome through a **Cruor framework**: a public kit, in
+a repository of its own, that holds the fonts and everything the atonement
+look is made of, so that any page can take it on, as Tome took its first
+look from the sacred-computer kit. Tome is the framework's first user and
+does not keep the font files in its own repository; it fetches them from
+the framework when it builds. The framework is its own project with its own
+record. "Cruentous Atonement" as the look's name is the owner's "perhaps",
+not yet a decision.
+
 The proportional families (Cruor Sans Regular, Cruor Lite Regular, Cruor
 Thornamental Regular) suit titles and body text; the Mono families stay for
 code.
@@ -46,9 +62,10 @@ To be settled when a sprint plans it. The owner's words set the outline:
 2. Sanguine Atonement sets titles in Cruor Thornamental and body text in
    Cruor Lite.
 3. Mekzantine is no longer what Tome sets its text in.
-4. The fonts come from the Cruor project's build; the accented letters,
-   Greek and mathematical symbols of Cruor's Sprint 5 show in Tome as soon
-   as that build is taken in.
+4. The fonts come from the Cruor project's build, by way of the Cruor
+   framework; the accented letters, Greek and mathematical symbols of
+   Cruor's Sprint 5 show in Tome as soon as that build is taken in. Tome's
+   repository holds no font file.
 
 ## Rationale
 
@@ -75,3 +92,7 @@ confirmed by eye.
 - 2026-11-23: revised in Sprint 24's Research, still `proposed`. Added the
   owner's second choice for the default themes (Cruor Sans throughout with
   bold titles).
+- 2026-11-23: revised during Sprint 24's Test phase, still `proposed`. The
+  owner named the Cruor framework as where the fonts and the atonement look
+  come from; criterion 4 now says so. This intent waits on that framework
+  holding the fonts.

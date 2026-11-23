@@ -443,6 +443,130 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
     expect(others[0]!.detail).toMatch(/Bookman Old Style/);
   });
 
+  it('test_docx_reader_messages: remarks that leave nothing out are passed over; a linked picture is listed', async () => {
+    const BETWEEN_ROWS = /<\/w:tr>\s*<w:tr>/;
+    let bookmarked = false;
+    const quiet = await convert(
+      await variant((text) => {
+        bookmarked = BETWEEN_ROWS.test(text);
+        return beforeEnd(
+          // An undefined style whose ID holds a space.
+          '<w:p><w:pPr><w:pStyle w:val="My Style"/></w:pPr><w:r><w:t>Spaced style text</w:t></w:r></w:p>',
+        )(
+          // A bookmark between two rows: the reader remarks on it, the table is whole.
+          text.replace(
+            BETWEEN_ROWS,
+            '</w:tr><w:bookmarkStart w:id="9" w:name="between"/><w:bookmarkEnd w:id="9"/><w:tr>',
+          ),
+        );
+      }),
+    );
+    expect(bookmarked).toBe(true);
+    expect(quiet.markdown).toContain('Spaced style text');
+    expect(quiet.markdown).toMatch(/^\| First\s+\| nine stone\s+\|$/m);
+    expect(quiet.leftOut).toEqual([{ kind: 'equation', count: 2 }]);
+
+    // A picture the document links to and does not hold: named, with no mark,
+    // since the reader does not say where it stood (INT-0029's consequences).
+    const linked = await convert(
+      await buildDocx(PAPER_PARTS, {
+        replace: {
+          'word/document.xml': (text) =>
+            text.replace('<a:blip r:embed="rId5"/>', '<a:blip r:link="rId41"/>'),
+          'word/_rels/document.xml.rels': (text) =>
+            text.replace(
+              '</Relationships>',
+              '<Relationship Id="rId41" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" ' +
+                'Target="file:///C:/Style%20Guide/plate.png" TargetMode="External"/></Relationships>',
+            ),
+        },
+      }),
+    );
+    expect(linked.images).toEqual([]);
+    expect(nodesOfType(linked.markdown, ['image'])).toEqual([]);
+    const others = linked.leftOut.filter((entry) => entry.kind === 'other');
+    expect(others).toHaveLength(1);
+    expect(others[0]!.detail).toMatch(/external image/);
+  });
+
+  it('test_docx_line_breaks: a line break keeps words apart and is written as a break', async () => {
+    const br = '<w:r><w:br/></w:r>';
+    const out = await convert(
+      await variant((text) =>
+        beforeEnd(
+          `<w:p><w:r><w:t>A line</w:t></w:r>${br}<w:r><w:t>broken.</w:t></w:r></w:p>` +
+            `<w:p><w:r><w:t>Guild of Masons</w:t></w:r>${br}` +
+            '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:t>a</w:t></w:r>' +
+            '<w:r><w:t>Corresponding author</w:t></w:r></w:p>',
+        )(
+          text
+            .replace(
+              '<w:r><w:t>On the Weight of Obsidian</w:t></w:r>',
+              `<w:r><w:t>On the Weight</w:t></w:r>${br}<w:r><w:t>of Obsidian</w:t></w:r>`,
+            )
+            .replace(
+              '<w:r><w:t>The Quarry</w:t></w:r>',
+              `<w:r><w:t>The Quarry</w:t></w:r>${br}<w:r><w:t>Northern Face</w:t></w:r>`,
+            ),
+        ),
+      ),
+    );
+    // The title keeps its words apart, though it was set over two lines.
+    expect(out.title).toBe('On the Weight of Obsidian');
+    expect(headings(out.markdown).slice(0, 2)).toEqual([
+      '# On the Weight<br>of Obsidian',
+      '## The Quarry<br>Northern Face',
+    ]);
+    expect(out.markdown).toContain('A line<br>broken.');
+    expect(out.markdown).toContain('Guild of Masons<br><sup>a</sup>Corresponding author');
+    // No stray backslash where a break met kept HTML.
+    expect(out.markdown).not.toMatch(/\\ ?</);
+  });
+
+  it('test_docx_heading_levels: a Title or heading inside a table still leaves the chapter one top heading', async () => {
+    const cover = (inner: string) => `<w:tbl><w:tr><w:tc>${inner}</w:tc></w:tr></w:tbl>`;
+    const TITLE_PARAGRAPH =
+      '<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>On the Weight of Obsidian</w:t></w:r></w:p>';
+    // A cover laid out as a table that holds the Title.
+    const covered = await convert(
+      await variant((text) => text.replace(TITLE_PARAGRAPH, cover(TITLE_PARAGRAPH))),
+    );
+    expect(covered.title).toBe('On the Weight of Obsidian');
+    expect(headings(covered.markdown)).toEqual([
+      '# On the Weight of Obsidian',
+      '## The Quarry',
+      '### Tools',
+      '### Washing in H<sub>2</sub>O',
+      '#### Links',
+      '## The Measure',
+    ]);
+    expect(covered.markdown.indexOf('# On the Weight of Obsidian')).toBe(0);
+    // The cover table is still there, holding the title's words as text.
+    expect(covered.markdown).toMatch(/^\| On the Weight of Obsidian \|$/m);
+
+    // No Title, and the only Heading 1 sits in a table: the file's name heads it.
+    const boxed = await convert(
+      await variant((text) =>
+        text
+          .replace(TITLE, '')
+          .replace(
+            '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>The Quarry</w:t></w:r></w:p>',
+            cover(
+              '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>The Quarry</w:t></w:r></w:p>',
+            ),
+          )
+          .replace(
+            '<w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>The Measure',
+            '<w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>The Measure',
+          ),
+      ),
+    );
+    expect(boxed.title).toBe('notes');
+    expect(headings(boxed.markdown)[0]).toBe('# notes');
+    expect(headings(boxed.markdown).filter((line) => line.startsWith('# '))).toHaveLength(1);
+    expect(boxed.markdown).toMatch(/^\| The Quarry \|$/m);
+  });
+
   it('test_docx_table_cells_stay_one_line: paragraphs and lists in a cell do not break the table', async () => {
     const item = (num: number, words: string) =>
       `<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/>` +
