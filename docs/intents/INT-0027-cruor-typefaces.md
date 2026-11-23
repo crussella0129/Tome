@@ -22,6 +22,16 @@ lite for the body text."
 | the default themes (Light and Dark) | Cruor Lite | Cruor Sans ("perhaps") |
 | Sanguine Atonement ([INT-0022](INT-0022-sanguine-atonement-theme.md)) | Cruor Thornamental | Cruor Lite |
 
+On 23 November 2026 the owner named a second choice for the default themes:
+"(or perhaps Curor Sans across the board with bolded titles)". So the
+default themes are one of:
+
+- titles in Cruor Lite, body text in Cruor Sans; or
+- Cruor Sans throughout, with titles in its Bold.
+
+The owner chooses between them by eye, from the two set side by side.
+Sanguine Atonement's pairing is not in question.
+
 The proportional families (Cruor Sans Regular, Cruor Lite Regular, Cruor
 Thornamental Regular) suit titles and body text; the Mono families stay for
 code.
@@ -30,7 +40,9 @@ code.
 
 To be settled when a sprint plans it. The owner's words set the outline:
 
-1. The default themes set titles in Cruor Lite and body text in Cruor Sans.
+1. The default themes set titles in Cruor Lite and body text in Cruor Sans,
+   or Cruor Sans throughout with bold titles, as the owner chooses from a
+   side-by-side.
 2. Sanguine Atonement sets titles in Cruor Thornamental and body text in
    Cruor Lite.
 3. Mekzantine is no longer what Tome sets its text in.
@@ -60,3 +72,6 @@ confirmed by eye.
 - 2026-11-21: created as `proposed` from the owner's words in the Cruor
   project's Sprint 5 Research ("make sure to add all of that to Tome
   specifically as this will all move in tandem").
+- 2026-11-23: revised in Sprint 24's Research, still `proposed`. Added the
+  owner's second choice for the default themes (Cruor Sans throughout with
+  bold titles).
