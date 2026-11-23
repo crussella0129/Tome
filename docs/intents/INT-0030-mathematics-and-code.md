@@ -17,16 +17,19 @@ Tome. The owner, on 23 November 2026: "We want easy and seamless LaTeX (so
 like full OpenMath abilities of making  and inline code so that intents,
 code, and proofs can all be read."
 
-Three things follow, in this order:
+Two things follow, in this order:
 
 1. Mathematics written in LaTeX notation inside a Markdown document, within
    a line and set apart on its own, is laid out as an equation.
 2. An equation in a Word document
    ([INT-0029](INT-0029-documents-as-tomes.md)) is carried over and laid out
    the same way.
-3. A document written in LaTeX or in Typst is read as a tome. The owner
-   placed this after Word and Markdown: "LaTeX/Typst once we have that down
-   (perhaps in the next sprint as you said)."
+
+Reading a whole document written in LaTeX or in Typst as a tome was the
+third part of this intent. It is a different kind of work, reading a
+document format, where these two are laying out formulas, and it now
+stands on its own as
+[INT-0033](INT-0033-latex-and-typst-documents.md).
 
 Inline code and code blocks are already set apart from prose; this intent
 holds them to the same standard beside mathematics.
@@ -40,9 +43,11 @@ To be settled when a sprint plans it. The owner's words set the outline:
 2. A fraction, a root, a sum with limits, a matrix, an aligned derivation
    and a numbered equation each lay out correctly: enough to write a proof.
 3. A Word document's equations appear as equations.
-4. A `.tex` and a `.typ` document load as tomes.
-5. Inline code and code blocks stay clearly apart from prose and from
+4. Inline code and code blocks stay clearly apart from prose and from
    mathematics.
+5. A sum of money written with a dollar sign stays a sum of money.
+6. A formula that cannot be read is shown as it was typed and named when
+   the library is built; it does not stop the build or vanish.
 
 ## Rationale
 
@@ -56,6 +61,24 @@ code. Tome today shows `$x^2$` as the characters typed.
   x² but not a fraction or an aligned derivation.
 - **mdBook's own mathematics.** It asks for `\\(` and `\\[` in the source
   and loads MathJax in the reader; the owner asked for easy and seamless.
+- **Which engine lays out the formulas.** Sprint 25's Research tried three
+  on one sample, each run when the library is built so that no script is
+  added to a chapter:
+  - *The browser's own mathematics (MathML), written by Temml, with a
+    mathematical font bundled in Tome.* The smallest pages (about 5 KB for
+    the sample against 22 KB and 46 KB). It follows the theme's colour and
+    takes whatever mathematical font it is given, so it is the only one of
+    the three that can later be set in Cruor. Each browser engine lays it
+    out itself: Chrome's did so correctly, and Safari's needed two faults
+    worked around.
+  - *KaTeX.* Looks the same in every engine, because it carries its own
+    typeface and stylesheet (about 300 KB of fonts). It cannot be set in
+    another typeface.
+  - *MathJax, as drawn shapes.* Needs no font or stylesheet and looks the
+    same everywhere; the formulas are pictures, so their text cannot be
+    selected, and it too cannot be set in another typeface.
+
+  Research recommends the first. The choice is the owner's, at the plan.
 
 ## Consequences
 
@@ -68,7 +91,19 @@ code. Tome today shows `$x^2$` as the characters typed.
   layout engine's own mathematical font.
 - Which engine lays out equations is for the sprint that plans it. One that
   works when the library is built keeps Tome's chapters free of script.
+- A dollar sign gains a meaning in every book Tome reads. A line such as
+  "It costs $5 and then $10" would be read as a formula by the usual rule;
+  Tome needs a stricter one, and Research showed one working. A book that
+  wants a formula such a rule refuses can write `\$` or `$$`.
+- A Word equation is carried over as LaTeX notation in the converted
+  Markdown, not as a finished picture of the formula, so the converted
+  document stays one a person could edit
+  ([INT-0026](INT-0026-document-editor.md)).
 
 ## Transition history
 - 2026-11-23: created as `proposed` in Sprint 24's Research, from the owner's
   words opening the sprint.
+- 2026-11-23: revised in Sprint 25's Research. Whole LaTeX and Typst
+  documents moved to INT-0033; the engines tried were recorded under
+  Alternatives; criteria for sums of money and for unreadable formulas were
+  added. State unchanged.
