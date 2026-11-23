@@ -221,7 +221,10 @@ code. Tome today shows `$x^2$` as the characters typed.
   text is carried over like any other. The converter reads its own result
   back as Tome will read it: an equation that does not come back as a
   formula holding its own LaTeX, or whose place in the converted text is
-  not found again, is written as the mark and counted as left out. No
+  not found again, or whose LaTeX as it must be written where it stands
+  cannot be laid out (plain words that hold a bar, in a table cell), is
+  written as the mark and counted as left out. A title names the mark when
+  its chapter shows the mark. No
   equation is left as text between dollar signs that nothing reports, and
   no internal place-holder is shown.
 - In a table, a `|` inside a formula ends the cell, as it does for any

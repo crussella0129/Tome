@@ -1221,18 +1221,18 @@ describe('docx-to-markdown.mjs — every carried-over equation is read back, or 
     const one = (latex: string) => [{ latex, display: false, cell: false }];
 
     // Read back: written between dollar signs, nothing lost.
-    expect(settleEquations(`A ${marks.token(0)} here.`, one('a+b'), marks)).toEqual({
+    expect(settleEquations(`A ${marks.token(0)} here.`, one('a+b'), marks)).toMatchObject({
       markdown: 'A $a+b$ here.',
       lost: 0,
     });
     // A space at either end would refuse the pair: it is not written.
-    expect(settleEquations(`A ${marks.token(0)} here.`, one(' a+b '), marks)).toEqual({
+    expect(settleEquations(`A ${marks.token(0)} here.`, one(' a+b '), marks)).toMatchObject({
       markdown: 'A $a+b$ here.',
       lost: 0,
     });
     // LaTeX no paragraph can hold in one piece (a blank line in it): the
     // reader does not give it back, so the mark stands there and it is counted.
-    expect(settleEquations(`A ${marks.token(0)} here.`, one('a\n\nb'), marks)).toEqual({
+    expect(settleEquations(`A ${marks.token(0)} here.`, one('a\n\nb'), marks)).toMatchObject({
       markdown: `A ${mark} here.`,
       lost: 1,
     });
@@ -1243,7 +1243,7 @@ describe('docx-to-markdown.mjs — every carried-over equation is read back, or 
       { latex: 'd', display: false, cell: false },
     ];
     const source = `A ${marks.token(0)} and ${marks.token(1)} and ${marks.token(2)} here.`;
-    expect(settleEquations(source, three, marks)).toEqual({
+    expect(settleEquations(source, three, marks)).toMatchObject({
       markdown: `A $a$ and ${mark} and $d$ here.`,
       lost: 1,
     });
@@ -1252,7 +1252,7 @@ describe('docx-to-markdown.mjs — every carried-over equation is read back, or 
       settleEquations('Plain text.', [], marks, () => {
         throw new Error('not to be called');
       }),
-    ).toEqual({ markdown: 'Plain text.', lost: 0 });
+    ).toMatchObject({ markdown: 'Plain text.', lost: 0 });
   });
 
   // T-082 clause 8 — and the converter reports what the check refused. The
@@ -1291,5 +1291,126 @@ describe('docx-to-markdown.mjs — every carried-over equation is read back, or 
     const own = await convert(await buildDocx());
     expect(real(own.markdown)).toEqual([R`\frac{m}{V}`, 'E=mc^{2}']);
     expect(own.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
+  });
+});
+
+// Found by the Test phase's fourth review: what the reading back did not yet
+// ask, and what a refusal writes.
+describe('docx-to-markdown.mjs — a refusal, wherever it comes from', () => {
+  const convert = async (bytes: Buffer, options: Record<string, unknown> = {}) =>
+    convertDocx(bytes, { name: 'paper.docx', ...options });
+  const real = (markdown: string) => formulasIn(readBack(markdown)).map((formula) => formula.value);
+  const mark = MARKS.equation.replace('[', '\\[');
+  const textOf = (node: MdNode): string => node.value ?? (node.children ?? []).map(textOf).join('');
+  /** An equation that is plain words, as Word marks them. */
+  const wordsEquation = (text: string) =>
+    eq(`<m:r><m:rPr><m:nor/></m:rPr><m:t>${text}</m:t></m:r>`);
+  const CELL = '<w:tc><w:p><w:r><w:t>nine stone</w:t></w:r></w:p></w:tc>';
+
+  // T-082 clauses 3, 5 and 8, with Tome's own reader and nothing handed in:
+  // in a table cell a bar must be written `\vert`, which plain words cannot
+  // hold. The layout engine refuses that LaTeX, so the equation is the mark.
+  it('test_docx_cell_words_with_bar_is_marked: LaTeX the cell’s rule makes unreadable is the mark, and counted', async () => {
+    const cells = nodesIn(
+      readBack((await convert(await buildDocx())).markdown),
+      'tableCell',
+    ).length;
+    for (const body of ['a|b', 'a|']) {
+      const out = await convert(
+        await variant((text) => {
+          expect(text).toContain(CELL);
+          return text.replace(CELL, `<w:tc><w:p>${wordsEquation(body)}</w:p></w:tc>`);
+        }),
+      );
+      const table = readBack(out.markdown);
+      expect(nodesIn(table, 'tableCell'), body).toHaveLength(cells);
+      // No formula the page could not lay out, and no dollar sign left as text.
+      for (const value of real(out.markdown)) expect(readable(value), value).toBe(true);
+      expect(real(out.markdown), body).toEqual([R`\frac{m}{V}`, 'E=mc^{2}']);
+      const marked = nodesIn(table, 'tableCell').filter((cell) =>
+        textOf(cell).includes(MARKS.equation),
+      );
+      expect(marked.map(textOf), body).toEqual([MARKS.equation]);
+      expect(out.markdown, body).not.toMatch(/\\text\{/);
+      expect(
+        out.leftOut.filter((entry) => entry.kind === 'equation'),
+        body,
+      ).toEqual([{ kind: 'equation', count: 1 }]);
+    }
+
+    // Outside a cell the bar stands as itself, and the same equation is a formula.
+    const outside = await convert(await withFirst(wordsEquation('a|b')));
+    expect(real(outside.markdown)).toEqual([R`\text{a|b}`, 'E=mc^{2}']);
+    expect(outside.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
+  });
+
+  // T-082 clause 5 — the reading back is in order: an equation is where the
+  // reader finds it, not somewhere among what it finds.
+  it('test_docx_read_back_is_in_order: of two equal equations, one unread is not passed off by the other', () => {
+    const marks = placeholders();
+    const twice = [
+      { latex: 'a', display: false, cell: false },
+      { latex: 'a', display: false, cell: false },
+    ];
+    const source = `First ${marks.token(0)} then ${marks.token(1)} here.`;
+    // A reader that misses the first formula of whatever it is given.
+    const missesFirst = (markdown: string) => real(markdown).slice(1);
+    const out = settleEquations(source, twice, marks, missesFirst);
+    // Neither is left between dollar signs on the word of the other.
+    expect(real(out.markdown)).toEqual([]);
+    expect(out.markdown).toBe(`First ${mark} then ${mark} here.`);
+    expect(out.lost).toBe(2);
+    expect([...out.refused].sort()).toEqual([0, 1]);
+    // With Tome's own reader both are formulas.
+    expect(settleEquations(source, twice, marks)).toMatchObject({
+      markdown: 'First $a$ then $a$ here.',
+      lost: 0,
+    });
+  });
+
+  // T-082 clause 8 — the mark a refusal writes is text wherever it stands.
+  it('test_docx_refusal_mark_is_text: after a backslash, in a title, and counted once', async () => {
+    const marks = placeholders();
+    const one = [{ latex: 'x', display: false, cell: false }];
+    const none = () => [];
+
+    // A backslash of the document's own before the equation: the mark keeps
+    // its own, so its bracket opens no link.
+    const BACKSLASH = String.fromCharCode(92);
+    const source = `Before ${BACKSLASH}${marks.token(0)}(after)`;
+    const refusedOut = settleEquations(source, one, marks, none);
+    expect(refusedOut.markdown).toBe(`Before ${BACKSLASH.repeat(3)}[equation not shown](after)`);
+    const back = readBack(refusedOut.markdown);
+    expect(nodesIn(back, 'link')).toEqual([]);
+    expect(textOf(back)).toBe(`Before ${BACKSLASH}${MARKS.equation}(after)`);
+    // The same for what is left of a place-holder the exchange does not know.
+    const debris = writeEquations(
+      `Before ${BACKSLASH}&#116;${marks.token(0).slice(1)}(after)`,
+      one,
+      marks,
+    );
+    expect(nodesIn(readBack(debris.markdown), 'link')).toEqual([]);
+    expect(textOf(readBack(debris.markdown))).toBe(`Before ${BACKSLASH}${MARKS.equation}(after)`);
+    // With Tome's own reader the equation is a formula there, as before.
+    expect(real(settleEquations(source, one, marks).markdown)).toEqual(['x']);
+
+    // A place-holder that stands twice is one equation, counted once.
+    expect(
+      writeEquations(`${marks.token(0)} and ${marks.token(0)}`, one, marks, new Set([0])),
+    ).toMatchObject({ markdown: `${mark} and ${mark}`, lost: 1 });
+
+    // A title names the mark when the chapter shows the mark.
+    const titled = await variant((text) =>
+      text.replace(
+        '<w:r><w:t>On the Weight of Obsidian</w:t></w:r></w:p>',
+        `<w:r><w:t xml:space="preserve">On the Weight of </w:t></w:r>${ROOT_TWO}</w:p>`,
+      ),
+    );
+    const refusedTitle = await convert(titled, { readFormulas: none });
+    expect(refusedTitle.title).toBe(`On the Weight of ${MARKS.equation}`);
+    expect(reads(refusedTitle.markdown)).toContain(`On the Weight of ${MARKS.equation}`);
+    expect(refusedTitle.markdown).not.toContain('√2');
+    const kept = await convert(titled);
+    expect(kept.title).toBe('On the Weight of √2');
   });
 });

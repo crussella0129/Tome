@@ -216,22 +216,24 @@ function dollarForm(equation, next) {
 export function writeEquations(markdown, carried, marks, refused = new Set()) {
   // As the Markdown writer writes the mark: text that can form no link.
   const mark = MARKS.equation.replace('[', '\\[');
-  let lost = 0;
+  // A backslash of the document's own, directly before what is written, would
+  // take its first character for itself (`\$`, or the mark's own `\[`, leaving
+  // a bracket that can open a link): the backslash is written as itself.
+  const afterBackslash = (text, offset, form) =>
+    text.slice(0, offset).match(/\\*$/)[0].length % 2 === 1 ? `\\${form}` : form;
+  // Counted once each, however many times a place-holder stands in the text.
+  const lost = new Set();
   const written = [];
   const exchanged = markdown.replace(marks.all(), (token, number, offset) => {
     const index = Number(number);
     const equation = carried[index];
     if (equation === undefined) return token; // the document's own words
     if (refused.has(index)) {
-      lost += 1;
-      return mark;
+      lost.add(index);
+      return afterBackslash(markdown, offset, mark);
     }
     const after = markdown.slice(offset + token.length);
-    let form = dollarForm(equation, after[0]);
-    // A backslash of the document's own, directly before the equation, would
-    // make its opening dollar sign `\$`: write the backslash as itself.
-    const backslashes = markdown.slice(0, offset).match(/\\*$/)[0].length;
-    if (backslashes % 2 === 1) form = `\\${form}`;
+    let form = afterBackslash(markdown, offset, dollarForm(equation, after[0]));
     // Two equations with nothing between them would run their dollar signs
     // together (`$a$$b$`): they stand a space apart.
     const next = after.match(marks.first);
@@ -241,12 +243,13 @@ export function writeEquations(markdown, carried, marks, refused = new Set()) {
     written.push({ index, latex: latexAsWritten(equation) });
     return form;
   });
-  const settled = exchanged.replace(marks.debris(), (rest, index) => {
-    if (carried[Number(index)] === undefined) return rest; // the document's own words
-    lost += 1;
-    return mark;
+  const settled = exchanged.replace(marks.debris(), (rest, number, offset) => {
+    const index = Number(number);
+    if (carried[index] === undefined) return rest; // the document's own words
+    lost.add(index);
+    return afterBackslash(exchanged, offset, mark);
   });
-  return { markdown: settled, lost, written };
+  return { markdown: settled, lost: lost.size, written };
 }
 
 /** What Tome's reader is made of: GFM, then formulas by Tome's rules. */
@@ -275,25 +278,32 @@ function formulasRead(markdown) {
  * will read it. An equation that does not come back as a formula holding its
  * own LaTeX is written as the mark instead, and counted: however an equation
  * and its neighbours fall out in Markdown, it is a formula or it is reported,
- * and never text between dollar signs that nothing mentions.
+ * and never text between dollar signs that nothing mentions. So is one whose
+ * LaTeX, as it must be written where it stands, the layout engine refuses
+ * (in a table cell a bar is written `\vert`, which plain words cannot hold).
  *
  * Exported for its tests, which may give it another reader.
  * @param {string} markdown the document with its tokens
  * @param {{ latex: string, display: boolean, cell: boolean }[]} carried
  * @param {ReturnType<typeof placeholders>} marks
  * @param {(markdown: string) => string[]} [read]
- * @returns {{ markdown: string, lost: number }}
+ * @returns {{ markdown: string, lost: number, refused: Set<number> }}
+ *   `refused` names the equations written as the mark.
  */
 export function settleEquations(markdown, carried, marks, read = formulasRead) {
   const refused = new Set();
+  carried.forEach((equation, index) => {
+    if (!readable(latexAsWritten(equation), equation.display)) refused.add(index);
+  });
   for (;;) {
     const out = writeEquations(markdown, carried, marks, refused);
-    if (out.written.length === 0) return { markdown: out.markdown, lost: out.lost };
+    const settled = { markdown: out.markdown, lost: out.lost, refused };
+    if (out.written.length === 0) return settled;
     const back = read(out.markdown);
     // The first equation that is not where the reader finds it is refused,
     // and the rest are tried again without it.
     const at = out.written.findIndex((equation, place) => back[place] !== equation.latex);
-    if (at === -1) return { markdown: out.markdown, lost: out.lost };
+    if (at === -1) return settled;
     refused.add(out.written[at].index);
   }
 }
@@ -301,12 +311,19 @@ export function settleEquations(markdown, carried, marks, read = formulasRead) {
 /**
  * A title is plain text: a sidebar and a tab cannot show a formula. An equation
  * in it is written on one line that keeps what it says (`√2`), or, where it has
- * no such form, between dollar signs as the chapter has it.
+ * no such form, between dollar signs as the chapter has it. One the chapter
+ * shows as the mark is the mark here too.
+ * @param {string} title
+ * @param {{ latex: string, display: boolean, cell: boolean }[]} carried
+ * @param {ReturnType<typeof placeholders>} marks
+ * @param {Set<number>} refused
  */
-function titleWithEquations(title, carried, marks) {
-  return title.replace(marks.all(), (token, index) => {
-    const equation = carried[Number(index)];
+function titleWithEquations(title, carried, marks, refused) {
+  return title.replace(marks.all(), (token, number) => {
+    const index = Number(number);
+    const equation = carried[index];
     if (equation === undefined) return token;
+    if (refused.has(index)) return MARKS.equation;
     return titleText(equation.latex) ?? `$${equation.latex}$`;
   });
 }
@@ -731,7 +748,7 @@ export async function convertDocx(input, options = {}) {
 
   return {
     markdown: written.markdown,
-    title: titleWithEquations(title, carried, marks),
+    title: titleWithEquations(title, carried, marks, written.refused),
     images,
     leftOut,
   };
