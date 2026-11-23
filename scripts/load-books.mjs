@@ -216,33 +216,15 @@ async function publish(dest, fill) {
 
 /**
  * Read every document of a document or folder source, before anything is
- * staged. In a folder, a Word document that cannot be opened becomes a
- * placeholder chapter so the rest is still read; an entry that names one
- * document directly fails instead, since there would be nothing to read.
- *
- * The Word reader and the Markdown tools behind document-stage.mjs take over a
- * second to load, so they are loaded here, only when an entry names documents;
- * a library of mdBooks starts as fast as it did before.
+ * staged (document-stage.mjs holds the rules). The Word reader and the
+ * Markdown tools behind that module take over a second to load, so it is
+ * loaded here, only when an entry names documents; a library of mdBooks
+ * starts as fast as it did before.
  */
-async function readDocuments(source) {
-  const { describeLeftOut, placeholderDocument, prepareDocument } =
-    await import('./document-stage.mjs');
-  const chapters = [];
-  for (const document of source.documents) {
-    let prepared;
-    try {
-      prepared = await prepareDocument(document, { root: source.root });
-    } catch (error) {
-      if (source.kind !== 'folder' || document.format !== 'word') throw error;
-      prepared = placeholderDocument(document, error);
-    }
-    chapters.push({
-      ...document,
-      ...prepared,
-      report: describeLeftOut(prepared.leftOut),
-    });
-  }
-  return chapters;
+async function readDocumentTome(source) {
+  const { readDocuments, tomeTitle } = await import('./document-stage.mjs');
+  const chapters = await readDocuments(source);
+  return { chapters, title: tomeTitle(source, chapters) };
 }
 
 /** Write one tome of documents into `out`: chapters, their files, the spine. */
@@ -297,15 +279,9 @@ async function main() {
     }
     // Documents are read (and Word converted) here, so one that cannot be read
     // fails before the library is touched.
-    const chapters = await readDocuments(src);
-    resolved.push({
-      ...src,
-      chapters,
-      // A lone document is titled by itself; a folder by its name.
-      title:
-        spec.title ?? (src.kind === 'document' ? chapters[0].title : src.title),
-      slug,
-    });
+    const { chapters, title } = await readDocumentTome(src);
+    // A lone document is titled by itself; a folder by its name.
+    resolved.push({ ...src, chapters, title: spec.title ?? title, slug });
   }
 
   // Prepare every tome beside the destination before replacing the library.

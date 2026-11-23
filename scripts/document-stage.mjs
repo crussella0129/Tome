@@ -263,6 +263,35 @@ export function placeholderDocument(document, error) {
   };
 }
 
+/**
+ * Read every document of a `document` or `folder` source, in order. In a
+ * folder, a Word document that cannot be opened becomes a placeholder chapter
+ * so the rest is still read; a source that names one document directly throws
+ * instead, since there would be nothing to read.
+ * @param {{ kind: string, root: string, documents: any[] }} source from `resolveSource()`
+ * @returns {Promise<any[]>} each document with its prepared `markdown`, `title`,
+ *   `files`, `leftOut`, and `report` (what it left out, in words; '' when nothing)
+ */
+export async function readDocuments(source) {
+  const chapters = [];
+  for (const document of source.documents) {
+    let prepared;
+    try {
+      prepared = await prepareDocument(document, { root: source.root });
+    } catch (error) {
+      if (source.kind !== 'folder' || document.format !== 'word') throw error;
+      prepared = placeholderDocument(document, error);
+    }
+    chapters.push({ ...document, ...prepared, report: describeLeftOut(prepared.leftOut) });
+  }
+  return chapters;
+}
+
+/** A tome of documents is titled by its one document, or by its folder's name. */
+export function tomeTitle(source, chapters) {
+  return source.kind === 'document' ? chapters[0].title : source.title;
+}
+
 const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
 /**

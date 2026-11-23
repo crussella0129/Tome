@@ -4,6 +4,7 @@
 //   npm run books:find -- ~/notes ../dnd     # scan specific folders
 //   npm run books:find -- --depth 8 --json   # deeper, machine-readable
 //   npm run books:add -- ../my-campaign      # validate + append to tome.local.toml
+//   npm run books:add -- ~/papers/draft.docx # a Word or Markdown file, or a folder of them
 //
 // A folder is a book when Tome's own loader would accept it (the shared
 // book-source rules: `book.toml` [book].src, else src/ → docs/ → the root holding
@@ -18,6 +19,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import process from 'node:process';
 import { parse as parseToml } from 'smol-toml';
 import { resolveBookSource, exists } from './book-source.mjs';
+import { resolveSource } from './document-source.mjs';
 import { LOCAL_MANIFEST } from './library-config.mjs';
 
 const { parseSummary, flattenChapters } = await import('../src/lib/summary.ts');
@@ -207,9 +209,31 @@ function printTable(roots, depth, { books, skipped }) {
   }
 }
 
+/**
+ * Describe what `books:add` was given the way the loader will see it: an mdBook
+ * (as discovery describes it), or a Markdown file, a Word document, or a folder
+ * of them (INT-0029). Documents are read here exactly as the loader reads them,
+ * so the title printed is the title shown, and one that cannot be read is
+ * refused now and not at the next build.
+ */
+async function describeForAdd(target) {
+  const source = await resolveSource(target);
+  if (source.kind === 'book') return describe(target);
+  const { readDocuments, tomeTitle } = await import('./document-stage.mjs');
+  const chapters = await readDocuments(source);
+  return {
+    path: source.kind === 'document' ? source.documents[0].file : source.root,
+    title: tomeTitle(source, chapters),
+    chapters: chapters.length,
+    notShown: chapters
+      .filter((chapter) => chapter.leftOut.some((entry) => entry.kind === 'document'))
+      .map((chapter) => chapter.rel),
+  };
+}
+
 /** Append a validated book to the personal manifest (never a tracked file). */
 async function add({ add: target, title, slug, config }) {
-  const book = await describe(resolve(target));
+  const book = await describeForAdd(resolve(target));
   const manifest = resolve(config ?? LOCAL_MANIFEST);
   const real = await realpath(book.path);
   let text = '';
@@ -234,8 +258,11 @@ async function add({ add: target, title, slug, config }) {
   if (slug) lines.push(`slug = ${JSON.stringify(slug)}`);
   await writeFile(manifest, `${text.replace(/\n*$/, '\n')}${lines.join('\n')}\n`);
   console.log(
-    `Added "${title ?? book.title}" (${book.chapters} chapters) to ${basename(manifest)}.`,
+    `Added "${title ?? book.title}" (${book.chapters} chapter${book.chapters === 1 ? '' : 's'}) to ${basename(manifest)}.`,
   );
+  for (const rel of book.notShown ?? []) {
+    console.log(`  ${rel} could not be read as a Word document and will not be shown.`);
+  }
   console.log('Next:  npm run dev     (or npm run build for a static site in dist/)');
 }
 
