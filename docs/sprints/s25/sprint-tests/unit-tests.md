@@ -1,13 +1,14 @@
 # Sprint 25 Unit Verification
 
-- **Tested head:** `bf7ff46` (the eight tasks; one Test-phase fix found by
-  reading a document Word saved, `1e782cf`; then the answers to three
+- **Tested head:** `0eb7dd4` (the eight tasks; one Test-phase fix found by
+  reading a document Word saved, `1e782cf`; then the answers to four
   reviews of the tests: `9cf62ed` and `eec6432`, `critique-round-1.md`;
-  `b452443`, `critique-round-2.md`; `bf7ff46`, `critique-round-3.md`).
-  `npx vitest run` on this Windows machine: **35 files, 334 tests: 333
+  `b452443`, `critique-round-2.md`; `bf7ff46`, `critique-round-3.md`;
+  `0eb7dd4`, `critique-round-4.md`).
+  `npx vitest run` on this Windows machine: **35 files, 337 tests: 336
   passed, 0 failed, 1 skipped**. At `1e782cf` it was 318 tests, at
-  `eec6432` 329, at `b452443` 331. Before the sprint the suite was 30
-  files, 258 tests.
+  `eec6432` 329, at `b452443` 331, at `bf7ff46` 334. Before the sprint the
+  suite was 30 files, 258 tests.
 - The one skip is the loader case for a note named `Summary.md`, which needs
   a file system that tells it from `SUMMARY.md`; it runs in CI on Linux, where
   the staging case for a drive-letter path is skipped instead. `test-report.md`,
@@ -16,13 +17,17 @@
   (passed, and 1 skipped each time): T-077 270, T-078 286, T-079 295, T-080
   299, T-081 303, T-082 313, T-084 315, T-083 317.
 - `npx astro check`: 0 errors, 0 warnings.
-- **Stubs:** one. `console.warn` is spied in `rehype-math.test.ts`, to read
-  the line the build prints for an unreadable formula. Everything else is
-  real: the real Markdown parser with Tome's own plugins, the real layout
-  engine (Temml), Astro's own heading collector and `rehype-raw` where a test
-  says "as Astro", the real Word reader on a `.docx` zipped from
-  `fixtures/word/paper/`, real temporary folders, and spawned processes for
-  the gates and the config.
+- **Stubs:** two. `console.warn` is spied in `rehype-math.test.ts`, to read
+  the line the build prints for an unreadable formula. And three Word tests
+  (`test_docx_unread_equation_is_reported`, `test_docx_read_back_is_in_order`,
+  `test_docx_refusal_mark_is_text`) give the converter a reader that finds
+  less than Tome's own, to see what a refusal does; it stands in for the
+  reader's contract (the formulas found, in order), not for its workings.
+  Everything else is real: the real Markdown parser with Tome's own plugins,
+  the real layout engine (Temml), Astro's own heading collector and
+  `rehype-raw` where a test says "as Astro", the real Word reader on a
+  `.docx` zipped from `fixtures/word/paper/`, real temporary folders, and
+  spawned processes for the gates and the config.
 
 New and changed files, with their counts:
 
@@ -37,7 +42,7 @@ New and changed files, with their counts:
 | `fixture-gate.test.ts` | 18/18 (1 new) | T-081 |
 | `ci-workflow.test.ts` | 1/1 (two assertions added) | T-081 |
 | `omml-to-latex.test.ts` (new) | 6/6 (2 added in the Test phase) | T-082 |
-| `docx-to-markdown.test.ts` | 40/40 (7 new, 2 of them replacing cases of the same name; 2 edited; 8 added in the Test phase) | T-082 |
+| `docx-to-markdown.test.ts` | 43/43 (7 new, 2 of them replacing cases of the same name; 2 edited; 11 added in the Test phase) | T-082 |
 | `document-stage.test.ts` | 12/12 (2 new; 1 edited) | T-082, T-084 |
 | `load-books.test.ts` | 42/43, 1 skipped (1 new; 2 edited) | T-082 |
 | `tutorial-math.test.ts` (new) | 1/1 | T-083 |
@@ -153,8 +158,8 @@ unedited (clause 7).
 
 ## Added in the Test phase
 
-Three reviews of the tests (`critique-round-1.md`, `critique-round-2.md`,
-`critique-round-3.md`) found inputs no test had tried. Each fault they found was fixed, and each of
+Four reviews of the tests (`critique-round-1.md` to `critique-round-4.md`)
+found inputs no test had tried. Each fault they found was fixed, and each of
 these was added with the fix. None of the sprint's earlier tests was weakened; one assertion in
 `test_docx_equations_carried` now reads "no place-holder of any kind" where
 it named the old place-holder.
@@ -180,6 +185,9 @@ it named the old place-holder.
 | T-082 4, 5 | `test_docx_cell_equation_ends_in_bar` (third review) | nine equations in a table cell (`\|x\|`, `x\|`, a bar alone, two bars, after words, before a full stop, bars in runs of their own, a bar in the middle, before a digit): the table keeps its cells, the cell holds exactly the one formula with the LaTeX named and no dollar sign as text, the layout engine reads that LaTeX, and nothing is reported left out |
 | T-082 5, 8 | `test_docx_unread_equation_is_marked` (third review) | `settleEquations()` with Tome's own reader: an equation is written between dollar signs with nothing lost, a space at either end is not written, LaTeX with a blank line in it (which no paragraph can hold) becomes the mark and is counted, its two neighbours are still formulas, and with no equations the reader is not called |
 | T-082 8 | `test_docx_unread_equation_is_reported` (third review) | `convertDocx()` end to end with a reader that finds less than Tome's: finding nothing, both equations are the mark, no place-holder is shown, and the count is 2; missing the first only, one formula and a count of 1; added to an equation the converter had no rule for, a count of 3; with Tome's own reader the fixture loses nothing |
+| T-082 3, 5, 8 | `test_docx_cell_words_with_bar_is_marked` (fourth review) | `convertDocx()` end to end with Tome's own reader and nothing handed in: an equation of plain words holding a bar (`a\|b`, `a\|`), in a table cell, where the bar must be written `\vert` and the layout engine refuses the result: the cell holds the mark and nothing else, the table keeps its cells, every formula in the document is one the layout engine reads, no `\text{` is written, and the count is 1; outside a cell the same equation is the formula `\text{a\|b}` with nothing left out |
+| T-082 5 | `test_docx_read_back_is_in_order` (fourth review) | two equal equations and a reader that misses the first formula of whatever it is given: neither is left between dollar signs, both are the mark, the count is 2 and both are named as refused; with Tome's own reader both are formulas |
+| T-082 8 | `test_docx_refusal_mark_is_text` (fourth review) | after a backslash of the document's own the mark is written with three, and read back as the backslash, the mark and `(after)` with no link, for a refusal and for what is left of a place-holder; with Tome's own reader the equation is a formula there; a place-holder that stands twice is counted once; a title names the mark when its chapter shows the mark, and `√2` when it does not |
 
 ## Existing tests edited, and why
 

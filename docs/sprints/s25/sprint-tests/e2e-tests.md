@@ -1,10 +1,10 @@
 # Sprint 25 End-to-End Verification
 
-- **Tested head:** `bf7ff46`. Every suite and gate below was run on this
+- **Tested head:** `0eb7dd4`. Every suite and gate below was run on this
   Windows machine at `b39d962` (the build's last task), at `1e782cf`, and
-  at the head that answers each of three reviews of the tests (`9cf62ed`,
-  `b452443`, `bf7ff46`), and each exited 0 every time: `npx playwright
-  test`, `check:math`, `check:documents`, `check:external`,
+  at the head that answers each of four reviews of the tests (`9cf62ed`,
+  `b452443`, `bf7ff46`, `0eb7dd4`), and each exited 0 every time: `npx
+  playwright test`, `check:math`, `check:documents`, `check:external`,
   `check:multibook`, `check:search`, and `check:electron` with
   `TOME_CONFIG=fixtures/empty-library.toml`. `test-report.md`, written
   after the final review, cites the CI run on Linux.
@@ -16,7 +16,7 @@
 `e2e/math.spec.ts` against the build of `fixtures/proofs/`, in two projects.
 **22 passed, 0 failed: the same eleven tests in Chromium and in WebKit**
 (twenty at `1e782cf`; one test was added and three were tightened to answer
-the first review; the second and third reviews changed none of them). A test that passed in one engine only would be a failure; none
+the first review; the later reviews changed none of them). A test that passed in one engine only would be a failure; none
 did. No test fetches the mathematical font: each waits until the page's own
 formulas have brought a `Tome Math` face to `loaded`, then for
 `document.fonts.ready`, before it measures. A page whose formulas did not

@@ -1,7 +1,7 @@
 # Sprint 25 Integration Verification
 
-- **Tested head:** `bf7ff46`. The Vitest cases below ran in the whole-suite
-  run recorded in `unit-tests.md` (334 tests, 333 passed, 1 skipped). The
+- **Tested head:** `0eb7dd4`. The Vitest cases below ran in the whole-suite
+  run recorded in `unit-tests.md` (337 tests, 336 passed, 1 skipped). The
   gates ran on this Windows machine at that head. `test-report.md`, written
   after the final review, cites the CI run on Linux.
 
@@ -41,7 +41,7 @@ stand-in `build` script.
 Astro composes T-077's reader, T-078's layout step, T-079's search index and
 T-080's stylesheet in a real build of `fixtures/proofs/`. The gate reads the
 built files before any browser opens. Exit 0 at `b39d962`, `1e782cf`,
-`9cf62ed`, `b452443` and `bf7ff46`.
+`9cf62ed`, `b452443`, `bf7ff46` and `0eb7dd4`.
 
 | Check | Clause | What it showed |
 |---|---|---|
@@ -50,7 +50,7 @@ built files before any browser opens. Exit 0 at `b39d962`, `1e782cf`,
 | `check_math_heading_slugs` | T-081 4 | for both chapters the heading `id`s of the page equal the search index's slugs, in order, `the-emc2-law` among them; the first page's record holds `E=mc2`, holds `\frac` only inside the mistake, and holds no `\sqrt`, `\sum` or `\begin` |
 | `check_math_rail` | T-079 6, T-081 10 | the second page's rail entry for the formula heading reads `The E = mc² law` and links to `#the-emc2-law`; the entry for `A wide formula` reads as its heading |
 
-The documents gate, `npm run check:documents`, also exits 0 at all five heads: a
+The documents gate, `npm run check:documents`, also exits 0 at all six heads: a
 Word document built on its own shows its two equations and no mark
 (T-082 clause 10).
 
@@ -95,7 +95,7 @@ settled "against a file Word saved". Word was driven again, the same way, to
 write twelve more equations: a phantom, a smash, a box, an underbrace, an
 overbrace, floor brackets, a norm, angle brackets, a prime, two letters, a
 tilde, and a fraction within a line. The file is not committed. Read at
-`9cf62ed`, and again at `b452443` and `bf7ff46` with the same result:
+`9cf62ed`, and again at `b452443`, `bf7ff46` and `0eb7dd4` with the same result:
 
 | | |
 |---|---|
@@ -114,7 +114,7 @@ fraction inside another, so that is what Tome shows; two equations side by
 side are therefore tried by hand (`test_docx_adjacent_equations`). And the
 two letters were typed bold and saved plain.
 
-Both documents were read again at `bf7ff46`, where the converter reads its
+Both documents were read again at `bf7ff46` and at `0eb7dd4`, where the converter reads its
 own result back with Tome's reader (`critique-round-3.md`): all 21 and all 12
 equations come back as formulas, and nothing is left out.
 
@@ -133,9 +133,21 @@ The third review tried 8,400 conversions of the fixture: fifty equation
 texts, each with ten kinds of neighbour before and eleven after, in a
 paragraph, a table cell, a heading and a list item. It found 152 where an
 equation was neither a formula nor counted, all of the one class. Its
-program, kept outside the repository, was run again on `bf7ff46`: 8,400
-conversions, none of them silent, and none read back differently from what
-was written.
+program, kept outside the repository, was run again on `bf7ff46` and on
+`0eb7dd4`: 8,400 conversions, none of them silent. (It also lists 168 as
+"differing only in outer space": those are the fix itself, where the
+program still expects the space the converter no longer writes before a
+closing dollar sign.)
+
+The fourth review tried 4,752 more (sixty-six equation texts in thirty-two
+places: notes, quotations, list items, set apart between other content, a
+whole cell, two and three in a cell, beside the document's own dollar
+signs). None was silent and none showed a place-holder; the converter's
+reader and the page's agreed on every one. It found 34, all one shape,
+where the page showed an unreadable formula that the converter had not
+counted: plain words holding a bar, in a table cell. At `0eb7dd4` the check
+asks the layout engine too, and that shape is the mark, and counted
+(`test_docx_cell_words_with_bar_is_marked`).
 
 What this did not cover: a paper of the owner's own; a Google Docs download;
 an equation inside a tracked change or a link in a file Word wrote (those
