@@ -3,14 +3,14 @@
 - **Sprint number:** 24
 - **Book schema version:** 2
 - **Start timestamp:** 2026-11-23T13:26:23Z
-- **End timestamp:** (filled at Loop Phase)
+- **End timestamp:** 2026-11-23T17:24:34Z
 - **Model:** claude-fable-5-2
 - **Bundle version:** 0.22.0
-- **Exit status:** in-progress
+- **Exit status:** success
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Read a Markdown file, a Word document, or a folder of them as a tome, converted when the library is built.
 - **Intents:** [INT-0029](../../intents/INT-0029-documents-as-tomes.md) — realized; INT-0023, INT-0011, INT-0009 and INT-0008 realized compatibility boundaries. Recorded in Research and not built this sprint: INT-0026, INT-0027, INT-0028 (revised), INT-0030, INT-0031, INT-0032 (created).
-- **Completion evidence:** (filled at Loop Phase)
+- **Completion evidence:** INT-0029 realized: T-065 to T-074 complete; Vitest 258 tests, all passed at 36b5db1 across Windows and CI (one platform-bound skip on each); Playwright 39/39 and the documents gate 6/6; final test review proceed-with-caveats after four rounds; GitHub Actions 45225743756 succeeded at 36b5db1.
 
 ## Blockages
 
