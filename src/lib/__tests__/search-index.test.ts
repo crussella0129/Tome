@@ -172,6 +172,14 @@ describe('parseChapter with HTML', () => {
     expect(parseChapter('<sup>2</sup>Guild of Masons').text).toBe('2 Guild of Masons');
     expect(parseChapter('<sup>a</sup>Corresponding author').text).toBe('a Corresponding author');
     expect(parseChapter('See note <sup>1</sup>and on').text).toBe('See note 1 and on');
+    // Only a letter or a digit before the tag makes a word of the two: a
+    // bracket or a comma does not, so the word after the marker is left whole.
+    expect(parseChapter('(<sup>a</sup>Corresponding author)').text).toBe(
+      '( a Corresponding author)',
+    );
+    expect(parseChapter('<sup>1</sup>,<sup>2</sup>Department of Stone').text).toBe(
+      '1 , 2 Department of Stone',
+    );
     // Hard against the text before it, it joins on both sides.
     expect(parseChapter('H<sub>2</sub>O and CO<sub>2</sub>.').text).toBe('H2O and CO2.');
     expect(parseChapter('H<sub><i>2</i></sub>O').text).toBe('H2O');

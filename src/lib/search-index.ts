@@ -147,7 +147,9 @@ function joinParts(parts: Part[]): string {
       inLine = false;
       open.length = 0;
     } else if (part === OPEN) {
-      const joined = inLine && /\S$/.test(out[out.length - 1] ?? '');
+      // Only a letter or a digit hard before the tag makes a word of the two:
+      // `(<sup>a</sup>Corresponding` and `,<sup>2</sup>Department` do not join.
+      const joined = inLine && /[\p{L}\p{N}]$/u.test(out[out.length - 1] ?? '');
       open.push(joined);
       attach = joined;
     } else if (part === CLOSE) {

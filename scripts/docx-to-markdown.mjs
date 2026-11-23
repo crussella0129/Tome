@@ -346,7 +346,7 @@ const NOT_OMISSIONS = [
   /\bstyle with ID .+? was referenced but not defined\b/i,
   /unlikely to display in web browsers/i,
   // A bookmark between two rows or cells: the table is converted whole.
-  /^unexpected non-(?:row|cell) element in table, cell merging may be incorrect$/i,
+  /^unexpected non-(?:row|cell) element in table(?: row)?, cell merging may be incorrect$/i,
 ];
 
 /** A reader message that says something was left out. */
@@ -364,7 +364,26 @@ const STYLE_MAP = [
   "p[style-name='Quote'] => blockquote > p:fresh",
   "p[style-name='Intense Quote'] => blockquote > p:fresh",
   "p[style-name='Block Text'] => blockquote > p:fresh",
+  // The reader drops a page or column break unless told otherwise, which runs
+  // the words either side of it together. Keep each as a line break.
+  "br[type='page'] => br",
+  "br[type='column'] => br",
 ];
+
+/**
+ * A heading is one line: a line break inside it becomes a space. Kept as
+ * `<br>`, the break would be skipped when the page reads the heading's text,
+ * and "The Quarry⏎Northern Face" would be listed as "The QuarryNorthern Face".
+ */
+function unbreakHeadings(tree) {
+  visit(tree, 'element', (node) => {
+    if (!/^h[1-6]$/.test(node.tagName)) return;
+    visit(node, 'element', (child, index, parent) => {
+      if (!parent || index === undefined || child.tagName !== 'br') return;
+      parent.children[index] = { type: 'text', value: ' ' };
+    });
+  });
+}
 
 /**
  * Convert one Word document.
@@ -429,6 +448,7 @@ export async function convertDocx(input, options = {}) {
     .use(rehypeParse, { fragment: true })
     .use(() => (tree) => {
       liftNotes(tree);
+      unbreakHeadings(tree);
       title = settleHeadings(tree, fallbackTitle);
       headTables(tree);
       flattenCells(tree);

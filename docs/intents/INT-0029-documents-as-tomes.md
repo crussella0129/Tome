@@ -149,9 +149,12 @@ of Tome already works.
   is one line to a row with ` / ` between its cells (a table inside that
   one is set on its row's line, its words kept). A table whose first row is
   empty, as a table used for layout often is, gets an empty header row.
-- A line break inside a Word paragraph, heading or title is kept as a line
-  break, and the words either side of it stay apart: a title set over two
-  lines names the tome with a space where the break was.
+- A line break inside a Word paragraph or table cell is kept as a line
+  break, and so is a page or column break that falls inside a paragraph.
+  Inside a heading or a title a break becomes a space, since a heading is
+  one line wherever it is listed: a title set over two lines names the tome
+  with a space where the break was. In every case the words either side
+  stay apart.
 - A Title set inside a table, as on a cover laid out as one, still heads
   the chapter; its words also stay in the table where they were. Any other
   heading inside a table is that cell's text, and does not count toward
@@ -193,14 +196,23 @@ of Tome already works.
   be found as if written in it. A tag that sits inside a word or phrase
   (`sub`, `sup`, `span`, `em` and their like) joins what it holds to the
   text hard against it before, and then to the text after, so
-  `H<sub>2</sub>O` is found as `H2O`. Where nothing stands before such a
-  tag, the word after it is left whole: `<sup>a</sup>Corresponding` is
-  found as `corresponding`, not as `aCorresponding`. Every other tag, and
+  `H<sub>2</sub>O` is found as `H2O`. Where no letter or digit stands hard
+  before such a tag in a line of text, the word after it is left whole:
+  `<sup>a</sup>Corresponding` is found as `corresponding`, not as
+  `aCorresponding`. That holds for one such marker in a line of text. Two
+  markers run together (`<sup>a</sup><sup>b</sup>Word`), and a marker
+  leading a heading or a block of raw HTML, still join the word after them,
+  which is then found only with the marker's letters before it. Every other tag, and
   every line break, keeps its neighbours apart, so both words of
   `alpha<br>beta` are found, and so are the cells of a table written in
   HTML, which ran together before. A heading is searched by its words, kept
   apart at a break, while its address on the page is made as the page makes
-  it. A chapter with no HTML and no line break is searched as it was.
+  it, with two exceptions that are older than this intent and that Word
+  documents now reach: a heading that cites a note, and one that holds `--`
+  (which the page sets as a dash), are given a different address by search
+  than by the page, so a search result for that section opens its chapter
+  at the top. Making the two agree is queued as T-076. A chapter with no
+  HTML and no line break is searched as it was.
 - A folder is read to any depth, leaving out dot-folders, version control,
   dependency and build folders (`node_modules`, `target`, `dist`, `vendor`,
   `__pycache__`, `venv`, `site-packages`), and any subfolder that is itself
@@ -249,4 +261,7 @@ of Tome already works.
   in search, a quotation or a table inside a table cell, and which of the
   Word reader's messages count as something left out. A third found the
   line break: in search, in a title, and beside superscript; and a Title
-  set inside a table. Those are corrected and recorded above.
+  set inside a table. Those are corrected and recorded above. A fourth,
+  which passed the sprint with caveats, found a heading's break joining its
+  words where the page lists it, and a page break joining words in a
+  paragraph; both are corrected, and the limits it named are stated above.

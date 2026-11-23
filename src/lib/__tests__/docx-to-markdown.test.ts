@@ -453,11 +453,18 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
           // An undefined style whose ID holds a space.
           '<w:p><w:pPr><w:pStyle w:val="My Style"/></w:pPr><w:r><w:t>Spaced style text</w:t></w:r></w:p>',
         )(
-          // A bookmark between two rows: the reader remarks on it, the table is whole.
-          text.replace(
-            BETWEEN_ROWS,
-            '</w:tr><w:bookmarkStart w:id="9" w:name="between"/><w:bookmarkEnd w:id="9"/><w:tr>',
-          ),
+          // A bookmark between two rows, and one between two cells: the reader
+          // remarks on each, and the table is whole.
+          text
+            .replace(
+              BETWEEN_ROWS,
+              '</w:tr><w:bookmarkStart w:id="9" w:name="between"/><w:bookmarkEnd w:id="9"/><w:tr>',
+            )
+            .replace(
+              '<w:tc><w:p><w:r><w:t>First</w:t></w:r></w:p></w:tc>',
+              '<w:tc><w:p><w:r><w:t>First</w:t></w:r></w:p></w:tc>' +
+                '<w:bookmarkStart w:id="10" w:name="cells"/><w:bookmarkEnd w:id="10"/>',
+            ),
         );
       }),
     );
@@ -513,14 +520,45 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
     );
     // The title keeps its words apart, though it was set over two lines.
     expect(out.title).toBe('On the Weight of Obsidian');
+    // A heading is one line: its break is a space, so the page's own reading of
+    // the heading (the "on this page" rail, the id) keeps the words apart.
     expect(headings(out.markdown).slice(0, 2)).toEqual([
-      '# On the Weight<br>of Obsidian',
-      '## The Quarry<br>Northern Face',
+      '# On the Weight of Obsidian',
+      '## The Quarry Northern Face',
     ]);
     expect(out.markdown).toContain('A line<br>broken.');
     expect(out.markdown).toContain('Guild of Masons<br><sup>a</sup>Corresponding author');
     // No stray backslash where a break met kept HTML.
     expect(out.markdown).not.toMatch(/\\ ?</);
+  });
+
+  it('test_docx_line_breaks: a page or column break inside a paragraph keeps its words apart', async () => {
+    const page = '<w:r><w:br w:type="page"/></w:r>';
+    const column = '<w:r><w:br w:type="column"/></w:r>';
+    const out = await convert(
+      await variant((text) =>
+        beforeEnd(
+          `<w:p><w:r><w:t>lastword</w:t></w:r>${page}<w:r><w:t>Firstword of the next page</w:t></w:r></w:p>` +
+            `<w:p><w:r><w:t>leftcolumn</w:t></w:r>${column}<w:r><w:t>rightcolumn</w:t></w:r></w:p>`,
+        )(
+          text
+            .replace(
+              '<w:r><w:t>On the Weight of Obsidian</w:t></w:r>',
+              `<w:r><w:t>On the Weight</w:t></w:r>${page}<w:r><w:t>of Obsidian</w:t></w:r>`,
+            )
+            .replace(
+              '<w:tc><w:p><w:r><w:t>nine stone</w:t></w:r></w:p></w:tc>',
+              `<w:tc><w:p><w:r><w:t>nine</w:t></w:r>${page}<w:r><w:t>stone</w:t></w:r></w:p></w:tc>`,
+            ),
+        ),
+      ),
+    );
+    expect(out.title).toBe('On the Weight of Obsidian');
+    expect(headings(out.markdown)[0]).toBe('# On the Weight of Obsidian');
+    expect(out.markdown).toContain('lastword<br>Firstword of the next page');
+    expect(out.markdown).toContain('leftcolumn<br>rightcolumn');
+    expect(out.markdown).toMatch(/\| nine<br>stone\s+\|$/m);
+    expect(out.markdown).not.toMatch(/lastwordFirstword|ninestone|Weightof|leftcolumnrightcolumn/);
   });
 
   it('test_docx_heading_levels: a Title or heading inside a table still leaves the chapter one top heading', async () => {
