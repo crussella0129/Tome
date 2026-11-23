@@ -260,6 +260,29 @@ describe('find-books.mjs --add — documents (INT-0029 AC1)', { timeout: 180_000
     return JSON.parse(readFileSync(join(dest, slug!, 'book.meta.json'), 'utf8')).title;
   }
 
+  /** The environment with every loader input removed. */
+  function cleanEnv(): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    delete env.TOME_BOOK;
+    delete env.TOME_BOOKS;
+    delete env.TOME_CONFIG;
+    delete env.TOME_BOOK_DEST;
+    return env;
+  }
+  /** Every file of the documents given to books:add, with its hash. */
+  function sourceHashes(): Record<string, string> {
+    const out: Record<string, string> = {};
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else out[relative(tmp, full)] = hash(full);
+      }
+    };
+    for (const folder of ['papers', 'vault']) walk(join(tmp, folder));
+    return out;
+  }
+
   beforeAll(async () => {
     tmp = mkdtempSync(join(tmpdir(), 'tome-add-docs-'));
     cwd = join(tmp, 'checkout');
@@ -288,6 +311,8 @@ describe('find-books.mjs --add — documents (INT-0029 AC1)', { timeout: 180_000
     const note = join(tmp, 'papers', 'My Note.md');
     const paper = join(tmp, 'papers', 'paper.docx');
     const vault = join(tmp, 'vault');
+    const sourcesBefore = sourceHashes();
+    expect(Object.keys(sourcesBefore).length).toBeGreaterThanOrEqual(6);
 
     const first = books(['--add', note], cwd);
     expect(first.status, first.stderr).toBe(0);
@@ -313,6 +338,25 @@ describe('find-books.mjs --add — documents (INT-0029 AC1)', { timeout: 180_000
     expect(text).toContain('title = "My Vault"');
     expect(text).toContain('slug = "the-vault"');
     expect(hash(join(cwd, 'tome.config.toml'))).toBe(shared);
+
+    // The manifest books:add wrote is one the loader reads: three tomes, the
+    // folder under the title and slug given.
+    const dest = mkdtempSync(join(tmp, 'from-manifest-'));
+    const loaded = spawnSync(
+      process.execPath,
+      [loader, '--dest', dest, '--config', join(cwd, 'tome.local.toml')],
+      { cwd: projectRoot, env: cleanEnv(), encoding: 'utf8', windowsHide: true },
+    );
+    expect(loaded.status, loaded.stderr).toBe(0);
+    expect(readdirSync(dest).sort()).toEqual(['my-note', 'paper', 'the-vault']);
+    const titleOf = (slug: string) =>
+      JSON.parse(readFileSync(join(dest, slug, 'book.meta.json'), 'utf8')).title;
+    expect(titleOf('the-vault')).toBe('My Vault');
+    expect(titleOf('my-note')).toBe('A Note Of Mine');
+    expect(titleOf('paper')).toBe('On the Weight of Obsidian');
+
+    // Adding only reads: every source file is as it was.
+    expect(sourceHashes()).toEqual(sourcesBefore);
   });
 
   it('test_books_add_document_dedupes: the same document twice is one entry', () => {
@@ -358,5 +402,12 @@ describe('find-books.mjs --add — documents (INT-0029 AC1)', { timeout: 180_000
     ]);
     expect(found.books[0]).toMatchObject({ title: 'A Real Book', chapters: 1 });
     expect(found.skipped).toEqual([]);
+
+    // The table too: one book, and no line for the loose note beside it.
+    const table = books([join(tmp, 'loose')]);
+    expect(table.status, table.stderr).toBe(0);
+    expect(table.stdout).toMatch(/Found 1 book under/);
+    expect(table.stdout).toContain('A Real Book');
+    expect(table.stdout).not.toMatch(/top\.md|\bTop\b/);
   });
 });

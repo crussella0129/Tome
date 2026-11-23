@@ -110,14 +110,18 @@ function comparePaths(a, b) {
 /**
  * Put a folder's documents (`/`-separated paths from its root) in reading
  * order. A `README` or `index` directly in the folder opens the tome, README
- * winning; the rest follow by path.
+ * winning, and a Markdown one before a Word one of the same name; the rest
+ * follow by path.
  * @param {string[]} rels
  * @returns {{ rel: string, opening: boolean }[]}
  */
 export function orderDocuments(rels) {
   const sorted = [...rels].sort(comparePaths);
-  const rootNamed = (name) =>
-    sorted.find((rel) => !rel.includes('/') && stem(rel).toLowerCase() === name);
+  // README before index; of two with the same name, the Markdown one.
+  const rootNamed = (name) => {
+    const named = sorted.filter((rel) => !rel.includes('/') && stem(rel).toLowerCase() === name);
+    return named.find((rel) => documentFormat(rel) === 'markdown') ?? named[0];
+  };
   const opening = rootNamed('readme') ?? rootNamed('index');
   const rest = sorted.filter((rel) => rel !== opening);
   return [

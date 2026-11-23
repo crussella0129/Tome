@@ -187,6 +187,49 @@ function headTables(tree) {
   });
 }
 
+/**
+ * A Markdown table cell holds one line. A Word cell may hold several
+ * paragraphs or a list, which would break the table apart, so each cell's
+ * blocks are set on one line with a line break between them and a list's
+ * items marked as text (`• item`, `1. item`).
+ */
+function flattenCells(tree) {
+  const text = (value) => ({ type: 'text', value });
+  const lines = (nodes, depth, out) => {
+    for (const node of nodes) {
+      if (node.type === 'text' && !node.value.trim()) continue;
+      if (isElement(node, 'p')) {
+        out.push(node.children);
+      } else if (isElement(node, 'ul') || isElement(node, 'ol')) {
+        const items = node.children.filter((child) => isElement(child, 'li'));
+        items.forEach((item, i) => {
+          const marker = node.tagName === 'ol' ? `${i + 1}. ` : '• ';
+          const own = [];
+          const nested = [];
+          for (const child of item.children) {
+            if (isElement(child, 'ul') || isElement(child, 'ol')) nested.push(child);
+            else if (isElement(child, 'p')) own.push(...child.children);
+            else own.push(child);
+          }
+          out.push([text(`${'  '.repeat(depth)}${marker}`), ...own]);
+          lines(nested, depth + 1, out);
+        });
+      } else {
+        out.push([node]);
+      }
+    }
+    return out;
+  };
+  visit(tree, 'element', (node) => {
+    if (node.tagName !== 'td' && node.tagName !== 'th') return;
+    const blocks = lines(node.children, 0, []).filter((block) => block.length > 0);
+    node.children = blocks.flatMap((block, i) =>
+      i === 0 ? block : [element('tome-br', {}, []), ...block],
+    );
+    return SKIP;
+  });
+}
+
 /** Keep a link only when it leads to a web or mail address; else keep its text. */
 function plainUnsafeLinks(tree) {
   visit(tree, 'element', (node, index, parent) => {
@@ -217,6 +260,8 @@ const kept = (tag) => (state, node) => [
 const handlers = {
   sup: kept('sup'),
   sub: kept('sub'),
+  // A line break inside a table cell (see flattenCells).
+  'tome-br': () => ({ type: 'html', value: '<br>' }),
   'tome-noteref': (_state, node) => ({
     type: 'footnoteReference',
     identifier: String(node.properties.label),
@@ -230,13 +275,31 @@ const handlers = {
   }),
 };
 
-/** A reader message that says something was left out, not merely restyled. */
+/**
+ * A reader message that says something was left out. The reader also remarks
+ * on styles it has no mapping for, or that a document names but never defines;
+ * in both cases the text is kept, so those are not omissions. An image it
+ * doubts a browser can show is counted as an image, not here.
+ */
 function isOmission(message) {
   return (
-    !/^Unrecognised (?:paragraph|run|table) style\b/i.test(message) &&
+    /\b(?:ignored|could not|cannot|unsupported)\b/i.test(message) &&
+    !/\bstyle\b/i.test(message) &&
     !/unlikely to display in web browsers/i.test(message)
   );
 }
+
+/**
+ * How Word's paragraph styles become HTML, beyond the reader's own defaults.
+ * The Title heads the chapter (see settleHeadings); Word's quotation styles
+ * are block quotations.
+ */
+const STYLE_MAP = [
+  `p[style-name='Title'] => h1.${TITLE_CLASS}:fresh`,
+  "p[style-name='Quote'] => blockquote > p:fresh",
+  "p[style-name='Intense Quote'] => blockquote > p:fresh",
+  "p[style-name='Block Text'] => blockquote > p:fresh",
+];
 
 /**
  * Convert one Word document.
@@ -277,7 +340,7 @@ export async function convertDocx(input, options = {}) {
     result = await mammoth.convertToHtml(
       { buffer: await zip.generateAsync({ type: 'nodebuffer' }) },
       {
-        styleMap: [`p[style-name='Title'] => h1.${TITLE_CLASS}:fresh`],
+        styleMap: STYLE_MAP,
         convertImage: mammoth.images.imgElement(async (image) => {
           const kind = IMAGE_KINDS.get(image.contentType);
           if (!kind) {
@@ -303,6 +366,7 @@ export async function convertDocx(input, options = {}) {
       liftNotes(tree);
       title = settleHeadings(tree, fallbackTitle);
       headTables(tree);
+      flattenCells(tree);
       plainUnsafeLinks(tree);
       markUnsupportedImages(tree);
     })

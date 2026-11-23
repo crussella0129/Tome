@@ -146,9 +146,10 @@ chapter per `.md` and `.docx` file, at any depth:
 ### What carries over from Word
 
 Headings, bold, italic, strikethrough, superscript and subscript, lists, links
-to web and mail addresses, tables, footnotes and endnotes, and pictures (PNG,
-JPEG, GIF, WebP). The document's Title heads the page, and its headings become
-the page's sections.
+to web and mail addresses, tables, footnotes and endnotes, block quotations
+(Word's Quote styles), and pictures (PNG, JPEG, GIF, WebP). The document's
+Title heads the page, and its headings become the page's sections. A list or
+several paragraphs inside a table cell stay in the cell, one to a line.
 
 Some things are not shown yet. Where one stood, the page says so:
 

@@ -97,13 +97,14 @@ describe('parseChapter with HTML', () => {
     const { text } = parseChapter(
       'x<sup>2</sup> and <span class="a">b</span>\n\n<div>block words</div>',
     );
-    expect(text).toContain('x');
-    expect(text).toContain('2');
-    expect(text).toContain('and');
-    expect(text).toContain('b');
-    expect(text).toContain('block words');
-    expect(text).not.toMatch(/[<>]/);
-    expect(text).not.toMatch(/\b(sup|span|div|class)\b/);
+    // A tag within a line joins its neighbours (`x2`), as it does in a heading;
+    // a block of HTML stands apart. Nothing of a tag is left.
+    expect(text).toBe('x2 and b block words');
+  });
+
+  it('test_search_text_drops_tags: a formula in a line is found as one word', () => {
+    const { text } = parseChapter('Washed in H<sub>2</sub>O, area x<sup>2</sup>.');
+    expect(text).toBe('Washed in H2O, area x2.');
   });
 
   it('test_search_text_drops_tags: a heading with a tag is slugged by its words', () => {

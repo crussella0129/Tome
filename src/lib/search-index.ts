@@ -40,6 +40,10 @@ function htmlWords(value: string): string {
   return value.replace(/<[^>]*>/g, '');
 }
 
+/** Stands where a tag within a line was, so its neighbours join without a space. */
+const GLUE = String.fromCharCode(0);
+const GLUE_WITH_SPACES = new RegExp(` ?${GLUE} ?`, 'g');
+
 /**
  * Concatenate the raw text of an inline subtree (for a heading's own text).
  * HTML tags are skipped, as Astro skips them when it gives the heading its id.
@@ -67,7 +71,7 @@ export function parseChapter(raw: string): { text: string; headings: SearchHeadi
   const headings: SearchHeading[] = [];
   const parts: string[] = [];
 
-  const walk = (node: MdNode): void => {
+  const walk = (node: MdNode, parent?: MdNode): void => {
     if (node.type === 'code') return; // skip fenced code entirely
     if (node.type === 'heading') {
       const text = inlineText(node);
@@ -76,18 +80,30 @@ export function parseChapter(raw: string): { text: string; headings: SearchHeadi
       return; // heading text captured; don't descend again
     }
     if (node.type === 'html') {
-      parts.push(htmlWords(node.value ?? '')); // the words, never the tags
+      // The words, never the tags. A tag within a line (`H<sub>2</sub>O`) joins
+      // the text on either side of it, as it does in a heading; a block of HTML
+      // stands apart like any other block.
+      const words = htmlWords(node.value ?? '');
+      parts.push(parent && parent.type !== 'root' && !words.trim() ? GLUE : words);
       return;
     }
     if (typeof node.value === 'string') {
       parts.push(node.value); // text, inlineCode
       return;
     }
-    for (const child of node.children ?? []) walk(child);
+    const start = parts.length;
+    for (const child of node.children ?? []) walk(child, node);
+    if (node.type === 'paragraph') {
+      // A tag at either end of a paragraph has no neighbour in it to join, and
+      // must not join this paragraph to the block before or after.
+      while (parts.length > start && parts[parts.length - 1] === GLUE) parts.pop();
+      while (parts.length > start && parts[start] === GLUE) parts.splice(start, 1);
+    }
   };
   walk(tree);
 
-  return { text: collapseWhitespace(parts.join(' ')), headings };
+  const joined = parts.join(' ').replace(GLUE_WITH_SPACES, '');
+  return { text: collapseWhitespace(joined), headings };
 }
 
 /**

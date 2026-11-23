@@ -55,8 +55,8 @@ comes first. Boundaries:
    A tome's own address (`/` in a library of one, `/<slug>` in a library of
    several) opens its opening page, or its first chapter when it has none.
 3. From a Word document the reader shows headings, paragraphs, bold, italic,
-   strikethrough, superscript and subscript, lists, links, tables, footnotes
-   and images. Each chapter has one top heading. Where the document has a
+   strikethrough, superscript and subscript, lists, links, tables, footnotes,
+   block quotations and images. Each chapter has one top heading. Where the document has a
    Title, that is the top heading, Heading 1 and 2 become the sections the
    "on this page" rail lists, and Heading 3 sits below them. Where it has no
    Title, its one Heading 1 is the top heading; with none or several, the
@@ -139,6 +139,15 @@ of Tome already works.
   until INT-0030.
 - Cross-references and a table of contents inside a Word document are
   shown as plain text: the places they point to do not survive conversion.
+- Word's "Quote", "Intense Quote" and "Block Text" paragraphs are block
+  quotations. A paragraph that is only indented to look like one is not.
+- A table cell holds one line. Where a Word cell holds several paragraphs
+  or a list, they are set in the cell with a line break between them, and a
+  list's items are marked as text (`• item`, `1. item`). A table whose
+  first row is empty, as a table used for layout often is, gets an empty
+  header row.
+- A Word document named `README` or `index` opens a tome when no Markdown
+  file of that name does.
 - A Markdown document is shown as written. Its `##` and `###` headings are
   the sections the "on this page" rail lists, as in any chapter; a note
   that uses several `#` headings has none listed.
@@ -148,6 +157,9 @@ of Tome already works.
   heading, names the chapter.
 - An image a Markdown document includes as HTML (`<img>`) is not staged.
   The load names the document; the image does not show.
+- An image a Markdown document names by a full path on the machine
+  (`C:\pictures\a.png`, `file:///…`) is judged like any other: staged
+  when it lies inside the document's folder, marked and reported when not.
 - A Markdown document's images are staged when they are PNG, JPEG, GIF,
   WebP, SVG or AVIF. A file with one of those names that is damaged is
   not caught by the load and stops the build, as it does in an mdBook.
@@ -170,7 +182,9 @@ of Tome already works.
   an mdBook. There is no limit of depth or number.
 - A folder that has a `book.toml` or a `SUMMARY.md` is always an mdBook.
   If it is a broken one, it fails as it does now and is not read as loose
-  documents.
+  documents. Where the file system ignores the case of names (Windows,
+  macOS), a note named `Summary.md` is that spine, so a folder holding one
+  is read as an mdBook there.
 - A path with a comma in it cannot be given through `TOME_BOOKS`, which
   separates paths by commas. This was already so for mdBook folders; the
   manifest and `TOME_BOOK` take any path.
@@ -199,3 +213,10 @@ of Tome already works.
   document in a folder that cannot be opened, charts and diagrams, which
   kinds of image a note may hold, and what the rail lists.
 - 2026-11-23: `planned` → `active`. Sprint 24's Build began with T-065.
+- 2026-11-23: revised at Sprint 24's Test phase, still `active`. Reading
+  Word files saved by Word itself (the pandoc project's test documents, at
+  the owner's direction to "find an example with headings online") showed
+  that block quotations were lost and that a list in a table cell broke the
+  table; both are now carried over, and criterion 3 names quotations. The
+  test review added which Word file may open a tome, images named by a full
+  path, and the `Summary.md` case.

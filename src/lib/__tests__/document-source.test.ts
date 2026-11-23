@@ -59,6 +59,8 @@ describe('document-source.mjs — what a library entry names (INT-0029 AC1)', ()
       'vault/dist/out.md': '# build\n',
       'vault/vendor/lib.md': '# vendored\n',
       'vault/venv/notes.md': '# env\n',
+      'vault/__pycache__/cached.md': '# cache\n',
+      'vault/site-packages/pkg/README.md': '# package\n',
       'vault/nested-spine/SUMMARY.md': '# Summary\n\n- [One](one.md)\n',
       'vault/nested-spine/one.md': '# One\n',
       'vault/nested-toml/book.toml': '[book]\n',
@@ -124,11 +126,17 @@ describe('document-source.mjs — what a library entry names (INT-0029 AC1)', ()
   it('test_source_folder_walk: a symlinked folder is not followed', async (context) => {
     try {
       symlinkSync(join(tmp, 'outside'), join(tmp, 'vault', 'linked'), 'dir');
+      symlinkSync(join(tmp, 'outside', 'secret.md'), join(tmp, 'vault', 'linked-note.md'), 'file');
     } catch {
       context.skip(); // the platform refuses symlinks without privilege
     }
     const source = await resolveSource(join(tmp, 'vault'));
-    expect(source.documents?.map((d) => d.rel)).not.toContain('linked/secret.md');
+    // Neither a linked folder nor a linked file is read.
+    expect(source.documents?.map((d) => d.rel)).toEqual([
+      'top.md',
+      'a/b/c/deep.md',
+      'a/letter.docx',
+    ]);
   });
 
   it('test_source_refusals: the path and what Tome accepts are named', async () => {
@@ -216,6 +224,35 @@ describe('document-source.mjs — order, names and the spine (INT-0029 AC2)', ()
     expect(stagedNames(orderDocuments(['Old Letters/To Mara.docx']))).toEqual([
       'old-letters/to-mara.md',
     ]);
+    // The reserved names, by name: `summary` would be overwritten by the spine
+    // on a file system that ignores case, and a nested `README` or `index`
+    // would take its folder's route.
+    expect(stagedNames(orderDocuments(['Summary.md', 'other.md']))).toEqual([
+      'other.md',
+      'summary-2.md',
+    ]);
+    expect(stagedNames(orderDocuments(['sub/README.md', 'sub/index.md']))).toEqual([
+      'sub/index-2.md',
+      'sub/readme-2.md',
+    ]);
+  });
+
+  it('test_source_order: a Word file may open a tome, but a Markdown one of the same name comes first', () => {
+    expect(orderDocuments(['README.docx', 'README.md', 'b.md'])).toEqual([
+      { rel: 'README.md', opening: true },
+      { rel: 'b.md', opening: false },
+      { rel: 'README.docx', opening: false },
+    ]);
+    expect(stagedNames(orderDocuments(['README.docx', 'README.md', 'b.md']))).toEqual([
+      'README.md',
+      'b.md',
+      'readme-2.md',
+    ]);
+    expect(orderDocuments(['index.docx', 'a.md'])[0]).toEqual({ rel: 'index.docx', opening: true });
+    expect(orderDocuments(['index.md', 'README.docx'])[0]).toEqual({
+      rel: 'README.docx',
+      opening: true,
+    });
   });
 
   it('test_spine_round_trip: parseSummary reads back what writeSpine wrote', () => {

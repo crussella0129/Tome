@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import { buildDocx } from '../../../fixtures/word/build-docx.mjs';
 import {
@@ -201,21 +202,96 @@ describe('document-stage.mjs — a Markdown document', () => {
     } catch {
       context.skip(); // the platform refuses symlinks without privilege
     }
+    const before = snapshot(base);
     const out = await prepareDocument(markdownDoc(root, 'note.md'), { root });
     expect(reads(out.markdown)).toContain('[image not shown]');
     expect(out.files).toEqual([]);
     expect(out.leftOut).toEqual([{ kind: 'image', count: 1, detail: 'linked.png' }]);
+    expect(snapshot(base)).toEqual(before);
+  });
+
+  it('test_prepare_markdown_missing_image: a full path is judged like any other reference', async () => {
+    const base = vault({
+      'vault/img/plate.png': PNG,
+      'outside.png': PNG,
+      'vault/note.md': 'placeholder\n',
+    });
+    const root = join(base, 'vault');
+    const inside = join(root, 'img', 'plate.png');
+    const outside = join(base, 'outside.png');
+    // A drive-letter path and a file: address, each inside and outside the root.
+    const asPath = (file: string) => file.replace(/\\/g, '/');
+    const source =
+      `![in by path](${asPath(inside)})\n\n![out by path](${asPath(outside)})\n\n` +
+      `![in by address](${pathToFileURL(inside).href})\n\n` +
+      `![out by address](${pathToFileURL(outside).href})\n`;
+    writeFileSync(join(root, 'note.md'), source);
+    const before = snapshot(base);
+
+    const out = await prepareDocument(markdownDoc(root, 'note.md'), { root });
+    const images = nodes(out.markdown, 'image').map((node) => node.url);
+    if (/^[A-Za-z]:\//.test(asPath(inside))) {
+      // Where full paths begin with a drive letter, both spellings are local
+      // references: the ones inside the root are staged, the others marked.
+      expect(images).toEqual([
+        './__tome_parent_assets__/img/plate.png',
+        './__tome_parent_assets__/img/plate.png',
+      ]);
+      expect(out.leftOut.map((entry) => entry.kind)).toEqual(['image', 'image']);
+    } else {
+      // Elsewhere a path beginning `/` is a site address and is left as
+      // written; the file: addresses are still judged.
+      expect(images).toContain('./__tome_parent_assets__/img/plate.png');
+      expect(out.leftOut.map((entry) => entry.kind)).toEqual(['image']);
+    }
+    expect(reads(out.markdown)).toContain('[image not shown]');
+    expect(out.files.every((file) => file.to.startsWith('__tome_parent_assets__/'))).toBe(true);
+    expect(out.files.map((file) => file.to)).toEqual(['__tome_parent_assets__/img/plate.png']);
+    expect(snapshot(base)).toEqual(before);
   });
 
   it('test_prepare_markdown_html_image: an HTML image is left as written and listed', async () => {
     const source =
       '# Note\n\n<img src="plate.png" alt="a plate">\n\n<img src="https://example.com/x.png">\n';
     const root = vault({ 'note.md': source, 'plate.png': PNG });
+    const before = snapshot(root);
     const out = await prepareDocument(markdownDoc(root, 'note.md'), { root });
     expect(out.markdown).toBe(source);
     expect(out.files).toEqual([]);
     expect(out.leftOut).toEqual([{ kind: 'html-image', count: 1 }]);
     expect(describeLeftOut(out.leftOut)).toBe('1 HTML image (not staged)');
+    expect(snapshot(root)).toEqual(before);
+  });
+});
+
+describe('document-stage.mjs — what the load says was left out', () => {
+  it('test_describe_left_out: every kind has its words, and what was not recognised is named', () => {
+    expect(describeLeftOut([])).toBe('');
+    expect(describeLeftOut([{ kind: 'equation', count: 1 }])).toBe('1 equation');
+    expect(describeLeftOut([{ kind: 'figure', count: 1 }])).toBe('1 chart or diagram');
+    expect(describeLeftOut([{ kind: 'figure', count: 3 }])).toBe('3 charts or diagrams');
+    expect(
+      describeLeftOut([
+        { kind: 'image', count: 1, detail: 'image/x-emf' },
+        { kind: 'image', count: 2, detail: 'image/tiff' },
+      ]),
+    ).toBe('3 images');
+    expect(
+      describeLeftOut([
+        { kind: 'other', count: 1, detail: 'An unrecognised element was ignored: w:madeUpThing' },
+        { kind: 'other', count: 2, detail: 'A v:imagedata element was ignored' },
+      ]),
+    ).toBe(
+      '3 elements the Word reader did not recognise ' +
+        '(w:madeUpThing; A v:imagedata element was ignored)',
+    );
+    expect(
+      describeLeftOut([
+        { kind: 'equation', count: 2 },
+        { kind: 'figure', count: 1 },
+        { kind: 'other', count: 1, detail: 'An unrecognised element was ignored: w:x' },
+      ]),
+    ).toBe('2 equations, 1 chart or diagram, 1 element the Word reader did not recognise (w:x)');
   });
 });
 

@@ -3,7 +3,8 @@
 // site reads them: every chapter routed, one search record each, heading
 // anchors that match the search index, and, in Chromium, the Word chapter's
 // footnotes, table, image, marks and links (e2e/documents.spec.ts). A second
-// build puts the folder beside an mdBook and checks the Bibliotheca.
+// build puts the folder beside an mdBook and checks the Bibliotheca; a third
+// builds one Word document on its own.
 //
 // The Word papers are zipped here from their parts (fixtures/word/), into a
 // temporary copy of fixtures/papers/, so nothing is written into the checkout.
@@ -96,6 +97,36 @@ function checkBibliotheca() {
   if (link !== '/papers/1-first-note') fail(`Bibliotheca: the tome opens at ${link}`);
   requireRoute('/papers', 'sidebar title link');
   requireRoute('/handbook', 'handbook');
+  // The tome's own address opens its first chapter, and a chapter's sidebar
+  // title links to that address.
+  const own = readFileSync(routeFile('/papers'), 'utf8');
+  if (!/<h1[^>]*>First Note<\/h1>/.test(own)) {
+    fail('tome address: /papers does not show the first chapter');
+  }
+  const chapter = readFileSync(routeFile('/papers/3-paper'), 'utf8');
+  if (!/<a[^>]*href="\/papers"[^>]*>\s*papers\s*<\/a>/.test(chapter)) {
+    fail('tome address: the sidebar title of /papers/3-paper does not link to /papers');
+  }
+}
+
+/** A library of one Word document: the whole site is that paper. */
+function checkSingleDocument() {
+  // check_documents_single_word: `/` is the paper, its image was built, and
+  // search holds exactly one record, at `/`.
+  const home = readFileSync(routeFile('/'), 'utf8');
+  if (!/<h1[^>]*>On the Weight of Obsidian<\/h1>/.test(home)) {
+    fail('single document: / does not show the paper under its Title');
+  }
+  const image = home.match(/<img[^>]*src="(\/_astro\/[^"]+)"/)?.[1];
+  if (!image) fail('single document: the paper has no built image');
+  if (!existsSync(join(dist, ...image.split('/').filter(Boolean)))) {
+    fail(`single document: ${image} is missing from the build`);
+  }
+  if (!home.includes('[equation not shown]')) fail('single document: no equation mark');
+  const index = JSON.parse(readFileSync(join(dist, 'search-index.json'), 'utf8'));
+  if (index.length !== 1 || index[0].url !== '/') {
+    fail(`single document: search holds ${JSON.stringify(index.map((record) => record.url))}`);
+  }
 }
 
 try {
@@ -115,6 +146,11 @@ try {
       gate.build({ TOME_BOOKS: `${join(fixtures, 'handbook')},${papers}` });
       checkBibliotheca();
       console.log('check-documents: OK — documents listed in the Bibliotheca');
+
+      console.log('check-documents: building one Word document on its own …');
+      gate.build({ TOME_BOOK: join(papers, '3-paper.docx') });
+      checkSingleDocument();
+      console.log('check-documents: OK — one Word document read as a tome');
     } finally {
       rmSync(parent, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
     }

@@ -314,7 +314,11 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
       await variant(
         beforeEnd(
           '<w:p><w:r><w:t>kept text</w:t></w:r><w:r><w:madeUpThing/></w:r></w:p>' +
-            '<w:p><w:pPr><w:pStyle w:val="Fancy"/></w:pPr><w:r><w:t>Fancy styled text</w:t></w:r></w:p>',
+            '<w:p><w:pPr><w:pStyle w:val="Fancy"/></w:pPr><w:r><w:t>Fancy styled text</w:t></w:r></w:p>' +
+            // A style the document names but never defines, as Word's own
+            // files do (seen in a real one: "Heading7 was referenced but not
+            // defined"). The text is kept, so nothing was left out.
+            '<w:p><w:pPr><w:pStyle w:val="Ghost"/></w:pPr><w:r><w:t>Ghost styled text</w:t></w:r></w:p>',
         ),
         {
           'word/styles.xml': (text) =>
@@ -332,6 +336,140 @@ describe('docx-to-markdown.mjs — variants of the paper', () => {
     expect(others[0]).toMatchObject({ count: 1 });
     expect(others[0]!.detail).toMatch(/madeUpThing/);
     expect(JSON.stringify(out.leftOut)).not.toMatch(/Fancy/);
+    expect(out.markdown).toContain('Ghost styled text');
+    expect(JSON.stringify(out.leftOut)).not.toMatch(/Ghost/);
+  });
+
+  // The next two rules came from reading files saved by Word itself (the pandoc
+  // project's test documents), which the hand-written parts did not cover.
+  it('test_docx_block_quotes: Word’s quotation styles are block quotations', async () => {
+    const quote = (style: string, words: string) =>
+      `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr><w:r><w:t>${words}</w:t></w:r></w:p>`;
+    const out = await convert(
+      await variant(
+        beforeEnd(
+          quote('Quote', 'First quoted line.') +
+            quote('Quote', 'Second quoted line.') +
+            '<w:p><w:r><w:t>Plain between.</w:t></w:r></w:p>' +
+            quote('IntenseQuote', 'An intense line.'),
+        ),
+        {
+          'word/styles.xml': (text) =>
+            text.replace(
+              '</w:styles>',
+              '<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/></w:style>' +
+                '<w:style w:type="paragraph" w:styleId="IntenseQuote"><w:name w:val="Intense Quote"/></w:style>' +
+                '</w:styles>',
+            ),
+        },
+      ),
+    );
+    expect(out.markdown).toContain('> First quoted line.\n>\n> Second quoted line.');
+    expect(out.markdown).toContain('\nPlain between.\n');
+    expect(out.markdown).toContain('> An intense line.');
+    expect(nodesOfType(out.markdown, ['blockquote'])).toHaveLength(2);
+  });
+
+  it('test_docx_table_cells_stay_one_line: paragraphs and lists in a cell do not break the table', async () => {
+    const item = (num: number, words: string) =>
+      `<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/>` +
+      `<w:numId w:val="${num}"/></w:numPr></w:pPr><w:r><w:t>${words}</w:t></w:r></w:p>`;
+    const out = await convert(
+      await variant((text) =>
+        text
+          .replace(
+            '<w:tc><w:p><w:r><w:t>First</w:t></w:r></w:p></w:tc>',
+            `<w:tc><w:p><w:r><w:t>First</w:t></w:r></w:p><w:p><w:r><w:t>and second line</w:t></w:r></w:p></w:tc>`,
+          )
+          .replace(
+            '<w:tc><w:p><w:r><w:t>nine stone</w:t></w:r></w:p></w:tc>',
+            `<w:tc>${item(1, 'a chip')}${item(1, 'a crack')}${item(2, 'weighed')}${item(2, 'weighed again')}</w:tc>`,
+          ),
+      ),
+    );
+    const rows = out.markdown.split('\n').filter((line) => line.startsWith('|'));
+    // Header, divider, and the one body row: the cell's blocks stayed on its line.
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatch(/^\| Tablet\s+\| Weight\s+\|$/);
+    expect(rows[2]).toContain('First<br>and second line');
+    expect(rows[2]).toContain('• a chip<br>• a crack<br>1. weighed<br>2. weighed again');
+    // Each row is still one line of two cells.
+    for (const row of rows) expect(row.split('|')).toHaveLength(4);
+    expect(out.markdown).not.toMatch(/^- a chip|^\d+\. weighed/m);
+  });
+
+  // INT-0029 AC4: layout and decoration are not carried over and not reported.
+  // If the reader warned about any of these, every real paper would print a
+  // line of "elements the Word reader did not recognise".
+  it('test_docx_decoration_is_silent: fonts, colours, comments, headers, bookmarks and field codes leave no report', async () => {
+    const field = (code: string, shown: string) =>
+      `<w:r><w:fldChar w:fldCharType="begin"/></w:r>` +
+      `<w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r>` +
+      `<w:r><w:fldChar w:fldCharType="separate"/></w:r>` +
+      `<w:r><w:t>${shown}</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
+    const added =
+      '<w:p><w:r><w:rPr><w:rFonts w:ascii="Garamond" w:hAnsi="Garamond"/><w:color w:val="FF0000"/>' +
+      '<w:sz w:val="32"/><w:highlight w:val="yellow"/></w:rPr><w:t>Dressed words.</w:t></w:r></w:p>' +
+      '<w:p><w:commentRangeStart w:id="0"/><w:r><w:t>Commented words.</w:t></w:r>' +
+      '<w:commentRangeEnd w:id="0"/><w:r><w:commentReference w:id="0"/></w:r></w:p>' +
+      '<w:p><w:bookmarkStart w:id="5" w:name="_Ref1"/><w:r><w:t>Marked place.</w:t></w:r>' +
+      '<w:bookmarkEnd w:id="5"/></w:p>' +
+      `<w:p><w:r><w:t xml:space="preserve">See </w:t></w:r>${field('REF _Ref1 \\h', 'the marked place')}` +
+      `<w:r><w:t xml:space="preserve"> on page </w:t></w:r>${field('PAGEREF _Ref1 \\h', '7')}` +
+      `<w:r><w:t xml:space="preserve"> or follow </w:t></w:r>${field('HYPERLINK \\l "_Ref1"', 'a field link')}` +
+      '<w:r><w:t>.</w:t></w:r></w:p>';
+    const out = await convert(
+      await buildDocx(PAPER_PARTS, {
+        replace: {
+          'word/document.xml': (text) =>
+            text.replace(
+              '<w:sectPr/>',
+              `${added}<w:sectPr><w:headerReference w:type="default" r:id="rId30"/>` +
+                '<w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:bottom="1440"/></w:sectPr>',
+            ),
+          'word/_rels/document.xml.rels': (text) =>
+            text.replace(
+              '</Relationships>',
+              '<Relationship Id="rId30" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>' +
+                '<Relationship Id="rId31" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/>' +
+                '</Relationships>',
+            ),
+          '[Content_Types].xml': (text) =>
+            text.replace(
+              '</Types>',
+              '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' +
+                '<Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>' +
+                '</Types>',
+            ),
+          'word/header1.xml':
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:p><w:r><w:t>Running head words</w:t></w:r></w:p></w:hdr>',
+          'word/comments.xml':
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+            '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+            '<w:comment w:id="0" w:author="A"><w:p><w:r><w:t>Margin remark words</w:t></w:r></w:p></w:comment>' +
+            '</w:comments>',
+        },
+      }),
+    );
+    const text = reads(out.markdown);
+    // The words are kept…
+    expect(text).toContain('Dressed words.');
+    expect(text).toContain('Commented words.');
+    expect(text).toContain('Marked place.');
+    expect(text).toContain('See the marked place on page 7 or follow a field link.');
+    // …the header and the comment are not carried over…
+    expect(text).not.toContain('Running head words');
+    expect(text).not.toContain('Margin remark words');
+    // …no link was made of a cross-reference…
+    const links = nodesOfType(out.markdown, ['link']) as unknown as { url: string }[];
+    expect(links.map((link) => link.url).sort()).toEqual([
+      'https://example.com/source',
+      'mailto:scribe@example.com',
+    ]);
+    // …and nothing is reported beyond the paper's two equations.
+    expect(out.leftOut).toEqual([{ kind: 'equation', count: 2 }]);
   });
 });
 

@@ -9,6 +9,7 @@
 // replaced by a mark. A Word document goes through docx-to-markdown.mjs.
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import { unified } from 'unified';
 import remarkStringify from 'remark-stringify';
@@ -66,6 +67,16 @@ function collect(tree, types) {
 
 /** The path a reference names on disk, or null when it is not a local file reference. */
 function localPath(url) {
+  // A full path on this machine (`C:\pics\a.png`, `file:///…`) names a local
+  // file as much as a relative one does; it is judged like any other.
+  if (/^[A-Za-z]:[\\/]/.test(url ?? '')) return { path: path.normalize(url), suffix: '' };
+  if (/^file:/i.test(url ?? '')) {
+    try {
+      return { path: fileURLToPath(url), suffix: '' };
+    } catch {
+      return { path: url, suffix: '' };
+    }
+  }
   if (
     !url ||
     url.startsWith('/') ||
@@ -297,7 +308,7 @@ const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one :
 /**
  * One line's worth of what a document left out, for the loader's output:
  * `2 equations, 1 image`. Empty when nothing was.
- * @param {{ kind: string, count: number }[]} leftOut
+ * @param {{ kind: string, count: number, detail?: string }[]} leftOut
  */
 export function describeLeftOut(leftOut) {
   const total = (kind) =>
@@ -313,12 +324,16 @@ export function describeLeftOut(leftOut) {
     parts.push(`${plural(total('html-image'), 'HTML image')} (not staged)`);
   }
   if (total('other') > 0) {
+    // Name them: `An unrecognised element was ignored: w:x` is told as `w:x`.
+    const names = leftOut
+      .filter((entry) => entry.kind === 'other' && entry.detail)
+      .map((entry) => entry.detail.replace(/^An unrecognised element was ignored:\s*/i, ''));
     parts.push(
       plural(
         total('other'),
         'element the Word reader did not recognise',
         'elements the Word reader did not recognise',
-      ),
+      ) + (names.length > 0 ? ` (${names.join('; ')})` : ''),
     );
   }
   return parts.join(', ');

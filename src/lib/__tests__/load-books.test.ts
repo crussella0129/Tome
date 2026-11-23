@@ -911,6 +911,57 @@ describe(
       expect(out.match(/left out/g)).toHaveLength(2);
     });
 
+    it('test_loader_reports_left_out: a chart and an unrecognised element are named too', async () => {
+      const figures = await buildDocx(undefined, {
+        replace: {
+          'word/document.xml': (xml: string) =>
+            xml
+              .replace(
+                '<w:document ',
+                '<w:document xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" ',
+              )
+              .replace(
+                '<w:sectPr/>',
+                '<w:p><w:r><w:drawing><wp:inline><wp:extent cx="1" cy="1"/>' +
+                  '<wp:docPr id="9" name="chart"/><a:graphic><a:graphicData ' +
+                  'uri="http://schemas.openxmlformats.org/drawingml/2006/chart">' +
+                  '<c:chart r:id="rId77"/></a:graphicData></a:graphic></wp:inline>' +
+                  '</w:drawing></w:r></w:p>' +
+                  '<w:p><w:r><w:t>kept</w:t></w:r><w:r><w:madeUpThing/></w:r></w:p>' +
+                  '<w:sectPr/>',
+              ),
+        },
+      });
+      const base = put(join(tmp, 'report-figures'), {
+        'figures.docx': figures,
+      });
+      const dest = join(base, 'out');
+      const out = run(dest, { TOME_BOOK: join(base, 'figures.docx') });
+      expect(out).toContain(
+        'figures.docx: left out 2 equations, 1 chart or diagram, ' +
+          '1 element the Word reader did not recognise (w:madeUpThing)',
+      );
+      expect(text(dest, 'figures', 'README.md')).toContain('figure not shown');
+    });
+
+    it('test_loader_document_folder: a note named Summary keeps its chapter beside the spine', (context) => {
+      const base = put(join(tmp, 'summary-note', 'vault'), {
+        'Summary.md': '# My Own Summary\n\nA note, not a spine.\n',
+        'other.md': '# Other\n',
+      });
+      // Where the file system ignores case (Windows, macOS), `Summary.md` IS
+      // the name of an mdBook's spine and the folder is read as a book, as it
+      // always was. The case below is for file systems that tell them apart.
+      if (existsSync(join(base, 'SUMMARY.md'))) context.skip();
+      const dest = join(tmp, 'summary-note', 'out');
+      run(dest, { TOME_BOOK: base });
+      const tome = join(dest, 'vault');
+      expect(text(tome, 'summary-2.md')).toContain('A note, not a spine.');
+      expect(text(tome, 'SUMMARY.md')).toContain(
+        '- [My Own Summary](summary-2.md)',
+      );
+    });
+
     it('test_loader_folder_unreadable_document: one bad Word file does not stop the rest', () => {
       const base = put(join(tmp, 'unreadable', 'vault'), {
         'good.md': '# Good\n',

@@ -3,11 +3,17 @@ import { test, expect, type Page } from '@playwright/test';
 // INT-0029 — a folder of loose documents read as a tome. Run by
 // scripts/check-documents.mjs against the site it has just built from two
 // Markdown notes and two Word papers (no SUMMARY.md anywhere).
-const imageLoaded = (page: Page, selector: string) =>
-  page
-    .locator(selector)
-    .first()
-    .evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
+// Astro marks a Markdown image `loading="lazy"`, so it may arrive after the
+// page's load event: bring it into view and wait for it to decode before
+// judging it (a failed image rejects, which fails the test).
+async function imageLoaded(page: Page, selector: string): Promise<boolean> {
+  const image = page.locator(selector).first();
+  await image.scrollIntoViewIfNeeded();
+  return image.evaluate(async (img: HTMLImageElement) => {
+    await img.decode();
+    return img.complete && img.naturalWidth > 0;
+  });
+}
 
 test.describe('Documents as a tome', () => {
   test('test_documents_root_and_sidebar', async ({ page }) => {
@@ -64,13 +70,31 @@ test.describe('Documents as a tome', () => {
     const reference = article.locator('sup a[data-footnote-ref]').first();
     const target = (await reference.getAttribute('href'))!;
     expect(target).toMatch(/^#user-content-fn-/);
+    const referenceId = (await reference.getAttribute('id'))!;
+    expect(referenceId).toMatch(/^user-content-fnref-/);
     await reference.click();
+    await expect(page).toHaveURL(new RegExp(`${target}$`));
     const note = page.locator(target);
     await expect(note).toContainText('The quarry lies north of the river.');
     await expect(note).toBeInViewport();
-    await note.locator('a.data-footnote-backref').first().click();
+    // The note's back-link names the reference, and following it lands there.
+    const back = note.locator('a.data-footnote-backref').first();
+    await expect(back).toHaveAttribute('href', `#${referenceId}`);
+    await back.click();
+    await expect(page).toHaveURL(new RegExp(`#${referenceId}$`));
     await expect(reference).toBeInViewport();
     await expect(article.locator('section.footnotes li')).toHaveCount(2);
+
+    // Bold, italic, strikethrough and both kinds of list are rendered as such.
+    await expect(article.locator('strong')).toHaveText('bold words');
+    await expect(article.locator('p em')).toHaveText('slanted words');
+    await expect(article.locator('del')).toHaveText('struck words');
+    // (The footnotes are a list too, inside their own section.)
+    await expect(article.locator(':scope > ul > li')).toHaveText(['a chisel', 'a mallet']);
+    await expect(article.locator(':scope > ol > li')).toHaveText([
+      'score the face',
+      'cut the channel',
+    ]);
 
     // The table's first row is its header.
     await expect(article.locator('table thead th')).toHaveText(['Tablet', 'Weight']);
