@@ -32,8 +32,9 @@ comes first. Boundaries:
 - **Reading only.** Editing a document and saving it back is INT-0026.
 - **Google Docs** reaches Tome as the `.docx` file Google Docs downloads. A
   connection to a Google account is INT-0026.
-- **Equations** in a Word document, and documents written in LaTeX or Typst,
-  are [INT-0030](INT-0030-mathematics-and-code.md).
+- **Equations** in a Word document are
+  [INT-0030](INT-0030-mathematics-and-code.md), and documents written in
+  LaTeX or Typst are [INT-0033](INT-0033-latex-and-typst-documents.md).
 - The older `.doc` format is not read.
 - mdBook folders load exactly as they do now.
 
@@ -136,7 +137,9 @@ of Tome already works.
 - Tome takes on a Word reader as a dependency. The one tried in Sprint 24's
   research does not clean what it reads, so criterion 5 is Tome's to hold.
 - Equations in Word documents are marked and reported, and not shown,
-  until INT-0030.
+  until INT-0030. Sprint 25 plans that: an equation is then carried over
+  and laid out, and only one the converter does not know keeps the mark
+  and its place in the report.
 - Cross-references and a table of contents inside a Word document are
   shown as plain text: the places they point to do not survive conversion.
 - Word's "Quote", "Intense Quote" and "Block Text" paragraphs are block
@@ -272,3 +275,6 @@ of Tome already works.
   not shown; no document of the owner's own, and no Google Docs download,
   has yet been read, only twelve files saved by Word that the owner asked to
   be found online.
+- 2026-11-23: revised in Sprint 25's Plan phase, still `realized`. The
+  boundary on LaTeX and Typst documents points at INT-0033, and the
+  consequence on equations says what Sprint 25 plans for them.
