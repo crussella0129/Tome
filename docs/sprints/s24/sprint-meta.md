@@ -9,7 +9,7 @@
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Read a Markdown file, a Word document, or a folder of them as a tome, converted when the library is built.
-- **Intents:** [INT-0029](../../intents/INT-0029-documents-as-tomes.md) — planned; INT-0023, INT-0011, INT-0009 and INT-0008 realized compatibility boundaries. Recorded in Research and not built this sprint: INT-0026, INT-0027, INT-0028 (revised), INT-0030, INT-0031, INT-0032 (created).
+- **Intents:** [INT-0029](../../intents/INT-0029-documents-as-tomes.md) — realized; INT-0023, INT-0011, INT-0009 and INT-0008 realized compatibility boundaries. Recorded in Research and not built this sprint: INT-0026, INT-0027, INT-0028 (revised), INT-0030, INT-0031, INT-0032 (created).
 - **Completion evidence:** (filled at Loop Phase)
 
 ## Blockages
@@ -31,6 +31,18 @@
   limit and failed; it passes alone. `vitest.config.ts` now sets
   `testTimeout: 20_000`. No assertion changed. The whole suite then passed
   238/238 in two consecutive runs.
-- **Still owed at the Test phase:** a real Word or Google Docs paper from the
-  owner, read against the test plan's checklist. None had been given when
-  T-066 passed, so `verify_real_paper_converts` was not run during the build.
+- **Resolved at the Test phase (real documents):** no paper of the owner's
+  had been given when T-066 passed, so `verify_real_paper_converts` was not
+  run during the build. At the Test phase the owner asked for an example
+  found online instead. Twelve files saved by Word, from the pandoc
+  project's tests, were read; they showed three faults the hand-written
+  fixture could not, all fixed with tests.
+- **Resolved at the Test phase (four reviews):** the test review ran four
+  times. The second and third each blocked on faults introduced by the fixes
+  made for the review before, most of them in how search text is gathered
+  around a tag or a line break. That rule was rewritten once on a plainer
+  footing and now carries a test for each input that broke it. The fourth
+  review passed with caveats, each fixed or stated as a limit in INT-0029.
+- **Carried forward:** the live reload gate is intermittent and was before
+  the sprint (T-075); a heading that cites a note has a different address in
+  search than on the page (T-076).

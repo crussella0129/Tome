@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0029
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 24 build plan (T-065–T-074)](../sprints/s24/sprint-plans/build-plan.md)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-065 completion](../work/completed-tasks.md#t-065-sprint-24), [T-066 completion](../work/completed-tasks.md#t-066-sprint-24), [T-067 completion](../work/completed-tasks.md#t-067-sprint-24), [T-068 completion](../work/completed-tasks.md#t-068-sprint-24), [T-069 completion](../work/completed-tasks.md#t-069-sprint-24), [T-070 completion](../work/completed-tasks.md#t-070-sprint-24), [T-071 completion](../work/completed-tasks.md#t-071-sprint-24), [T-072 completion](../work/completed-tasks.md#t-072-sprint-24), [T-073 completion](../work/completed-tasks.md#t-073-sprint-24), [T-074 completion](../work/completed-tasks.md#t-074-sprint-24)
+- **Code evidence:** [what an entry names, and the spine](../../scripts/document-source.mjs), [Word to Markdown](../../scripts/docx-to-markdown.mjs), [one document made ready](../../scripts/document-stage.mjs), [loader](../../scripts/load-books.mjs), [a tome's own address](../../src/lib/book.ts), [documents gate](../../scripts/check-documents.mjs)
 - **Test evidence:** [Sprint 24 test report](../sprints/s24/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [Find Your Books: Add a document](../../src/content/books/tome/find-your-books.md), [README](../../README.md)
 
 ## Intent
 
@@ -265,3 +265,10 @@ of Tome already works.
   which passed the sprint with caveats, found a heading's break joining its
   words where the page lists it, and a page break joining words in a
   paragraph; both are corrected, and the limits it named are stated above.
+- 2026-11-23: `active` → `realized` at Sprint 24's close. All eight criteria
+  are proven by tests at `36b5db1`, green in CI (run 45225743756), with a
+  final review of proceed-with-caveats. Realized as built, with the limits
+  in Consequences standing: equations, charts and diagrams are marked and
+  not shown; no document of the owner's own, and no Google Docs download,
+  has yet been read, only twelve files saved by Word that the owner asked to
+  be found online.
