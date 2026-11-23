@@ -541,4 +541,4 @@
 - **Completed:** 2026-11-23T14:51:26Z
 - **Files modified:** src/lib/search-index.ts (`parseChapter` and its heading text skip HTML tags and keep the words between them), src/lib/__tests__/search-index.test.ts (two new cases)
 - **EARS verified:** Vitest `search-index.test.ts` 5/5: `x<sup>2</sup> and <span class="a">b</span>` with a `<div>` block gives text holding `x`, `2`, `and`, `b`, `block words` and no `<`, `>` or tag name; `## Washing in H<sub>2</sub>O` gives heading text `Washing in H2O` and slug `washing-in-h2o`; the three existing cases pass unedited, so a chapter with no HTML indexes as before.
-- **Commit:** PENDING
+- **Commit:** `105646ff603974bbe3f5234f75e1a40fe14dba1f`
