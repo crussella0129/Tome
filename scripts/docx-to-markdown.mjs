@@ -18,9 +18,11 @@ import rehypeParse from 'rehype-parse';
 import rehypeRemark from 'rehype-remark';
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
+import { fromMarkdown } from 'mdast-util-from-markdown';
 import { SKIP, visit } from 'unist-util-visit';
 import { ommlToLatex } from './omml-to-latex.mjs';
 import { readable, titleText } from './rehype-math.mjs';
+import remarkMathDollars, { setApart } from './remark-math-dollars.mjs';
 
 /** What a chapter reads where something could not be carried over. */
 export const MARKS = Object.freeze({
@@ -161,14 +163,26 @@ function placeEquations(tree, carried, marks) {
 }
 
 /**
+ * The LaTeX of a carried-over equation as it is written, which is what Tome's
+ * reader gives back for it.
+ * @param {{ latex: string, cell: boolean }} equation
+ */
+function latexAsWritten(equation) {
+  // In a table cell a `|` ends the cell, whatever stands round it. The space
+  // that parts `\vert` from a letter after it is not left at the end, where
+  // it would stand before the closing dollar sign and refuse the formula.
+  const latex = equation.cell ? equation.latex.replaceAll('|', '\\vert ') : equation.latex;
+  return latex.trim();
+}
+
+/**
  * A carried-over equation as the Markdown holds it, written so that Tome's own
  * reader (remark-math-dollars.mjs) reads exactly this LaTeX back.
  * @param {{ latex: string, display: boolean, cell: boolean }} equation
  * @param {string | undefined} next the character that follows it in the Markdown
  */
 function dollarForm(equation, next) {
-  // In a table cell a `|` ends the cell, whatever stands round it.
-  const latex = equation.cell ? equation.latex.replaceAll('|', '\\vert ') : equation.latex;
+  const latex = latexAsWritten(equation);
   // Single dollar signs refuse a formula that holds a dollar sign, a backtick,
   // `](` or `://`, and one followed by a digit; two dollar signs take all of
   // those. A formula that ends in a dollar sign is kept clear of the two that
@@ -189,36 +203,99 @@ function dollarForm(equation, next) {
  *
  * A token the Markdown writer changed past knowing is never left in the page:
  * what remains of it becomes the mark, and `lost` counts it, so the equation
- * is reported as left out. Exported for its tests.
+ * is reported as left out. So is an equation named in `refused`, which is
+ * written as the mark. Exported for its tests.
  * @param {string} markdown
  * @param {{ latex: string, display: boolean, cell: boolean }[]} carried
  * @param {ReturnType<typeof placeholders>} marks
- * @returns {{ markdown: string, lost: number }}
+ * @param {Set<number>} [refused] equations to write as the mark
+ * @returns {{ markdown: string, lost: number, written: { index: number, latex: string }[] }}
+ *   `written` lists the equations written between dollar signs, in order, each
+ *   with the LaTeX Tome's reader is to give back for it.
  */
-export function writeEquations(markdown, carried, marks) {
-  const exchanged = markdown.replace(marks.all(), (token, index, offset) => {
-    const equation = carried[Number(index)];
+export function writeEquations(markdown, carried, marks, refused = new Set()) {
+  // As the Markdown writer writes the mark: text that can form no link.
+  const mark = MARKS.equation.replace('[', '\\[');
+  let lost = 0;
+  const written = [];
+  const exchanged = markdown.replace(marks.all(), (token, number, offset) => {
+    const index = Number(number);
+    const equation = carried[index];
     if (equation === undefined) return token; // the document's own words
+    if (refused.has(index)) {
+      lost += 1;
+      return mark;
+    }
     const after = markdown.slice(offset + token.length);
-    let written = dollarForm(equation, after[0]);
+    let form = dollarForm(equation, after[0]);
     // A backslash of the document's own, directly before the equation, would
     // make its opening dollar sign `\$`: write the backslash as itself.
     const backslashes = markdown.slice(0, offset).match(/\\*$/)[0].length;
-    if (backslashes % 2 === 1) written = `\\${written}`;
+    if (backslashes % 2 === 1) form = `\\${form}`;
     // Two equations with nothing between them would run their dollar signs
     // together (`$a$$b$`): they stand a space apart.
     const next = after.match(marks.first);
-    if (next && carried[Number(next[1])] !== undefined) written += ' ';
-    return written;
+    if (next && carried[Number(next[1])] !== undefined && !refused.has(Number(next[1]))) {
+      form += ' ';
+    }
+    written.push({ index, latex: latexAsWritten(equation) });
+    return form;
   });
-  let lost = 0;
   const settled = exchanged.replace(marks.debris(), (rest, index) => {
     if (carried[Number(index)] === undefined) return rest; // the document's own words
     lost += 1;
-    // As the Markdown writer writes the mark: text that can form no link.
-    return MARKS.equation.replace('[', '\\[');
+    return mark;
   });
-  return { markdown: settled, lost };
+  return { markdown: settled, lost, written };
+}
+
+/** What Tome's reader is made of: GFM, then formulas by Tome's rules. */
+const READER = unified().use(remarkGfm).use(remarkMathDollars).freeze().data();
+
+/**
+ * The formulas Tome's own reader finds in a Markdown document, in order.
+ * @param {string} markdown
+ * @returns {string[]}
+ */
+function formulasRead(markdown) {
+  const tree = fromMarkdown(markdown, {
+    extensions: /** @type {any} */ (READER.micromarkExtensions),
+    mdastExtensions: /** @type {any} */ (READER.fromMarkdownExtensions),
+  });
+  setApart(tree, markdown);
+  const found = [];
+  visit(tree, (node) => {
+    if (node.type === 'inlineMath' || node.type === 'math') found.push(node.value);
+  });
+  return found;
+}
+
+/**
+ * Exchange each token for its equation, then read the result back as Tome
+ * will read it. An equation that does not come back as a formula holding its
+ * own LaTeX is written as the mark instead, and counted: however an equation
+ * and its neighbours fall out in Markdown, it is a formula or it is reported,
+ * and never text between dollar signs that nothing mentions.
+ *
+ * Exported for its tests, which may give it another reader.
+ * @param {string} markdown the document with its tokens
+ * @param {{ latex: string, display: boolean, cell: boolean }[]} carried
+ * @param {ReturnType<typeof placeholders>} marks
+ * @param {(markdown: string) => string[]} [read]
+ * @returns {{ markdown: string, lost: number }}
+ */
+export function settleEquations(markdown, carried, marks, read = formulasRead) {
+  const refused = new Set();
+  for (;;) {
+    const out = writeEquations(markdown, carried, marks, refused);
+    if (out.written.length === 0) return { markdown: out.markdown, lost: out.lost };
+    const back = read(out.markdown);
+    // The first equation that is not where the reader finds it is refused,
+    // and the rest are tried again without it.
+    const at = out.written.findIndex((equation, place) => back[place] !== equation.latex);
+    if (at === -1) return { markdown: out.markdown, lost: out.lost };
+    refused.add(out.written[at].index);
+  }
 }
 
 /**
@@ -550,11 +627,18 @@ function unbreakHeadings(tree) {
  * Convert one Word document.
  *
  * @param {string | Buffer} input the file's path, or its bytes
- * @param {{ name?: string, fallbackTitle?: string, mediaPath?: string }} [options]
+ * @param {{
+ *   name?: string,
+ *   fallbackTitle?: string,
+ *   mediaPath?: string,
+ *   readFormulas?: (markdown: string) => string[],
+ * }} [options]
  *   `name` is what messages call the document (default: the path's file name);
  *   `fallbackTitle` heads a document with no usable heading of its own
  *   (default: the name without its extension); `mediaPath` is where the caller
- *   will put the images, as the chapter refers to it (default `.`).
+ *   will put the images, as the chapter refers to it (default `.`);
+ *   `readFormulas` is the reader each carried-over equation is checked with
+ *   (default: Tome's own; a test gives another, to see what a refusal does).
  * @returns {Promise<{
  *   markdown: string,
  *   title: string,
@@ -566,6 +650,7 @@ export async function convertDocx(input, options = {}) {
   const name = options.name ?? (typeof input === 'string' ? basename(input) : 'document.docx');
   const fallbackTitle = options.fallbackTitle ?? (basename(name, extname(name)) || 'Untitled');
   const mediaPath = (options.mediaPath ?? '.').replace(/\/+$/, '');
+  const readFormulas = options.readFormulas ?? formulasRead;
 
   let zip;
   try {
@@ -631,7 +716,7 @@ export async function convertDocx(input, options = {}) {
     })
     .process(result.value);
 
-  const written = writeEquations(String(file), carried, marks);
+  const written = settleEquations(String(file), carried, marks, readFormulas);
   const leftOut = [];
   if (equations + written.lost > 0) {
     leftOut.push({ kind: 'equation', count: equations + written.lost });

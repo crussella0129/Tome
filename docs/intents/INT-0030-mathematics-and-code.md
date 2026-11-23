@@ -198,16 +198,19 @@ code. Tome today shows `$x^2$` as the characters typed.
   - A `$$` line directly under a paragraph closes a `$$` that paragraph left
     open. A `$$` named in inline code there, or written `\$$`, is not one;
     but a `$$` inside a link's address or an inline HTML tag's attribute
-    is counted, so the line under it is taken as closing it, and the formula
-    meant is shown as typed and named when the library is built. A blank
-    line before a `$$` line avoids it.
+    is counted (as is `$$$`, or `$a$$b$`, in the paragraph's text), so the
+    line under it is taken as closing it. The formula meant is then left as
+    text, and the `$$` line meant to close it opens a fence that takes the
+    rest of the chapter, headings among it; the build names that as a fence
+    never closed. A blank line before a `$$` line avoids it.
   - Search does not read a bare web address (`www.…`) as a link, as the
     page does, so dollar signs in two such addresses on one line can pair
     in search where they do not on the page.
 - In a plain-text place a whole number hard against a fraction is kept
   apart from it (`3 1/2`, never `31/2`), as are two fractions side by side,
-  and a number or letter before a root that has an index (`2 ³√x` for twice
-  a cube root, beside `2³√x` for two cubed times a root). A stack with no
+  and whatever stands before a root that has an index (`2 ³√x` for twice
+  a cube root, beside `2³√x` for two cubed times a root; so after a
+  bracket, a bar or `!`). A stack with no
   bar (a binomial coefficient) has no honest one-line form, and is shown
   there as typed.
 - A Word equation is left out, with its mark and its count, when it holds a
@@ -215,9 +218,12 @@ code. Tome today shows `$x^2$` as the characters typed.
   not the equation's (a tracked deletion among them). A part Word marks as
   hidden is carried over as a space of the same size; one Word marks only as
   taking no height is shown. An equation directly beside bold or italic
-  text is carried over like any other. Should an equation's place in the
-  converted text ever not be found again, the mark is written there and
-  the equation is counted as left out: no internal place-holder is shown.
+  text is carried over like any other. The converter reads its own result
+  back as Tome will read it: an equation that does not come back as a
+  formula holding its own LaTeX, or whose place in the converted text is
+  not found again, is written as the mark and counted as left out. No
+  equation is left as text between dollar signs that nothing reports, and
+  no internal place-holder is shown.
 - In a table, a `|` inside a formula ends the cell, as it does for any
   text there; `\vert` is written instead. Search does not read tables as
   the page does (it never has), so dollar signs in two cells of one row

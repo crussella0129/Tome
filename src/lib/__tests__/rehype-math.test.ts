@@ -561,6 +561,16 @@ describe('laid out: what the first cases did not try', () => {
       [R`x^n\sqrt{y}`, 'xⁿ√y'],
       [R`x^2\sqrt[3]{y}`, 'x² ³√y'],
       [R`\sqrt[3]{x}`, '³√x'],
+      // And after a bracket, a bar or `!` (the third review).
+      [R`(a+b)\sqrt[3]{x}`, '(a+b) ³√x'],
+      [R`(a+b)^3\sqrt{x}`, '(a+b)³√x'],
+      [R`|x|\sqrt[3]{y}`, '|x| ³√y'],
+      [R`|x|^3\sqrt{y}`, '|x|³√y'],
+      [R`n!\sqrt[3]{y}`, 'n! ³√y'],
+      // After a sign that joins two things there is nothing to be a power of.
+      [R`2+\sqrt[3]{x}`, '2+³√x'],
+      [R`a = \sqrt[3]{x}`, 'a = ³√x'],
+      [R`(\sqrt[3]{x})`, '(³√x)'],
       // A stack with no bar is not a division: no honest one-line form.
       [R`\binom{n}{k}`, null],
       [R`n \choose k`, null],

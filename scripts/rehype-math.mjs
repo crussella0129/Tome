@@ -256,6 +256,12 @@ function firstTag(node) {
   return held.length > 0 ? firstTag(held[0]) : node.tagName;
 }
 
+/**
+ * What a raised character could not be a power of: a space, an opening
+ * bracket, or a sign that joins two things.
+ */
+const AFTER_WHICH_NO_POWER = /[\s([{+\-−±×·⋅∗/=<>≤≥≠≈,;:]$/u;
+
 /** What a grouping element holds, in order. @param {any} node @returns {string} */
 function row(node) {
   let out = '';
@@ -263,10 +269,14 @@ function row(node) {
   for (const child of node.children) {
     const text = plain(child);
     const first = child.type === 'element' ? firstTag(child) : '';
-    if (/[\p{L}\p{N}]$/u.test(out) && (first === 'mfrac' || first === 'mroot')) {
-      // `3\frac{1}{2}` is three and a half, not thirty-one halves; two
-      // fractions side by side are two fractions; and `2\sqrt[3]{x}` is twice
-      // a cube root, not two cubed times a root.
+    if (/[\p{L}\p{N}]$/u.test(out) && first === 'mfrac') {
+      // `3\frac{1}{2}` is three and a half, not thirty-one halves; and two
+      // fractions side by side are two fractions.
+      out += ' ';
+    } else if (first === 'mroot' && out !== '' && !AFTER_WHICH_NO_POWER.test(out)) {
+      // A root's index is written raised before it, where a power of what
+      // stands before it would be: `2\sqrt[3]{x}` is twice a cube root, not
+      // two cubed times a root, and so after a bracket, a bar or `!`.
       out += ' ';
     } else if (/\d$/.test(out) && /^\d/.test(text)) {
       // Two numbers that the page shows apart are a product: `\sqrt{2}3` is

@@ -196,6 +196,37 @@ describe('formulas in Markdown: single dollar signs', () => {
     expect(formulas(listMark)).toEqual([]);
     expect(kinds(listMark)).toEqual(['paragraph', 'list']);
     expect(text(listMark.children![0])).toBe('$$ a = b');
+
+    // A `$$` in a link's address, directly above a fence: it is counted as
+    // open, the line under it is taken as closing it, the formula meant stays
+    // text, and the line meant to close it opens a fence that takes the rest
+    // of the chapter. The fence is marked as never closed, so the build
+    // names it.
+    const address = (...between: string[]) =>
+      lines(
+        'See [x](https://e.test/?a=$$) now:',
+        ...between,
+        '$$',
+        'a = b',
+        '$$',
+        '',
+        'After.',
+        '',
+        '## Later',
+      );
+    const taken = read(address());
+    expect(kinds(taken)).toEqual(['paragraph', 'math']);
+    expect(text(taken.children![0])).toContain('a = b');
+    expect(all(taken, 'heading')).toEqual([]);
+    expect(all(taken, 'math').map((node) => node.value)).toEqual([
+      lines('', 'After.', '', '## Later'),
+    ]);
+    expect(all(taken, 'math').map((node) => fenceClosed(node, address()))).toEqual([false]);
+    // A blank line before the `$$` line is the way round it.
+    const spaced = read(address(''));
+    expect(kinds(spaced)).toEqual(['paragraph', 'math', 'paragraph', 'heading']);
+    expect(formulas(spaced)).toEqual(['apart:a = b']);
+    expect(all(spaced, 'math').map((node) => fenceClosed(node, address('')))).toEqual([true]);
   });
 });
 

@@ -16,9 +16,11 @@ import {
   convertDocx,
   MARKS,
   placeholders,
+  settleEquations,
   writeEquations,
 } from '../../../scripts/docx-to-markdown.mjs';
 import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
+import { readable } from '../../../scripts/rehype-math.mjs';
 
 // INT-0029 AC3–AC6, AC8 — a Word document becomes Markdown that keeps its meaning.
 
@@ -1121,15 +1123,17 @@ describe('docx-to-markdown.mjs — an equation beside emphasis', () => {
     const token = marks.token(0);
 
     // As written, and with an end written as the Markdown writer writes it.
-    expect(writeEquations(`A ${token} here.`, carried, marks)).toEqual({
+    expect(writeEquations(`A ${token} here.`, carried, marks)).toMatchObject({
       markdown: 'A $a$ here.',
       lost: 0,
     });
-    expect(writeEquations(`**A.&#x20;**&#x74;${token.slice(1)} here.`, carried, marks)).toEqual({
+    expect(
+      writeEquations(`**A.&#x20;**&#x74;${token.slice(1)} here.`, carried, marks),
+    ).toMatchObject({
       markdown: '**A.&#x20;**$a$ here.',
       lost: 0,
     });
-    expect(writeEquations(`A ${token.slice(0, -1)}&#x64;**, so.**`, carried, marks)).toEqual({
+    expect(writeEquations(`A ${token.slice(0, -1)}&#x64;**, so.**`, carried, marks)).toMatchObject({
       markdown: 'A $a$**, so.**',
       lost: 0,
     });
@@ -1142,7 +1146,7 @@ describe('docx-to-markdown.mjs — an equation beside emphasis', () => {
       `${token.slice(0, -1)}&#100;`,
       token.slice(1, -1),
     ]) {
-      expect(writeEquations(`A ${garbled} here.`, carried, marks), garbled).toEqual({
+      expect(writeEquations(`A ${garbled} here.`, carried, marks), garbled).toMatchObject({
         markdown: `A ${mark} here.`,
         lost: 1,
       });
@@ -1153,11 +1157,139 @@ describe('docx-to-markdown.mjs — an equation beside emphasis', () => {
     expect(textOf(back)).toContain(`${MARKS.equation}(see the table)`);
 
     // A number no equation has is the document's own words.
-    expect(writeEquations(`A ${marks.token(7)} here.`, carried, marks)).toEqual({
+    expect(writeEquations(`A ${marks.token(7)} here.`, carried, marks)).toMatchObject({
       markdown: `A ${marks.token(7)} here.`,
       lost: 0,
     });
     // Each document has place-holders of its own.
     expect(placeholders().token(0)).not.toBe(token);
+  });
+});
+
+// Found by the Test phase's third review: an equation in a table cell that
+// ends in a bar was written with a space before its closing dollar sign, and
+// Tome's reader took it for text. The fix is one line; the check after it
+// holds the promise itself, for every equation, whatever stands round it.
+describe('docx-to-markdown.mjs — every carried-over equation is read back, or marked', () => {
+  const convert = async (bytes: Buffer, options: Record<string, unknown> = {}) =>
+    convertDocx(bytes, { name: 'paper.docx', ...options });
+  const CELL = '<w:tc><w:p><w:r><w:t>nine stone</w:t></w:r></w:p></w:tc>';
+  const inCell = (inner: string) =>
+    variant((text) => {
+      expect(text).toContain(CELL);
+      return text.replace(CELL, `<w:tc><w:p>${inner}</w:p></w:tc>`);
+    });
+  const words = (text: string) => `<w:r><w:t xml:space="preserve">${text}</w:t></w:r>`;
+
+  // T-082 clauses 4 and 5
+  it('test_docx_cell_equation_ends_in_bar: a bar at the end of a cell’s equation leaves it a formula', async () => {
+    const cells = nodesIn(
+      readBack((await convert(await buildDocx())).markdown),
+      'tableCell',
+    ).length;
+    const shapes: [string, string, string][] = [
+      ['an absolute value', eq(mr('|x|')), R`\vert x\vert`],
+      ['a bar last', eq(mr('x|')), R`x\vert`],
+      ['a bar alone', eq(mr('|')), R`\vert`],
+      ['two bars', eq(mr('||')), R`\vert \vert`],
+      ['after words', `${words('the size ')}${eq(mr('|A|'))}`, R`\vert A\vert`],
+      ['before a full stop', `${eq(mr('|A|'))}${words('.')}`, R`\vert A\vert`],
+      ['bars in runs of their own', eq(`${mr('|')}${mr('x')}${mr('|')}`), R`\vert x\vert`],
+      ['a bar in the middle', eq(mr('a|b')), R`a\vert b`],
+      ['before a digit', `${eq(mr('|x|'))}${words('2 times')}`, R`\vert x\vert`],
+    ];
+    for (const [label, inner, expected] of shapes) {
+      const out = await convert(await inCell(inner));
+      const table = readBack(out.markdown);
+      // The table is whole, and the cell holds the formula and nothing of it as text.
+      expect(nodesIn(table, 'tableCell'), label).toHaveLength(cells);
+      const cell = nodesIn(table, 'tableCell').find((node) => formulasIn(node).length > 0)!;
+      expect(formulasIn(cell), label).toEqual([{ type: 'inlineMath', value: expected }]);
+      expect(JSON.stringify(cell), label).not.toContain('$');
+      expect(readable(expected), label).toBe(true);
+      expect(
+        out.leftOut.filter((entry) => entry.kind === 'equation'),
+        label,
+      ).toEqual([]);
+    }
+  });
+
+  // T-082 clauses 5 and 8 — the check itself, with Tome's own reader.
+  it('test_docx_unread_equation_is_marked: an equation the reader does not give back is the mark, and counted', () => {
+    const marks = placeholders();
+    const mark = MARKS.equation.replace('[', '\\[');
+    const one = (latex: string) => [{ latex, display: false, cell: false }];
+
+    // Read back: written between dollar signs, nothing lost.
+    expect(settleEquations(`A ${marks.token(0)} here.`, one('a+b'), marks)).toEqual({
+      markdown: 'A $a+b$ here.',
+      lost: 0,
+    });
+    // A space at either end would refuse the pair: it is not written.
+    expect(settleEquations(`A ${marks.token(0)} here.`, one(' a+b '), marks)).toEqual({
+      markdown: 'A $a+b$ here.',
+      lost: 0,
+    });
+    // LaTeX no paragraph can hold in one piece (a blank line in it): the
+    // reader does not give it back, so the mark stands there and it is counted.
+    expect(settleEquations(`A ${marks.token(0)} here.`, one('a\n\nb'), marks)).toEqual({
+      markdown: `A ${mark} here.`,
+      lost: 1,
+    });
+    // Only the one that failed: its neighbours are still formulas.
+    const three = [
+      { latex: 'a', display: false, cell: false },
+      { latex: 'b\n\nc', display: false, cell: false },
+      { latex: 'd', display: false, cell: false },
+    ];
+    const source = `A ${marks.token(0)} and ${marks.token(1)} and ${marks.token(2)} here.`;
+    expect(settleEquations(source, three, marks)).toEqual({
+      markdown: `A $a$ and ${mark} and $d$ here.`,
+      lost: 1,
+    });
+    // No equations: the reader is not asked.
+    expect(
+      settleEquations('Plain text.', [], marks, () => {
+        throw new Error('not to be called');
+      }),
+    ).toEqual({ markdown: 'Plain text.', lost: 0 });
+  });
+
+  // T-082 clause 8 — and the converter reports what the check refused. The
+  // reader is exchanged for one that finds less, to see a refusal end to end.
+  it('test_docx_unread_equation_is_reported: the converter marks and counts an equation its reader refuses', async () => {
+    // A reader that finds nothing: both equations become the mark.
+    const none = await convert(await buildDocx(), { readFormulas: () => [] });
+    expect(formulasIn(readBack(none.markdown))).toEqual([]);
+    expect(none.markdown).not.toMatch(/omeEquation/);
+    expect(none.markdown).toContain(`Density is \\${MARKS.equation}(see the table)`);
+    expect(reads(none.markdown).split(MARKS.equation)).toHaveLength(3);
+    expect(none.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([
+      { kind: 'equation', count: 2 },
+    ]);
+
+    // A reader that misses the first only: one mark, one formula, a count of one.
+    const real = (markdown: string) =>
+      formulasIn(readBack(markdown)).map((formula) => formula.value);
+    const first = await convert(await buildDocx(), {
+      readFormulas: (markdown: string) => real(markdown).filter((value) => !value.includes('frac')),
+    });
+    expect(real(first.markdown)).toEqual(['E=mc^{2}']);
+    expect(first.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([
+      { kind: 'equation', count: 1 },
+    ]);
+
+    // Added to the equations the converter had no rule for.
+    const withUnknown = await convert(await withFirst(`${eq('<m:mystery/>')}${eq(mr('q'))}`), {
+      readFormulas: () => [],
+    });
+    expect(withUnknown.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([
+      { kind: 'equation', count: 3 },
+    ]);
+
+    // With Tome's own reader, the fixture loses nothing.
+    const own = await convert(await buildDocx());
+    expect(real(own.markdown)).toEqual([R`\frac{m}{V}`, 'E=mc^{2}']);
+    expect(own.leftOut.filter((entry) => entry.kind === 'equation')).toEqual([]);
   });
 });
