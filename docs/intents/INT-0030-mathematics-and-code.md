@@ -2,7 +2,7 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0030
-- **State:** planned
+- **State:** active
 - **Work evidence:** [Sprint 25 build plan](../sprints/s25/sprint-plans/build-plan.md) (T-077 to T-084)
 - **Completion evidence:** none
 - **Code evidence:** none
@@ -208,3 +208,6 @@ code. Tome today shows `$x^2$` as the characters typed.
   Consequences gained what the plans decide: how a `$$` fence is read, what
   plain-text places show, how search finds symbols, the limits of the rule
   for dollar signs, and what was not run. State unchanged.
+- 2026-11-23: `planned` to `active` in Sprint 25's Build phase, as T-077
+  began. The plans were locked after a third review returned
+  proceed-with-caveats.
