@@ -179,6 +179,12 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
     pandoc does not finish reading such a paper: the build does not end.
     Bounding a reading's time needs pandoc run apart from the build (a
     worker), which this sprint does not do.
+  - Which text of a file is code is read by pattern, not by a parser: in a
+    Typst file a line of prose that begins `include "…"` or `import "…"` is
+    taken for code that names that file. A file pandoc asks for again,
+    because its name stood where Tome took the text for code, is named
+    wherever it stands; if pandoc asks for it after that, the report names
+    it as not read.
   - A BibTeX key with a colon (`@knuth:1984`) in a Typst paper is read by
     pandoc as the key `knuth` and the text `:1984`; the report names
     `knuth` as a citation with no entry. `#cite(<knuth:1984>)` works.
@@ -217,3 +223,5 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
   the limits the first review of the tests found and left as they are.
 - 2026-11-24: revised again in Sprint 26's Test phase, still `active`: two
   more limits from the second review of the tests.
+- 2026-11-24: revised again in Sprint 26's Test phase, still `active`: what
+  the third review of the tests found about reading code by pattern.

@@ -1542,3 +1542,45 @@ describe('pandoc-to-markdown.mjs — what the second test review found', () => {
     expect(out.leftOut).toEqual([]);
   });
 });
+
+// Found by the third review of the tests (sprint-tests/critique-round-3.md).
+describe('pandoc-to-markdown.mjs — what the third test review found', () => {
+  const R = String.raw;
+  const list = (extra: Json[] = [], extraPieces: Json[] = []) => ({
+    blocks: [
+      ...extra,
+      para(str('tokB9'), sp, str('tokA'), sp, inl('The one entry.'), sp, str('tokZ')),
+    ],
+    skipped: [
+      piece(R`\begin{thebibliography}`, 'tokB'),
+      piece(R`\bibitem{a}`, 'tokA'),
+      piece(R`\end{thebibliography}`, 'tokZ'),
+      ...extraPieces,
+    ],
+  });
+  const headings = (markdown: string) => all(read(markdown), 'heading').map(textOf).slice(1);
+
+  it('test_paper_list_heading_words: a heading that names a list in other words is the list’s', () => {
+    for (const words of [
+      'Referencias',
+      'Literature Cited',
+      'References and Notes',
+      'Notes and References',
+    ]) {
+      const { blocks, skipped } = list([header(1, words)]);
+      expect(headings(write(blocks, { skipped }).markdown), words).toEqual([words]);
+    }
+    // A layout command between the heading and the list is passed over.
+    const { blocks, skipped } = list(
+      [header(1, 'References'), para(str('tokS'))],
+      [piece(R`\bibliographystyle{plain}`, 'tokS')],
+    );
+    expect(headings(write(blocks, { skipped }).markdown)).toEqual(['References']);
+    // A paragraph with words of the paper's own between them is not.
+    const kept = list([header(1, 'References'), para(inl('Some words.'))]);
+    expect(headings(write(kept.blocks, { skipped: kept.skipped }).markdown)).toEqual([
+      'References',
+      'References',
+    ]);
+  });
+});

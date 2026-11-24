@@ -913,3 +913,161 @@ describe('pandoc-read.mjs — what the second test review found', () => {
       expect(JSON.stringify(tree)).not.toMatch(/tomefile/);
   }, 120_000);
 });
+
+// Found by the third review of the tests (sprint-tests/critique-round-3.md).
+describe('pandoc-read.mjs — what the third test review found', () => {
+  const R = String.raw;
+  const code = (tree: unknown) =>
+    [...nodes(tree, 'Code'), ...nodes(tree, 'CodeBlock')]
+      .map((node) => (node.c as [unknown, string])[1])
+      .sort();
+  const listing = (...lines: string[]) =>
+    [R`\begin{verbatim}`, ...lines, R`\end{verbatim}`].join('\n');
+
+  it('test_pandoc_commented_begin: a code environment named in a comment hides no file', async () => {
+    const dir = join(tmp, 'commented');
+    write(dir, {
+      'chapters/intro.tex': 'INTRO CHAPTER WORDS.\n',
+      'one.tex': DOC(
+        [
+          'First words.',
+          R`% \begin{verbatim} (old listing removed)`,
+          R`\input{chapters/intro}`,
+          listing(R`\input{chapters/intro}`),
+          'Last words.',
+        ].join('\n'),
+      ),
+      'two.tex': DOC(
+        [
+          R`Use \lstinline|\begin{verbatim}| for code.`,
+          R`\input{chapters/intro}`,
+          listing('y = 2'),
+        ].join('\n'),
+      ),
+      'three.tex': DOC(
+        [
+          R`%\begin{lstlisting}`,
+          '%old',
+          R`\input{chapters/intro}`,
+          R`\begin{lstlisting}`,
+          'z = 3',
+          R`\end{lstlisting}`,
+        ].join('\n'),
+      ),
+    });
+    for (const name of ['one.tex', 'two.tex', 'three.tex']) {
+      const read = await readPaper({ file: join(dir, name), format: 'latex' });
+      expect(words(read.tree.blocks), name).toContain('INTRO CHAPTER WORDS.');
+      expect(read.missing, name).toEqual([]);
+      // Found at once, so nothing had to be rewritten where it stands: the
+      // code the paper shows is as it wrote it.
+      expect(JSON.stringify(read.tree), name).not.toMatch(/tomefile/);
+    }
+    const one = await readPaper({ file: join(dir, 'one.tex'), format: 'latex' });
+    expect(code(one.tree)).toEqual([R`\input{chapters/intro}`]);
+  }, 120_000);
+
+  it('test_pandoc_asked_again: a file pandoc asks for again is renamed where it stands, then named as not read', async () => {
+    const dir = join(tmp, 'asked-again');
+    write(dir, {
+      'paper.tex': R`\input{chapters/intro}` + '\n',
+      'chapters/intro.tex': 'Intro.\n',
+    });
+    const asks = (always: boolean) => {
+      const given: Record<string, string>[] = [];
+      const convert = vi.fn(async (_o: unknown, _s: unknown, files: Record<string, string>) => {
+        given.push({ ...files });
+        const named = files['paper.tex'].includes('chapters/intro');
+        return {
+          stdout: JSON.stringify({ blocks: [], meta: {} }),
+          stderr: '',
+          warnings:
+            always || named
+              ? [{ type: 'CouldNotLoadIncludeFile', path: 'chapters/intro.tex' }]
+              : [],
+        };
+      });
+      return { convert, given };
+    };
+    // Asked for again after it was given: the argument is rewritten wherever it stands.
+    const once = asks(false);
+    const settled = await readPaper(
+      { file: join(dir, 'paper.tex'), format: 'latex' },
+      { convert: once.convert },
+    );
+    expect(once.given.at(-1)!['paper.tex']).toMatch(/\\input\{tomefile\d+\}/);
+    expect(settled.missing).toEqual([]);
+    // Asked for even then: named as not read.
+    const always = asks(true);
+    const lost = await readPaper(
+      { file: join(dir, 'paper.tex'), format: 'latex' },
+      { convert: always.convert },
+    );
+    expect(lost.missing).toEqual(['chapters/intro.tex']);
+  });
+
+  it('test_pandoc_typst_same_name_file: a chapter’s own file, though one of that name is beside the paper', async () => {
+    const dir = join(tmp, 'same-name');
+    write(dir, {
+      'notes.typ': 'ROOT NOTES WORDS\n',
+      'ch1/notes.typ': 'CHAPTER NOTES WORDS\n',
+      'ch1/ch1.typ': '== One\n\n#include "notes.typ"\n',
+      'first.typ': '= Main\n\n#include "notes.typ"\n\n#include "ch1/ch1.typ"\n',
+      'second.typ': '= Main\n\n#include "ch1/ch1.typ"\n\n#include "notes.typ"\n',
+      'comment.typ': '= Main\n\n// #include "notes.typ"\n\n#include "ch1/ch1.typ"\n',
+    });
+    for (const name of ['first.typ', 'second.typ']) {
+      const text = words((await readPaper({ file: join(dir, name), format: 'typst' })).tree.blocks);
+      expect(text, name).toContain('ROOT NOTES WORDS');
+      expect(text, name).toContain('CHAPTER NOTES WORDS');
+      expect(text.indexOf('CHAPTER NOTES WORDS'), name).toBeGreaterThan(text.indexOf('One'));
+    }
+    const commented = words(
+      (await readPaper({ file: join(dir, 'comment.typ'), format: 'typst' })).tree.blocks,
+    );
+    expect(commented).toContain('CHAPTER NOTES WORDS');
+    expect(commented).not.toContain('ROOT NOTES WORDS');
+  }, 120_000);
+
+  it('test_pandoc_more_code_shapes: fancyvrb, comment, \\iffalse and Typst raw over a line end name nothing', async () => {
+    const dir = join(tmp, 'more-code');
+    write(dir, {
+      'build.tex': DOC(
+        [R`\begin{Verbatim}`, R`\input{build}`, R`\end{Verbatim}`, 'Built.'].join('\n'),
+      ),
+      'shown.tex': DOC(
+        [
+          R`\input{chapters/intro}`,
+          R`\begin{Verbatim}`,
+          R`\input{chapters/intro}`,
+          R`\end{Verbatim}`,
+        ].join('\n'),
+      ),
+      'chapters/intro.tex': 'Intro words.\n',
+      'hidden.tex': DOC(
+        [
+          R`\input{back}`,
+          R`\begin{comment}`,
+          R`\input{hidden}`,
+          R`\end{comment}`,
+          R`\iffalse`,
+          R`\input{hidden}`,
+          R`\fi`,
+          'Hidden done.',
+        ].join('\n'),
+      ),
+      'back.tex': R`\iffalse \input{hidden} \fi Back words.` + '\n',
+      'raw.typ': '= Raw\n\nSee `x\n#include "raw.typ"` here.\n',
+    });
+    const built = await readPaper({ file: join(dir, 'build.tex'), format: 'latex' });
+    expect(words(built.tree.blocks)).toContain('Built.');
+    const shown = await readPaper({ file: join(dir, 'shown.tex'), format: 'latex' });
+    expect(words(shown.tree.blocks)).toContain('Intro words.');
+    expect(code(shown.tree)).toEqual([R`\input{chapters/intro}`]);
+    const hidden = await readPaper({ file: join(dir, 'hidden.tex'), format: 'latex' });
+    expect(words(hidden.tree.blocks)).toContain('Back words.');
+    expect(words(hidden.tree.blocks)).toContain('Hidden done.');
+    const raw = await readPaper({ file: join(dir, 'raw.typ'), format: 'typst' });
+    expect(words(raw.tree.blocks)).toContain('here.');
+  }, 120_000);
+});

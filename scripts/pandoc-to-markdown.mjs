@@ -148,7 +148,7 @@ const KNOWN_PROPERTIES = new Set([
 
 /** The words of a heading that is a reference list's own. */
 const LIST_HEADINGS =
-  /^(?:references|bibliography|works cited|literature|literatur|bibliographie|références)$/i;
+  /\b(?:references?|bibliograph\w*|works cited|literature(?: cited)?|literatur\w*|referencias|références|riferimenti|bibliografía)\b/i;
 
 /** Link addresses written as links; any other is written as its words. */
 const SAFE_ADDRESS = /^(?:https?:|mailto:)/i;
@@ -705,21 +705,36 @@ function arrangeBibliography(blocks, ctx) {
     if (!ctx.cites.own.has(entry.key)) ctx.cites.own.set(entry.key, index + 1);
   });
   const words = (inlines) => (wordsOf(inlines).trim() ? [{ t: 'Para', c: inlines }] : []);
-  // A heading the paper itself wrote directly before its list is the list's heading.
   // A heading the paper wrote directly before its list, and that names a
-  // list (`\section*{References}`), is the list's heading, its anchor kept.
-  const previous = blocks[from - 1];
+  // list (`\section*{References}`, "Literature Cited"), is the list's
+  // heading, its anchor kept. A paragraph between them that holds only
+  // layout the page does not show (`\bibliographystyle{plain}`) is passed over.
+  let place = from - 1;
+  while (place >= 0 && quietOnly(blocks[place], ctx)) place -= 1;
+  const previous = blocks[place];
   const headed =
     words(before).length === 0 &&
     previous?.t === 'Header' &&
     LIST_HEADINGS.test(wordsOf(previous).trim());
   return [
-    ...blocks.slice(0, headed ? from - 1 : from),
+    ...blocks.slice(0, headed ? place : from),
     ...words(before),
     { t: 'TomeBibliography', heading: headed ? previous : null, entries },
     ...words(after),
     ...blocks.slice(to + 1),
   ];
+}
+
+/** A paragraph that holds nothing but the words of pieces passed over. */
+function quietOnly(block, ctx) {
+  if (block?.t !== 'Para' && block?.t !== 'Plain') return false;
+  let rest = wordsOf(block);
+  for (const [token, entry] of ctx.pieces) {
+    if (!rest.includes(token)) continue;
+    if (classify(entry).way !== 'quiet') return false;
+    rest = rest.replaceAll(token, '');
+  }
+  return rest.trim() === '';
 }
 
 /** The anchor before an entry of the paper's own list. */

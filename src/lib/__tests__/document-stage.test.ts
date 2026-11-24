@@ -895,3 +895,58 @@ describe('document-stage.mjs — what the second test review found', { timeout: 
     expect(lost.leftOut).toEqual([{ kind: 'image', count: 1, detail: '/ch1/fig.png' }]);
   });
 });
+
+// Found by the third review of the tests (sprint-tests/critique-round-3.md).
+describe('document-stage.mjs — what the third test review found', { timeout: 180_000 }, () => {
+  const reader = unified().use(remarkParse).use(remarkGfm).use(remarkMathDollars);
+  const images = (markdown: string): string[] => {
+    const found: string[] = [];
+    const walk = (node: MdNode) => {
+      if (node.type === 'image') found.push(String(node.url));
+      (node.children ?? []).forEach(walk);
+    };
+    walk(reader.runSync(reader.parse(markdown), markdown) as unknown as MdNode);
+    return found;
+  };
+  const prepare = (root: string, rel: string) =>
+    prepareDocument({ file: join(root, rel), rel, format: 'typst', staged: 'main.md' }, { root });
+
+  it('test_prepare_paper_picture_named_argument: a picture’s path after a named argument is its chapter’s', async () => {
+    const atRoot = Buffer.from('the picture beside the paper');
+    const inChapter = Buffer.from('the picture beside the chapter');
+    const root = vault({
+      'main.typ': '= Thesis\n\n#image("fig.png")\n\n#include "ch1/ch1.typ"\n',
+      'ch1/ch1.typ':
+        '== One\n\n#image(width: 50%, "fig.png")\n\n#image(alt: "A dog", "fig.png")\n\nWrite image("fig.png") in your file.\n',
+      'fig.png': atRoot,
+      'ch1/fig.png': inChapter,
+    });
+    const out = await prepare(root, 'main.typ');
+    expect(images(out.markdown)).toEqual([
+      './__tome_parent_assets__/fig.png',
+      './__tome_parent_assets__/ch1/fig.png',
+      './__tome_parent_assets__/ch1/fig.png',
+    ]);
+    const bytes = new Map(out.files.map((file) => [file.to, readFileSync(file.from!)]));
+    expect(bytes.get('__tome_parent_assets__/ch1/fig.png')).toEqual(inChapter);
+    expect(bytes.get('__tome_parent_assets__/fig.png')).toEqual(atRoot);
+    // Prose that reads like a call is left as the paper wrote it.
+    expect(reads(out.markdown)).toContain('Write image(“fig.png”) in your file.');
+    expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_prepare_paper_typst_include_after_comma: an include inside a call’s arguments is part of the paper', async () => {
+    const root = vault({
+      'main.typ':
+        '= Main\n\n#grid(columns: 2, include "a.typ", include "b.typ")\n\n#align(center, include "c.typ")\n',
+      'a.typ': 'AAA words\n',
+      'b.typ': 'BBB words\n',
+      'c.typ': 'CCC words\n',
+    });
+    const source = await resolveSource(root);
+    expect(source.documents!.map((document) => document.rel)).toEqual(['main.typ']);
+    const out = await prepare(root, 'main.typ');
+    for (const words of ['AAA words', 'BBB words', 'CCC words'])
+      expect(reads(out.markdown)).toContain(words);
+  });
+});
