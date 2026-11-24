@@ -6,7 +6,7 @@
 - **Work evidence:** [Sprint 26 build plan](../sprints/s26/sprint-plans/build-plan.md) (T-086 to T-094)
 - **Completion evidence:** none
 - **Code evidence:** none
-- **Test evidence:** none
+- **Test evidence:** [Sprint 26 test report](../sprints/s26/sprint-tests/test-report.md)
 - **Documentation evidence:** none
 
 ## Intent

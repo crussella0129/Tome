@@ -1,17 +1,17 @@
 # Sprint 26 Unit Verification
 
-- **Tested code:** `c9f4e2e`, at the head `98e138e` (records only since).
-  That is the nine tasks, T-086 to T-094, then the answers to four reviews
-  of the tests: `2fe447b` (`critique-round-1.md`), `5662158`
-  (`critique-round-2.md`), `43c9a66` (`critique-round-3.md`) and `c9f4e2e`
-  (`critique-round-4.md`). `npx vitest run` on this Windows machine: **37
-  files, 452 tests: 451 passed, 0 failed, 1 skipped**; the same in CI on
-  Linux, run 45470222548 at `98e138e`. Before the sprint the suite was 35
+- **Tested code:** `ec59737`. That is the nine tasks, T-086 to T-094, then
+  the answers to five reviews of the tests and to a check of the last:
+  `2fe447b` (`critique-round-1.md`), `5662158` (`critique-round-2.md`),
+  `43c9a66` (`critique-round-3.md`), `c9f4e2e` (`critique-round-4.md`),
+  `e897481` and `ec59737` (`critique.md`). `npx vitest run` on this Windows
+  machine: **37 files, 457 tests: 456 passed, 0 failed, 1 skipped**; CI on
+  Linux is cited in `test-report.md`. Before the sprint the suite was 35
   files, 337 tests; at the end of the build (`8353ba9`) it was 412.
-- The 115 new cases by file: `document-source` 8, `pandoc-read` 32 (a new
-  file), `pandoc-to-markdown` 42 (a new file), `rehype-math` 6 (and two of
+- The 120 new cases by file: `document-source` 8, `pandoc-read` 36 (a new
+  file), `pandoc-to-markdown` 43 (a new file), `rehype-math` 6 (and two of
   the sprint's own cases tightened), `document-stage` 16, `load-books` 4,
-  `find-books` 3, `fixture-commands` 1, `tutorial` 3. Of them, 40 were
+  `find-books` 3, `fixture-commands` 1, `tutorial` 3. Of them, 45 were
   written to answer the reviews; each was checked to fail with its fix
   undone (one, the cycle's, by timing out, since pandoc then never returns).
 - The one skip is the loader case for a note named `Summary.md`, which needs
@@ -208,6 +208,16 @@ case that runs pandoc itself.
 | `test_pandoc_lstinline_forms` (real pandoc) | round 4 C-003 | `\lstinline[language=C]|…|` and `\lstinline{…}` are code, and no stand-in name reaches shown code |
 | `test_pandoc_typst_names_only_in_calls` (real pandoc) | round 4 C-004 | `#raw("notes.typ")` is shown as written; a chapter's `own.typ` is read though the paper is `own.typ` |
 | `test_paper_list_heading_keeps_content` | round 4 C-002 | a formula, a note, or a layout command with a formula before the list is kept; `\phantomsection` is passed over |
+| `test_pandoc_typst_files_from_variables` (real pandoc) | round 5 C-001, C-003 | a chapter list in a variable, a one-element loop, `#let ch` then `#include ch`, and a csv path in a variable are read; a name in prose is left as written |
+| `test_pandoc_today_after_nolinkurl` (real pandoc) | round 5 C-002 | a `%` in `\nolinkurl` writes no build day |
+| `test_paper_formula_beside_list` | round 5 C-005 | a formula in the list's own paragraph, before its beginning or after its end, is kept |
+| `test_pandoc_typst_many_files` (real pandoc) | the check of round 5, C-002 | a Typst paper of twenty-five files is read |
+| `test_pandoc_typst_string_after_call` (real pandoc) | the check of round 5, C-001 | a call that cannot be served (in a comment, or in a function never called) does not stop the file being found by its string |
+
+`test_pandoc_limits` was changed by the check's C-002: a Typst chain of
+files now reads one file a reading until one is missing, and is refused with
+pandoc's reason; a Typst paper past 200 files is refused with the limit as
+its reason.
 
 Two of the build's own cases were tightened: `test_math_no_link_no_change`
 also compares `papers/labels-and-links.md` with the tree the layout step

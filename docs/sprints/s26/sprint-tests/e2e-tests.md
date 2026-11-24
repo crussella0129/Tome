@@ -1,15 +1,15 @@
 # Sprint 26 End-to-End Verification
 
-- **Tested code:** `c9f4e2e`, at the head `98e138e` (records only since).
-  Every suite and gate below was run on this Windows machine at that head,
-  in one pass with nothing changed in the checkout before or after, and each
-  exited 0: `npx vitest run` (451 passed, 1 skipped), `npx astro check`,
+- **Tested code:** `ec59737`. Every suite and gate below was run on this
+  Windows machine at that commit, in one pass with nothing changed in the
+  checkout before or after, and each exited 0: `npx vitest run` (456
+  passed, 1 skipped), `npx astro check`,
   `check:math`, `check:documents`, `check:external`, `check:multibook`,
   `check:search`, `npx playwright test` and `check:electron`, the last two
   with `TOME_CONFIG=fixtures/empty-library.toml`. They were run the same
   way, and passed, at the end of the build (`8353ba9`) and after each of the
-  first three reviews' answers (`21ad786`, `2c27689`, `860b165`). CI on
-  Linux ran at `98e138e` (run 45470222548, success).
+  first four reviews' answers (`21ad786`, `2c27689`, `860b165`,
+  `98e138e`). CI on Linux is cited in `test-report.md`.
 - **Status:** possible, and run. Browsers: Chromium and WebKit as Playwright
   provides them.
 - The answers to the reviews changed the reader, the writer and the stage,

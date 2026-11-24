@@ -1,9 +1,9 @@
 # Sprint 26 Integration Verification
 
-- **Tested code:** `c9f4e2e`, at the head `98e138e`. The Vitest cases
-  below ran in the whole-suite run recorded in `unit-tests.md` (452 tests,
-  451 passed, 1 skipped), on this Windows machine and in CI on Linux (run
-  45470222548). The tables first describe the cases written in the build;
+- **Tested code:** `ec59737`. The Vitest cases below ran in the
+  whole-suite run recorded in `unit-tests.md` (457 tests, 456 passed, 1
+  skipped), on this Windows machine and in CI on Linux (cited in
+  `test-report.md`). The tables first describe the cases written in the build;
   those written to answer the reviews follow at the end.
 - Every case here uses pandoc itself (`pandoc-wasm` 1.1.0, pandoc 3.10), real
   temporary folders, and, for the loader and `books:add`, the program spawned
