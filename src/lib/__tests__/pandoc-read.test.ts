@@ -1158,3 +1158,49 @@ describe('pandoc-read.mjs — what the fourth test review found', () => {
     expect(words(own.tree.blocks)).toContain('CHAPTER TWO OWN WORDS');
   }, 120_000);
 });
+
+// Found by the fifth review of the tests (sprint-tests/critique.md).
+describe('pandoc-read.mjs — what the fifth test review found', () => {
+  const R = String.raw;
+
+  it('test_pandoc_typst_files_from_variables: a chapter list in a variable is read', async () => {
+    const dir = join(tmp, 'variables');
+    write(dir, {
+      'a.typ': 'AAA WORDS\n',
+      'b.typ': 'BBB WORDS\n',
+      'ch1.typ': 'CH1 WORDS\n',
+      'data.csv': 'x,y\n1,2\n',
+      'loop.typ': '= Main\n\n#for c in ("a.typ", "b.typ") { include c }\n',
+      'one.typ': '= Main\n\n#for c in ("a.typ",) { include c }\n',
+      'let.typ': '= Main\n\n#let ch = "ch1.typ"\n#include ch\n',
+      'csv.typ': '= Main\n\n#let f = "data.csv"\n#let rows = csv(f)\n\nRows: #rows.len()\n',
+      'prose.typ':
+        '= Main\n\nWe include "ch1.typ" below, and read("data.csv") too.\n\n#include "ch1.typ"\n',
+    });
+    const text = async (name: string) =>
+      words((await readPaper({ file: join(dir, name), format: 'typst' })).tree.blocks);
+    expect(await text('loop.typ')).toContain('AAA WORDS');
+    expect(await text('loop.typ')).toContain('BBB WORDS');
+    expect(await text('one.typ')).toContain('AAA WORDS');
+    expect(await text('let.typ')).toContain('CH1 WORDS');
+    expect(await text('csv.typ')).toContain('Rows: 2');
+    // A name in prose is left as the paper wrote it.
+    const prose = await text('prose.typ');
+    expect(prose).toContain('CH1 WORDS');
+    expect(prose).toContain('“ch1.typ”');
+    expect(prose).toContain('read(“data.csv”)');
+    expect(prose).not.toMatch(/tomefile/);
+  }, 120_000);
+
+  it('test_pandoc_today_after_nolinkurl: a % in \\nolinkurl writes no build day', async () => {
+    const dir = join(tmp, 'nolinkurl');
+    write(dir, {
+      'paper.tex': DOC(R`See \nolinkurl{a%20b}, built \today.`, R`\usepackage{hyperref}`),
+    });
+    const read = await readPaper({ file: join(dir, 'paper.tex'), format: 'latex' });
+    expect(JSON.stringify(read.tree)).not.toContain(String(new Date().getFullYear()));
+    expect(
+      read.skipped.filter((entry: { contents: string }) => entry.contents === R`\today`),
+    ).toHaveLength(1);
+  }, 120_000);
+});

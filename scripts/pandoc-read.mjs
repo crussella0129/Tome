@@ -65,7 +65,7 @@ function tokenFor(nonce, index) {
  * nothing. A `%` after an even run of backslashes (`\\%`) begins a comment.
  */
 const LATEX_CODE_SOURCE =
-  String.raw`\\(?:url|href)\s*\{[^{}]*\}` +
+  String.raw`\\(?:url|href|nolinkurl)\s*\{[^{}]*\}` +
   String.raw`|(?<=(?:^|[^\\])(?:\\\\)*)%[^\n]*` +
   String.raw`|\\begin\{(verbatim\*?|Verbatim\*?|BVerbatim\*?|LVerbatim\*?|lstlisting|minted|comment)\}[\s\S]*?\\end\{\1\}` +
   String.raw`|\\verb\*?([^A-Za-z\s])[^\n]*?\2` +
@@ -81,9 +81,8 @@ const TODAY_OR_CODE = new RegExp(`${LATEX_CODE_SOURCE}|\\\\today(?![A-Za-z])`, '
  * between: a line is the safer reach.)
  */
 const TYPST_CODE = /(`{3,})[\s\S]*?\1|`[^`\n]*`/g;
-/** A Typst call that names a file the paper reads, and the name, as written. */
-const TYPST_FILE_CALL =
-  /(\b(?:include|import|read|csv|json|yaml|toml|xml|cbor)\s*\(?\s*)"([^"\n]+)"/g;
+/** A string in a Typst file, outside raw text. */
+const TYPST_STRING = /()"([^"\n]+)"/g;
 /** Where Typst code stands: after `#`, or after what opens or joins code, or at a line's start. */
 const TYPST_CODE_PLACE = String.raw`(?:#|(?:^|[{;(=,+]|=>)[ \t]*)`;
 
@@ -643,12 +642,24 @@ async function readTypst(file, convert) {
       const wanted = asked[1].replace(/^\.\//, '');
       let supplied = false;
       let asWritten = wanted;
-      for (const [holder, text] of [...supply.texts]) {
-        // Only a call that reads a file names one; a name in raw text names
-        // nothing: look past it, to the file that includes.
-        const literal = [...text.replace(TYPST_CODE, '').matchAll(TYPST_FILE_CALL)]
+      // A call that reads a file names it (`include "a.typ"`), where code
+      // stands; failing that, a string that holds the name (a chapter list in
+      // a variable: `#let ch = ("a.typ",)`, then `include c`). A name in raw
+      // text names nothing: look past it, to the file that includes.
+      const placedCall = new RegExp(
+        `(${TYPST_CODE_PLACE}(?:include|import|read|csv|json|yaml|toml|xml|cbor)\\s*\\(?\\s*)"([^"\\n]+)"`,
+        'gm',
+      );
+      const named = (pattern) => (text) =>
+        [...text.replace(TYPST_CODE, '').matchAll(pattern)]
           .map((match) => match[2])
           .find((value) => value.replace(/^\.?\/+/, '') === wanted);
+      const holders = [...supply.texts];
+      const pattern = holders.some(([, text]) => named(placedCall)(text) !== undefined)
+        ? placedCall
+        : TYPST_STRING;
+      for (const [holder, text] of holders) {
+        const literal = named(pattern)(text);
         if (literal === undefined) continue;
         asWritten = literal;
         const from = literal.startsWith('/') ? '.' : path.posix.dirname(supply.rels.get(holder));
@@ -661,8 +672,8 @@ async function readTypst(file, convert) {
           supply.texts.set(
             holder,
             outsideCode(text, TYPST_CODE, (part) =>
-              part.replace(TYPST_FILE_CALL, (found, call, named) =>
-                named === literal ? `${call}"${name}"` : found,
+              part.replace(new RegExp(pattern.source, pattern.flags), (found, call, written) =>
+                written === literal ? `${call}"${name}"` : found,
               ),
             ),
           );

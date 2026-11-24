@@ -188,8 +188,11 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
     Raw text in a Typst file is read within one line, so raw text that runs
     over a line end and names a file is taken for a name; a file included
     from a variable (`#for c in ("a.typ",) { include c }`) is read in the
-    paper and is also a chapter of its own; and in an uncommon shape a
-    file's stand-in name can reach code the paper shows.
+    paper and is also a chapter of its own; in an uncommon shape a file's
+    stand-in name can reach text or code the paper shows; and a fence of
+    three backticks written in a Typst comment or string pairs with the
+    next raw block and hides what stands between, as a single backtick
+    would if raw text were read over a line end.
   - A BibTeX key with a colon (`@knuth:1984`) in a Typst paper is read by
     pandoc as the key `knuth` and the text `:1984`; the report names
     `knuth` as a citation with no entry. `#cite(<knuth:1984>)` works.
@@ -232,3 +235,5 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
   the third review of the tests found about reading code by pattern.
 - 2026-11-24: revised again in Sprint 26's Test phase, still `active`: what
   the fourth review of the tests found about reading code by pattern.
+- 2026-11-24: revised again in Sprint 26's Test phase, still `active`: what
+  the fifth review of the tests found.

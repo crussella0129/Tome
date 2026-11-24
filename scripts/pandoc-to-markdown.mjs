@@ -705,7 +705,15 @@ function arrangeBibliography(blocks, ctx) {
   entries.forEach((entry, index) => {
     if (!ctx.cites.own.has(entry.key)) ctx.cites.own.set(entry.key, index + 1);
   });
-  const words = (inlines) => (wordsOf(inlines).trim() ? [{ t: 'Para', c: inlines }] : []);
+  // What stands beside the list in its paragraph is kept when it holds
+  // anything but spaces: a formula has no words, and is the paper's.
+  const words = (inlines) =>
+    inlines.some(
+      (node) =>
+        node.t !== 'Space' && node.t !== 'SoftBreak' && !(node.t === 'Str' && !node.c.trim()),
+    )
+      ? [{ t: 'Para', c: inlines }]
+      : [];
   // A heading the paper wrote directly before its list, and that names a
   // list (`\section*{References}`, "Literature Cited"), is the list's
   // heading, its anchor kept. A paragraph between them that holds only

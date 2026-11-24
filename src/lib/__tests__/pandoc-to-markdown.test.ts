@@ -1634,3 +1634,55 @@ describe('pandoc-to-markdown.mjs — what the fourth test review found', () => {
     expect(out.leftOut).toEqual([]);
   });
 });
+
+// Found by the fifth review of the tests (sprint-tests/critique.md).
+describe('pandoc-to-markdown.mjs — what the fifth test review found', () => {
+  const R = String.raw;
+
+  it('test_paper_formula_beside_list: a formula in the list’s own paragraph is kept', () => {
+    const skipped = [
+      piece(R`\begin{thebibliography}`, 'tokB'),
+      piece(R`\bibitem{a}`, 'tokA'),
+      piece(R`\end{thebibliography}`, 'tokZ'),
+    ];
+    const before = write(
+      [
+        header(1, 'References'),
+        para(
+          math('x^2'),
+          { t: 'SoftBreak' },
+          str('tokB9'),
+          sp,
+          str('tokA'),
+          sp,
+          inl('The one entry.'),
+          sp,
+          str('tokZ'),
+        ),
+      ],
+      { skipped },
+    );
+    expect(all(read(before.markdown), 'inlineMath').map((node) => node.value)).toEqual(['x^2']);
+    const after = write(
+      [
+        para(
+          str('tokB9'),
+          sp,
+          str('tokA'),
+          sp,
+          inl('The one entry.'),
+          sp,
+          str('tokZ'),
+          { t: 'SoftBreak' },
+          math('y = 2', true),
+        ),
+      ],
+      { skipped },
+    );
+    const tree = read(after.markdown);
+    expect([...all(tree, 'math'), ...all(tree, 'inlineMath')].map((node) => node.value)).toEqual([
+      'y = 2',
+    ]);
+    for (const out of [before, after]) expect(out.leftOut).toEqual([]);
+  });
+});
