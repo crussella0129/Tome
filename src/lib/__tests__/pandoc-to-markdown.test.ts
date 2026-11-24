@@ -967,3 +967,260 @@ describe('pandoc-to-markdown.mjs — references (INT-0033 AC4, AC5)', () => {
     );
   });
 });
+
+describe('pandoc-to-markdown.mjs — citations and the reference list (INT-0033 AC4, AC5)', () => {
+  const linksOf = (markdown: string) =>
+    all(read(markdown), 'link').map((link) => [textOf(link), link.url]);
+  const citations = (out: { leftOut: { kind: string }[] }) =>
+    out.leftOut.filter((entry) => entry.kind === 'citation');
+  /** A citation as `citeproc` leaves it, with `link-citations`: words, and a link for each entry. */
+  const worked = (...keys: [string, string][]): Json => ({
+    t: 'Cite',
+    c: [
+      keys.map(([key]) => ({
+        citationId: key,
+        citationPrefix: [],
+        citationSuffix: [],
+        citationMode: { t: 'NormalCitation' },
+      })),
+      [
+        str('('),
+        ...keys.flatMap(([key, words], i) => [
+          ...(i > 0 ? [str(';'), sp] : []),
+          { t: 'Link', c: [NO_ATTR, inl(words), [`#ref-${key}`, '']] } as Json,
+        ]),
+        str(')'),
+      ],
+    ],
+  });
+  const entry = (key: string, words: string): Json => ({
+    t: 'Div',
+    c: [[`ref-${key}`, ['csl-entry'], []], [para(inl(words))]],
+  });
+  const refs = (...entries: Json[]): Json => ({
+    t: 'Div',
+    c: [['refs', ['references', 'csl-bib-body'], []], entries],
+  });
+  /** A citation pandoc did not work out: the keys, and what the citation carries. */
+  const cite = (
+    keys: string[],
+    {
+      prefix = '',
+      suffix = '',
+      mode = 'NormalCitation',
+    }: { prefix?: string; suffix?: string; mode?: string } = {},
+  ): Json => ({
+    t: 'Cite',
+    c: [
+      keys.map((key, i) => ({
+        citationId: key,
+        citationPrefix: i === 0 && prefix ? inl(prefix) : [],
+        citationSuffix: i === keys.length - 1 && suffix ? inl(suffix) : [],
+        citationMode: { t: mode },
+      })),
+      [{ t: 'RawInline', c: ['latex', String.raw`\cite{${keys.join(',')}}`] }],
+    ],
+  });
+  /** The paper's own list, as it reaches the tree: words that stand for its three kinds of piece. */
+  const ownList = (): { blocks: Json[]; skipped: Json[] } => ({
+    blocks: [
+      para(
+        str('tokB9'),
+        sp,
+        str('tokG'),
+        sp,
+        inl('C. F. Gauss, Disquisitiones, 1801.'),
+        sp,
+        str('tokE'),
+        sp,
+        inl('L. Euler, Introductio, 1748.'),
+        sp,
+        str('tokZ'),
+      ),
+    ],
+    skipped: [
+      piece(String.raw`\begin{thebibliography}`, 'tokB'),
+      piece(String.raw`\bibitem{gauss}`, 'tokG'),
+      piece(String.raw`\bibitem[Eul48]{euler}`, 'tokE'),
+      piece(String.raw`\end{thebibliography}`, 'tokZ'),
+    ],
+  });
+
+  it('test_paper_citeproc_citations: pandoc’s words, each entry’s a link to that entry', () => {
+    const out = write([
+      para(inl('Known'), sp, worked(['gauss', 'Gauss 1801'], ['euler', 'Euler 1748']), str('.')),
+      para(
+        inl('Again'),
+        sp,
+        worked(['gauss', 'Gauss 1801'], ['nobody', 'nobody?']),
+        sp,
+        inl('and'),
+        sp,
+        worked(['nobody', 'nobody?']),
+        str('.'),
+      ),
+      refs(
+        entry('euler', 'Euler, Leonhard. 1748. Introductio.'),
+        entry('gauss', 'Gauss, Carl Friedrich. 1801. Disquisitiones.'),
+      ),
+    ]);
+    const markdown = body(out.markdown);
+    expect(markdown).toContain(
+      'Known ([Gauss 1801](#ref-ref-gauss); [Euler 1748](#ref-ref-euler)).',
+    );
+    expect(markdown).toContain('Again ([Gauss 1801](#ref-ref-gauss); nobody?) and (nobody?).');
+    expect(citations(out)).toEqual([{ kind: 'citation', count: 1, detail: 'nobody' }]);
+    // Each link leads to the anchor before its own entry.
+    const blocks = markdown.split('\n\n');
+    expect(blocks[blocks.indexOf('<a id="ref-ref-gauss"></a>') + 1]).toMatch(
+      /^Gauss, Carl Friedrich\./,
+    );
+    expect(blocks[blocks.indexOf('<a id="ref-ref-euler"></a>') + 1]).toMatch(/^Euler, Leonhard\./);
+    // In the Typst paper.
+    const paper = writePaper({ tree: typst.tree, format: 'typst', name: 'paper.typ' });
+    expect(linksOf(paper.markdown)).toContainEqual(['Gauss 1801', '#ref-ref-gauss']);
+    expect(citations(paper)).toEqual([]);
+  });
+
+  it('test_paper_reference_list: one heading, at the sections’ level, and nothing for an empty list', () => {
+    const headings = (markdown: string) =>
+      all(read(markdown), 'heading').map((h) => [h.depth, textOf(h)]);
+    const listed = write([
+      para(inl('Text.')),
+      refs(entry('a', 'Entry A.'), entry('b', 'Entry B.')),
+    ]);
+    expect(body(listed.markdown)).toBe(
+      'Text.\n\n## References\n\n<a id="ref-ref-a"></a>\n\nEntry A.\n\n<a id="ref-ref-b"></a>\n\nEntry B.\n',
+    );
+    // Pandoc's own heading before the list is that heading, at the sections' level.
+    const headed = write(
+      [para(inl('Text.')), header(1, 'References'), refs(entry('a', 'Entry A.'))],
+      {
+        meta: { title: metaInlines('T') },
+        format: 'typst',
+      },
+    );
+    expect(headings(headed.markdown)).toEqual([
+      [1, 'T'],
+      [2, 'References'],
+    ]);
+    const paper = writePaper({ tree: typst.tree, format: 'typst', name: 'paper.typ' });
+    expect(headings(paper.markdown).filter(([, words]) => words === 'References')).toEqual([
+      [2, 'References'],
+    ]);
+    expect(headings(paper.markdown).filter(([depth]) => depth === 1)).toEqual([
+      [1, 'A Short Paper on Sums'],
+    ]);
+    // An empty list: neither it nor the heading pandoc wrote for it.
+    const empty = write([para(inl('Text.')), header(1, 'References'), refs()], { format: 'typst' });
+    expect(body(empty.markdown)).toBe('Text.\n');
+  });
+
+  it('test_paper_own_bibliography: a numbered list, and each citation its entry’s number', () => {
+    const { blocks, skipped } = ownList();
+    const out = write(
+      [
+        para(
+          inl('One'),
+          sp,
+          cite(['gauss']),
+          str(','),
+          sp,
+          inl('two'),
+          sp,
+          cite(['gauss', 'euler']),
+          str(','),
+        ),
+        para(
+          inl('three'),
+          sp,
+          cite(['gauss'], { suffix: 'p. 3' }),
+          str(','),
+          sp,
+          inl('four'),
+          sp,
+          cite(['gauss'], { prefix: 'see', suffix: 'ch. 2' }),
+          str(','),
+        ),
+        para(inl('five'), sp, cite(['euler'], { mode: 'AuthorInText' }), str('.')),
+        ...blocks,
+      ],
+      { skipped },
+    );
+    const markdown = body(out.markdown);
+    expect(markdown).toContain(
+      '## References\n\n1. <a id="ref-bib-gauss"></a>C. F. Gauss, Disquisitiones, 1801.\n' +
+        '2. <a id="ref-bib-euler"></a>L. Euler, Introductio, 1748.\n',
+    );
+    const text = all(read(markdown), 'paragraph').map(textOf);
+    expect(text.slice(0, 3)).toEqual([
+      'One [1], two [1, 2],',
+      'three [1, p. 3], four [see 1, ch. 2],',
+      'five [2].',
+    ]);
+    expect(linksOf(markdown)).toEqual([
+      ['1', '#ref-bib-gauss'],
+      ['1', '#ref-bib-gauss'],
+      ['2', '#ref-bib-euler'],
+      ['1', '#ref-bib-gauss'],
+      ['1', '#ref-bib-gauss'],
+      ['2', '#ref-bib-euler'],
+    ]);
+    // The number that sets the list's width, and the words that stood for its pieces, are gone.
+    expect(markdown).not.toMatch(/\b9\b/);
+    expect(markdown).not.toMatch(/tok[BGEZ]/);
+    expect(markdown).not.toContain(LATEX_MARK.slice(1));
+    expect(out.leftOut).toEqual([]);
+    // In the paper itself.
+    const paper = writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' });
+    // (The paper ties the citation to the name with `~`, a space that does not break.)
+    expect(paper.markdown).toMatch(/known to Gauss\u00a0\\\[\[1\]\(#ref-bib-gauss\)\]\./);
+    expect(paper.markdown).toContain(
+      '1. <a id="ref-bib-gauss"></a>C. F. Gauss, _Disquisitiones Arithmeticae_, 1801.',
+    );
+    expect(paper.markdown).not.toMatch(/^9 /m);
+  });
+
+  it('test_paper_citation_no_entry: the key in brackets, counted once', () => {
+    const { blocks, skipped } = ownList();
+    const partly = write([para(cite(['gauss', 'missing']), sp, cite(['missing'])), ...blocks], {
+      skipped,
+    });
+    expect(all(read(body(partly.markdown)), 'paragraph').map(textOf)[0]).toBe(
+      '[1, missing] [missing]',
+    );
+    expect(linksOf(partly.markdown)).toEqual([['1', '#ref-bib-gauss']]);
+    expect(citations(partly)).toEqual([{ kind: 'citation', count: 1, detail: 'missing' }]);
+    // No list at all.
+    const none = write([para(cite(['a']), sp, cite(['b', 'a']))]);
+    expect(body(none.markdown)).toBe('\\[a] \\[b, a]\n');
+    expect(citations(none)).toEqual([
+      { kind: 'citation', count: 1, detail: 'a' },
+      { kind: 'citation', count: 1, detail: 'b' },
+    ]);
+    // A Typst `@name` that is no label, in a paper with no list Tome can read.
+    const typstCite: Json = {
+      t: 'Cite',
+      c: [
+        [
+          {
+            citationId: 'nowhere',
+            citationPrefix: [],
+            citationSuffix: [],
+            citationMode: { t: 'NormalCitation' },
+          },
+        ],
+        [str('[nowhere]')],
+      ],
+    };
+    const lone = write([para(inl('See'), sp, typstCite, str('.'))], { format: 'typst' });
+    expect(body(lone.markdown)).toBe('See \\[nowhere].\n');
+    expect(citations(lone)).toEqual([{ kind: 'citation', count: 1, detail: 'nowhere' }]);
+    // In the paper itself.
+    const paper = writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' });
+    expect(paper.markdown).toContain(
+      'the same book again \\[[1](#ref-bib-gauss), missing], and one page of it \\[[1](#ref-bib-gauss), p.',
+    );
+    expect(citations(paper)).toEqual([{ kind: 'citation', count: 1, detail: 'missing' }]);
+  });
+});

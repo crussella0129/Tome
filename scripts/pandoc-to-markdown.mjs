@@ -18,6 +18,11 @@
 // block, table or figure it names, with the number pandoc gave it; or to a
 // numbered equation, whose number the page itself writes in (rehype-math.mjs).
 // One that cannot be followed is shown as written and counted.
+//
+// A citation shows its entry: the words pandoc's `citeproc` worked out from a
+// `.bib` file, each a link to its entry in the reference list; or, for a list
+// kept in the paper (`thebibliography`), the entry's number. A key that is in
+// no list is shown in square brackets and counted.
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import { unified } from 'unified';
@@ -285,6 +290,7 @@ function makeContext({ skipped, format, name }) {
     counted: new Set(),
     shift: 1,
     refs: emptyReferences(),
+    cites: { mode: 'none', own: new Map(), listed: new Set(), missing: new Set() },
   };
 }
 
@@ -497,6 +503,202 @@ function anchorsBefore(node, ctx) {
     .map((label) => anchorBlock(anchorOf(ctx, label)));
 }
 
+// --- Citations ---------------------------------------------------------------
+
+/** Count a citation whose key is in no list, once for each key. */
+function countMissing(ctx, key) {
+  if (ctx.cites.missing.has(key)) return;
+  ctx.cites.missing.add(key);
+  ctx.leftOut.push({ kind: 'citation', count: 1, detail: key });
+}
+
+/** The inlines of blocks, run together, for a list that pandoc gave as paragraphs. */
+function inlinesOf(blocks) {
+  const out = [];
+  for (const block of blocks) {
+    const inner =
+      block.t === 'Para' || block.t === 'Plain'
+        ? block.c
+        : block.t === 'Div'
+          ? inlinesOf(block.c[1])
+          : [{ t: 'Str', c: wordsOf(block) }];
+    if (out.length > 0 && inner.length > 0) out.push({ t: 'Space' });
+    out.push(...inner);
+  }
+  return out;
+}
+
+/**
+ * Find the paper's reference list and put one node in its place.
+ *
+ * With `citeproc`, pandoc ends the paper with a block `refs` that holds an
+ * entry for each key cited, and, for a Typst paper, writes a heading before it
+ * even when the list is empty. A LaTeX paper's own list reaches the tree as
+ * the words of its entries between the words that stand for three skipped
+ * pieces: `\begin{thebibliography}`, each `\bibitem{key}`, and the `\end`.
+ * @param {any[]} blocks the paper's blocks
+ * @param {any} ctx
+ * @returns {any[]} the blocks, with `TomeReferences` or `TomeBibliography` where the list stood
+ */
+function arrangeBibliography(blocks, ctx) {
+  const at = blocks.findIndex((block) => block.t === 'Div' && block.c[0][0] === 'refs');
+  if (at !== -1) {
+    ctx.cites.mode = 'citeproc';
+    const entries = blocks[at].c[1]
+      .filter((block) => block.t === 'Div' && block.c[0][0])
+      .map((block) => ({ id: block.c[0][0], blocks: block.c[1] }));
+    for (const entry of entries) ctx.cites.listed.add(entry.id);
+    const headed = blocks[at - 1]?.t === 'Header';
+    // An empty list writes nothing, the heading pandoc wrote for it included.
+    const list =
+      entries.length > 0
+        ? [{ t: 'TomeReferences', heading: headed ? blocks[at - 1].c[2] : null, entries }]
+        : [];
+    return [...blocks.slice(0, headed ? at - 1 : at), ...list, ...blocks.slice(at + 1)];
+  }
+
+  const pieces = [...ctx.pieces.values()].filter((entry) => entry.placed);
+  const opening = pieces.find((entry) => /^\\begin\s*\{thebibliography\}/.test(entry.contents));
+  const closing = pieces.find((entry) => /^\\end\s*\{thebibliography\}/.test(entry.contents));
+  if (!opening || !closing) return blocks;
+  const holds = (block, entry) => JSON.stringify(block).includes(entry.token);
+  const from = blocks.findIndex((block) => holds(block, opening));
+  const to = blocks.findIndex((block) => holds(block, closing));
+  if (from === -1 || to < from) return blocks;
+
+  const items = pieces.filter((entry) => /^\\bibitem\b/.test(entry.contents));
+  const marks = new Map([opening, closing, ...items].map((entry) => [entry.token, entry]));
+  const pattern = new RegExp(
+    [...marks.keys()].map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
+    'g',
+  );
+  // Each word that stands for one of the list's pieces, apart from the text round it.
+  const stream = [];
+  for (const node of inlinesOf(blocks.slice(from, to + 1))) {
+    if (node.t !== 'Str') {
+      stream.push(node);
+      continue;
+    }
+    let last = 0;
+    for (const match of node.c.matchAll(pattern)) {
+      if (match.index > last) stream.push({ t: 'Str', c: node.c.slice(last, match.index) });
+      stream.push({ piece: marks.get(match[0]) });
+      last = match.index + match[0].length;
+    }
+    if (last < node.c.length) stream.push({ t: 'Str', c: node.c.slice(last) });
+  }
+  const before = [];
+  const after = [];
+  const entries = [];
+  let state = 'before';
+  let width = false;
+  for (const node of stream) {
+    if (node.piece === opening) {
+      state = 'in';
+      width = true; // the number that sets the list's width follows, and is not written
+      continue;
+    }
+    if (node.piece === closing) {
+      state = 'after';
+      continue;
+    }
+    if (node.piece) {
+      const key = node.piece.contents
+        .match(/\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}/)?.[1]
+        ?.trim();
+      if (state === 'in') entries.push({ key: key ?? '', inlines: [] });
+      width = false;
+      continue;
+    }
+    if (state === 'before') before.push(node);
+    else if (state === 'after') after.push(node);
+    else if (width && node.t === 'Str') width = false;
+    else if (entries.length > 0) entries[entries.length - 1].inlines.push(node);
+  }
+  ctx.cites.mode = 'own';
+  entries.forEach((entry, index) => {
+    if (!ctx.cites.own.has(entry.key)) ctx.cites.own.set(entry.key, index + 1);
+  });
+  const words = (inlines) => (wordsOf(inlines).trim() ? [{ t: 'Para', c: inlines }] : []);
+  return [
+    ...blocks.slice(0, from),
+    ...words(before),
+    { t: 'TomeBibliography', entries },
+    ...words(after),
+    ...blocks.slice(to + 1),
+  ];
+}
+
+/** The anchor before an entry of the paper's own list. */
+const ownAnchor = (ctx, key) => anchorOf(ctx, `bib:${key}`);
+
+/**
+ * A citation. Worked out by `citeproc`, it is pandoc's words, each entry's a
+ * link to that entry. Otherwise it is the numbers of its entries in the
+ * paper's own list, in square brackets, with what the citation carries before
+ * and after them; a key in no list is the key itself, and is counted.
+ */
+function citation(node, ctx, where) {
+  if (ctx.cites.mode === 'citeproc') return phrasing(node.c[1], ctx, { ...where, cite: true });
+  const out = [text('[')];
+  node.c[0].forEach((cited, index) => {
+    if (index > 0) out.push(text(', '));
+    const prefix = line(cited.citationPrefix ?? [], ctx);
+    if (prefix.length > 0) out.push(...prefix, text(' '));
+    const key = String(cited.citationId);
+    const number = ctx.cites.own.get(key);
+    if (number === undefined) {
+      countMissing(ctx, key);
+      out.push(text(key));
+    } else {
+      out.push({
+        type: 'link',
+        url: `#${ownAnchor(ctx, key)}`,
+        title: null,
+        children: [text(String(number))],
+      });
+    }
+    const suffix = line(cited.citationSuffix ?? [], ctx);
+    if (suffix[0]?.type === 'text') suffix[0].value = suffix[0].value.replace(/^[,\s]+/, '');
+    if (shows(suffix)) out.push(text(', '), ...suffix);
+  });
+  out.push(text(']'));
+  return out;
+}
+
+/** The reference list `citeproc` made: a heading, then each entry behind its anchor. */
+function referenceList(node, ctx) {
+  const heading = node.heading ? line(node.heading, ctx) : [];
+  const out = [
+    { type: 'heading', depth: 2, children: heading.length > 0 ? heading : [text('References')] },
+  ];
+  for (const entry of node.entries) {
+    out.push(anchorBlock(anchorOf(ctx, entry.id)), ...flow(entry.blocks, ctx));
+  }
+  return out;
+}
+
+/** The paper's own list: a heading, then a numbered list, each item behind its anchor. */
+function ownList(node, ctx) {
+  return [
+    { type: 'heading', depth: 2, children: [text('References')] },
+    {
+      type: 'list',
+      ordered: true,
+      start: 1,
+      spread: false,
+      children: node.entries.map((entry) =>
+        item([
+          {
+            type: 'paragraph',
+            children: [anchorTag(ownAnchor(ctx, entry.key)), ...line(entry.inlines, ctx)],
+          },
+        ]),
+      ),
+    },
+  ];
+}
+
 /** A reference, written as a link to what it names, or as its words and counted. */
 function referenceLink(node, label, ctx, inside) {
   const words = phrasing(node.c[1], ctx, inside);
@@ -656,7 +858,7 @@ function phrasing(inlines, ctx, where) {
         break;
       }
       case 'Cite':
-        out.push(...phrasing(node.c[1], ctx, where));
+        out.push(...citation(node, ctx, where));
         break;
       case 'RawInline':
         break;
@@ -671,6 +873,16 @@ function phrasing(inlines, ctx, where) {
 /** A link: its address when it is one Tome writes, else its words. */
 function link(node, ctx, where) {
   const inside = { ...where, apart: false };
+  if (where.cite && node.c[2][0].startsWith('#ref-')) {
+    // A citation's link to its entry, as `citeproc` writes it.
+    const words = phrasing(node.c[1], ctx, inside);
+    const id = node.c[2][0].slice(1);
+    if (ctx.cites.listed.has(id)) {
+      return [{ type: 'link', url: `#${anchorOf(ctx, id)}`, title: null, children: words }];
+    }
+    countMissing(ctx, id.replace(/^ref-/, ''));
+    return words;
+  }
   const label = referenceOf(node);
   if (label !== null) return referenceLink(node, label, ctx, inside);
   const children = phrasing(node.c[1], ctx, inside);
@@ -928,6 +1140,12 @@ function flow(blocks, ctx) {
       case 'Div':
         out.push(...anchorsBefore(node, ctx), ...flow(node.c[1], ctx));
         break;
+      case 'TomeReferences':
+        out.push(...referenceList(node, ctx));
+        break;
+      case 'TomeBibliography':
+        out.push(...ownList(node, ctx));
+        break;
       case 'RawBlock':
       case 'Null':
         break;
@@ -1068,7 +1286,7 @@ export function writePaper({
     }
   }
 
-  const body = flow(blocks, ctx);
+  const body = flow(arrangeBibliography(blocks, ctx), ctx);
   const root = {
     type: 'root',
     children: [
