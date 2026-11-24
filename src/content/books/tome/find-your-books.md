@@ -212,7 +212,11 @@ Some limits are worth knowing:
   carry, cannot be read at all. It becomes the chapter that says so, and the
   build gives the line and the reason.
 - A paper whose files pull each other in without end (`a.tex` inputs `b.tex`,
-  which inputs `a.tex`) is refused the same way.
+  which inputs `a.tex`) is refused the same way. If the loop is made through
+  a command of your own or a Typst variable, it is not seen, and the build
+  does not finish: stop it, and break the loop.
+- In a Typst paper, cite a BibTeX key that holds a colon as
+  `#cite(<knuth:1984>)`; written `@knuth:1984` it is read as the key `knuth`.
 - A `.bbl` file is not read. A paper kept without its `.bib` file shows its
   citations as keys, and so does a Typst paper whose bibliography is a `.yml`
   file.

@@ -834,3 +834,64 @@ describe('document-stage.mjs — what the first test review found', { timeout: 1
     ]);
   });
 });
+
+// Found by the second review of the tests (sprint-tests/critique-round-2.md).
+describe('document-stage.mjs — what the second test review found', { timeout: 180_000 }, () => {
+  const reader = unified().use(remarkParse).use(remarkGfm).use(remarkMathDollars);
+  const images = (markdown: string): string[] => {
+    const found: string[] = [];
+    const walk = (node: MdNode) => {
+      if (node.type === 'image') found.push(String(node.url));
+      (node.children ?? []).forEach(walk);
+    };
+    walk(reader.runSync(reader.parse(markdown), markdown) as unknown as MdNode);
+    return found;
+  };
+
+  it('test_prepare_paper_pictures_same_name: each chapter shows the picture beside it', async () => {
+    const one = Buffer.from('the first chapter’s figure');
+    const two = Buffer.from('the second chapter’s figure');
+    const logo = Buffer.from('the paper’s own logo');
+    const chapterLogo = Buffer.from('the first chapter’s logo');
+    const root = vault({
+      'main.typ':
+        '= Thesis\n\n#image("logo.png")\n\n#include "ch1/ch1.typ"\n\n#include "ch2/ch2.typ"\n',
+      'ch1/ch1.typ': '== One\n\n#image("fig.png")\n\n#image("logo.png")\n',
+      'ch2/ch2.typ': '== Two\n\n#image("fig.png")\n',
+      'logo.png': logo,
+      'ch1/fig.png': one,
+      'ch1/logo.png': chapterLogo,
+      'ch2/fig.png': two,
+    });
+    const out = await prepareDocument(
+      { file: join(root, 'main.typ'), rel: 'main.typ', format: 'typst', staged: 'main.md' },
+      { root },
+    );
+    const staged = (rel: string) => `./__tome_parent_assets__/${rel}`;
+    expect(images(out.markdown)).toEqual([
+      staged('logo.png'),
+      staged('ch1/fig.png'),
+      staged('ch1/logo.png'),
+      staged('ch2/fig.png'),
+    ]);
+    const bytes = new Map(out.files.map((file) => [file.to, readFileSync(file.from!)]));
+    expect(bytes.get('__tome_parent_assets__/ch1/fig.png')).toEqual(one);
+    expect(bytes.get('__tome_parent_assets__/ch2/fig.png')).toEqual(two);
+    expect(bytes.get('__tome_parent_assets__/logo.png')).toEqual(logo);
+    expect(bytes.get('__tome_parent_assets__/ch1/logo.png')).toEqual(chapterLogo);
+    expect(out.leftOut).toEqual([]);
+    // A chapter's picture that is not beside it is marked, though one of that name is elsewhere.
+    const missing = vault({
+      'main.typ': '= Thesis\n\n#include "ch1/ch1.typ"\n',
+      'ch1/ch1.typ': '== One\n\n#image("fig.png")\n',
+      'fig.png': one,
+    });
+    const lost = await prepareDocument(
+      { file: join(missing, 'main.typ'), rel: 'main.typ', format: 'typst', staged: 'main.md' },
+      { root: missing },
+    );
+    expect(images(lost.markdown)).toEqual([]);
+    expect(reads(lost.markdown)).toContain('[image not shown]');
+    expect(lost.leftOut).toEqual([{ kind: 'image', count: 1, detail: '/ch1/fig.png' }]);
+  });
+});

@@ -314,16 +314,12 @@ async function preparePaper(document, root) {
   const folder = path.dirname(document.file);
   const realFolder = await realpath(folder);
   // Where else a picture's name is looked for: the folders a LaTeX paper
-  // names in `\graphicspath`; for a Typst paper the folder of each file that
-  // was read, since Typst reads a picture's path from the file that names it.
+  // names in `\graphicspath`. (A Typst file in a folder of its own has its
+  // pictures' paths written from the paper's folder by the reader, so each is
+  // found beside the file that names it, and nowhere else.)
   let folders = [];
-  if (out.images.length > 0) {
-    folders =
-      document.format === 'latex'
-        ? graphicsPaths((await readFile(document.file, 'utf8')).replace(/^\uFEFF/, ''))
-        : [...new Set(read.files.map((rel) => path.posix.dirname(rel)))].filter(
-            (dir) => dir !== '.',
-          );
+  if (out.images.length > 0 && document.format === 'latex') {
+    folders = graphicsPaths((await readFile(document.file, 'utf8')).replace(/^\uFEFF/, ''));
   }
   const chapterDir = path.posix.dirname(document.staged);
   const files = new Map();

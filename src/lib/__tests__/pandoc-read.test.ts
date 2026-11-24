@@ -794,13 +794,23 @@ describe('pandoc-read.mjs — what the first test review found', () => {
       'one.typ': 'One.\n\n#include "two.typ"\n',
       'two.typ': 'Two.\n\n#include "one.typ"\n',
     });
+    // Pandoc itself, counted: the paper is refused after the few readings it
+    // takes to be given the files of the loop, and never read again.
+    // (The package ships no types: its `convert` is typed here by hand.)
+    type Convert = (options: unknown, stdin: unknown, files: unknown) => Promise<unknown>;
+    const real = ((await import('pandoc-wasm' as string)) as { convert: Convert }).convert;
     const refused = async (name: string, format: 'latex' | 'typst') => {
-      const started = Date.now();
-      await expect(readPaper({ file: join(dir, name), format })).rejects.toBeInstanceOf(
-        PaperRefused,
+      let readings = 0;
+      const convert = (...args: Parameters<Convert>) => {
+        readings += 1;
+        return real(...args);
+      };
+      const error = await readPaper({ file: join(dir, name), format }, { convert }).catch(
+        (thrown: Error) => thrown,
       );
-      expect(Date.now() - started).toBeLessThan(30_000);
-      return readPaper({ file: join(dir, name), format }).catch((error: Error) => error.message);
+      expect(error).toBeInstanceOf(PaperRefused);
+      expect(readings).toBeLessThanOrEqual(3);
+      return (error as Error).message;
     };
     expect(await refused('paper.tex', 'latex')).toMatch(/a\.tex → b\.tex → a\.tex/);
     expect(await refused('self.tex', 'latex')).toMatch(/self\.tex → self\.tex/);
@@ -826,5 +836,80 @@ describe('pandoc-read.mjs — what the first test review found', () => {
     await expect(readPaper({ file: join(dir, 'escape.typ'), format: 'typst' })).rejects.toThrow(
       /\.\.\/outside\.typ/,
     );
+  }, 120_000);
+});
+
+// Found by the second review of the tests (sprint-tests/critique-round-2.md).
+describe('pandoc-read.mjs — what the second test review found', () => {
+  const R = String.raw;
+  /** The code a tree shows, inline and in blocks, in sorted order. */
+  const code = (tree: unknown) =>
+    [...nodes(tree, 'Code'), ...nodes(tree, 'CodeBlock')]
+      .map((node) => (node.c as [unknown, string])[1])
+      .sort();
+
+  it('test_pandoc_code_names_nothing: a file named only in code the paper shows is no cycle', async () => {
+    const dir = join(tmp, 'shown');
+    write(dir, {
+      'thesis.tex': DOC(R`Main. \input{build} \input{intro}`),
+      'build.tex': [
+        R`\section{Build}`,
+        R`\begin{verbatim}`,
+        R`\input{build}`,
+        R`\end{verbatim}`,
+        R`\begin{lstlisting}`,
+        R`\input{thesis}`,
+        R`\end{lstlisting}`,
+        'Done.',
+        '',
+      ].join('\n'),
+      'intro.tex': R`Write \verb|\input{intro}| to read this file.` + '\n',
+      'main.typ': '= Main\n\n#include "build.typ"\n\n#include "a.typ"\n',
+      'build.typ': '== Build\n\n```\n#include "build.typ"\n```\n\nDone.\n',
+      'a.typ': 'Typst can import "a.typ" into any file.\n',
+    });
+    const latex = await readPaper({ file: join(dir, 'thesis.tex'), format: 'latex' });
+    expect(words(latex.tree.blocks)).toContain('Done.');
+    expect(code(latex.tree)).toEqual([R`\input{build}`, R`\input{intro}`, R`\input{thesis}`]);
+    const typst = await readPaper({ file: join(dir, 'main.typ'), format: 'typst' });
+    expect(words(typst.tree.blocks)).toContain('Done.');
+    expect(words(typst.tree.blocks)).toContain('Typst can import');
+    expect(code(typst.tree)).toEqual(['#include "build.typ"']);
+  }, 120_000);
+
+  it('test_pandoc_code_untouched: what the paper shows as code is shown as it wrote it', async () => {
+    const dir = join(tmp, 'untouched-code');
+    write(dir, {
+      'paper.tex': DOC(
+        [
+          R`\input{chapters/intro}`,
+          '',
+          R`\begin{verbatim}`,
+          R`\input{chapters/intro}`,
+          R`\begin{table*}[t]`,
+          R`\end{table*}`,
+          R`\end{verbatim}`,
+          '',
+          R`Inline \verb|\begin{table*}| too.`,
+        ].join('\n'),
+      ),
+      'chapters/intro.tex': 'Intro words.\n',
+      'main.typ':
+        '= Main\n\n#include "chapters/intro.typ"\n\n```\n#include "chapters/intro.typ"\n```\n',
+      'chapters/intro.typ': 'Typst intro words.\n',
+    });
+    const latex = await readPaper({ file: join(dir, 'paper.tex'), format: 'latex' });
+    expect(words(latex.tree.blocks)).toContain('Intro words.');
+    expect(code(latex.tree)).toEqual(
+      [
+        [R`\input{chapters/intro}`, R`\begin{table*}[t]`, R`\end{table*}`].join('\n'),
+        R`\begin{table*}`,
+      ].sort(),
+    );
+    const typst = await readPaper({ file: join(dir, 'main.typ'), format: 'typst' });
+    expect(words(typst.tree.blocks)).toContain('Typst intro words.');
+    expect(code(typst.tree)).toEqual(['#include "chapters/intro.typ"']);
+    for (const tree of [latex.tree, typst.tree])
+      expect(JSON.stringify(tree)).not.toMatch(/tomefile/);
   }, 120_000);
 });

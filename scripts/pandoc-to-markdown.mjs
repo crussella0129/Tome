@@ -146,6 +146,10 @@ const KNOWN_PROPERTIES = new Set([
   'toc',
 ]);
 
+/** The words of a heading that is a reference list's own. */
+const LIST_HEADINGS =
+  /^(?:references|bibliography|works cited|literature|literatur|bibliographie|références)$/i;
+
 /** Link addresses written as links; any other is written as its words. */
 const SAFE_ADDRESS = /^(?:https?:|mailto:)/i;
 
@@ -353,8 +357,12 @@ function emptyReferences() {
  * @returns {{ label: string, used: number } | null} `used`: how much of `next` is the label's
  */
 function joinedLabel(cite, next, refs) {
-  if (cite?.t !== 'Cite' || cite.c[0].length !== 1 || next?.t !== 'Str') return null;
-  const id = String(cite.c[0][0].citationId);
+  if (next?.t !== 'Str') return null;
+  let id;
+  if (cite?.t === 'Cite' && cite.c[0].length === 1) id = String(cite.c[0][0].citationId);
+  // When a shorter label (`<sec>`) exists, pandoc makes `@sec:a.b` a link to it.
+  else if (cite?.t === 'Link' && cite.c[0][1].includes('ref')) id = referenceOf(cite);
+  if (!id) return null;
   const rest = next.c.match(/^[:.][^\s]*/)?.[0];
   if (!rest) return null;
   for (let used = rest.length; used > 1; used--) {
@@ -624,11 +632,12 @@ function arrangeBibliography(blocks, ctx) {
     // the citations are then keys with no entry.
     if (entries.length > 0) ctx.cites.mode = 'citeproc';
     for (const entry of entries) ctx.cites.listed.add(entry.id);
-    const headed = blocks[at - 1]?.t === 'Header';
+    const previous = blocks[at - 1];
+    const headed = previous?.t === 'Header' && LIST_HEADINGS.test(wordsOf(previous).trim());
     // An empty list writes nothing, the heading pandoc wrote for it included.
     const list =
       entries.length > 0
-        ? [{ t: 'TomeReferences', heading: headed ? blocks[at - 1].c[2] : null, entries }]
+        ? [{ t: 'TomeReferences', heading: headed ? previous : null, entries }]
         : [];
     return [...blocks.slice(0, headed ? at - 1 : at), ...list, ...blocks.slice(at + 1)];
   }
@@ -697,11 +706,17 @@ function arrangeBibliography(blocks, ctx) {
   });
   const words = (inlines) => (wordsOf(inlines).trim() ? [{ t: 'Para', c: inlines }] : []);
   // A heading the paper itself wrote directly before its list is the list's heading.
-  const headed = words(before).length === 0 && blocks[from - 1]?.t === 'Header';
+  // A heading the paper wrote directly before its list, and that names a
+  // list (`\section*{References}`), is the list's heading, its anchor kept.
+  const previous = blocks[from - 1];
+  const headed =
+    words(before).length === 0 &&
+    previous?.t === 'Header' &&
+    LIST_HEADINGS.test(wordsOf(previous).trim());
   return [
     ...blocks.slice(0, headed ? from - 1 : from),
     ...words(before),
-    { t: 'TomeBibliography', heading: headed ? blocks[from - 1].c[2] : null, entries },
+    { t: 'TomeBibliography', heading: headed ? previous : null, entries },
     ...words(after),
     ...blocks.slice(to + 1),
   ];
@@ -746,8 +761,9 @@ function citation(node, ctx, where) {
 
 /** The reference list `citeproc` made: a heading, then each entry behind its anchor. */
 function referenceList(node, ctx) {
-  const heading = node.heading ? line(node.heading, ctx) : [];
+  const heading = node.heading ? line(node.heading.c[2], ctx) : [];
   const out = [
+    ...(node.heading ? anchorsBefore(node.heading, ctx) : []),
     { type: 'heading', depth: 2, children: heading.length > 0 ? heading : [text('References')] },
   ];
   for (const entry of node.entries) {
@@ -758,10 +774,11 @@ function referenceList(node, ctx) {
 
 /** The paper's own list: a heading, then a numbered list, each item behind its anchor. */
 function ownList(node, ctx) {
-  const heading = node.heading ? line(node.heading, ctx) : [];
+  const heading = node.heading ? line(node.heading.c[2], ctx) : [];
   /** A key given to two entries names the first: an anchor is written once. */
   const anchored = new Set();
   return [
+    ...(node.heading ? anchorsBefore(node.heading, ctx) : []),
     { type: 'heading', depth: 2, children: heading.length > 0 ? heading : [text('References')] },
     {
       type: 'list',
@@ -940,9 +957,27 @@ function phrasing(inlines, ctx, where) {
         out.push(carried);
         break;
       }
-      case 'Link':
-        out.push(...link(node, ctx, where));
+      case 'Link': {
+        const joined = ctx.format === 'typst' ? joinedLabel(node, list[i + 1], ctx.refs) : null;
+        if (joined) {
+          taken = joined.used;
+          out.push(
+            ...link(
+              {
+                t: 'Link',
+                c: [
+                  ['', ['ref'], []],
+                  [{ t: 'Str', c: `[${joined.label}]` }],
+                  [`#${joined.label}`, ''],
+                ],
+              },
+              ctx,
+              where,
+            ),
+          );
+        } else out.push(...link(node, ctx, where));
         break;
+      }
       case 'Image': {
         const placeholder = `tome-paper-image-${ctx.images.length}`;
         ctx.images.push({ url: node.c[2][0], placeholder });
@@ -1011,10 +1046,16 @@ function link(node, ctx, where) {
   const label = referenceOf(node);
   if (label !== null) return referenceLink(node, label, ctx, inside);
   const children = phrasing(node.c[1], ctx, inside);
-  if (node.c[2][0].startsWith('#') && ctx.refs.targets.has(internalLabel(node))) {
-    // A link of the writer's own to a label: it leads to that label's anchor.
-    const anchor = anchorOf(ctx, internalLabel(node));
-    return [{ type: 'link', url: `#${anchor}`, title: null, children }];
+  if (node.c[2][0].startsWith('#')) {
+    // A link of the writer's own to a label (`\hyperref[label]{words}`): it
+    // leads to that label's anchor; to a label that is nowhere, it is its
+    // words, counted as a reference that cannot be followed.
+    const own = internalLabel(node);
+    if (ctx.refs.targets.has(own)) {
+      return [{ type: 'link', url: `#${anchorOf(ctx, own)}`, title: null, children }];
+    }
+    if (own !== '') ctx.leftOut.push({ kind: 'reference', count: 1, detail: own });
+    return children;
   }
   const address = node.c[2][0];
   if (!SAFE_ADDRESS.test(address)) return children;

@@ -9,6 +9,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, dirname, extname, join, posix, resolve } from 'node:path';
 import { exists, resolveBookSource, slugify } from './book-source.mjs';
+import { typstFilesNamed } from './pandoc-read.mjs';
 
 /** What Tome reads, for refusal messages. */
 export const ACCEPTED =
@@ -99,15 +100,8 @@ function withoutTexComments(text) {
   );
 }
 
-/**
- * The files a Typst file includes or imports, as written: `#include "…"`,
- * `#import "…"`, `#include("…")`, and `include "…"` inside code
- * (`#show: doc => { include "…" }`). What stands in a comment names nothing.
- */
-function typstNamed(text) {
-  const shown = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-  return [...shown.matchAll(/\b(?:include|import)\s*\(?\s*"([^"\n]+)"/g)].map((match) => match[1]);
-}
+/** The files a Typst file includes or imports: the reader's own rule (pandoc-read.mjs). */
+const typstNamed = typstFilesNamed;
 
 /**
  * Which of a folder's documents are parts of another paper, and so are not

@@ -173,7 +173,15 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
   - A cell that spans columns or rows keeps its place, and the cells it
     covers are written empty, since a Markdown table has no spanning cell.
   - A paper whose files pull each other in without end is refused, as
-    LaTeX cannot set it either.
+    LaTeX cannot set it either. A file named only in code the paper shows
+    names nothing. A cycle made through a command of the paper's own
+    (`\newcommand{\chap}[1]{\input{#1}}`) or a Typst variable is not seen, and
+    pandoc does not finish reading such a paper: the build does not end.
+    Bounding a reading's time needs pandoc run apart from the build (a
+    worker), which this sprint does not do.
+  - A BibTeX key with a colon (`@knuth:1984`) in a Typst paper is read by
+    pandoc as the key `knuth` and the text `:1984`; the report names
+    `knuth` as a citation with no entry. `#cite(<knuth:1984>)` works.
 - Which commands are layout, and so passed over, is a list in Tome
   (`scripts/pandoc-to-markdown.mjs`). A command missing from it is never
   lost without a word: with an argument it is marked, bare it is named in
@@ -207,3 +215,5 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
   proceed-with-caveats and its concerns were answered in them.
 - 2026-11-24: revised in Sprint 26's Test phase, still `active`, to record
   the limits the first review of the tests found and left as they are.
+- 2026-11-24: revised again in Sprint 26's Test phase, still `active`: two
+  more limits from the second review of the tests.

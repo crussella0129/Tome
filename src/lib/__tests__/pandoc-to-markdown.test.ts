@@ -1435,3 +1435,110 @@ describe('pandoc-to-markdown.mjs — what the first test review found', () => {
     expect(out.leftOut).toEqual([{ kind: 'citation', count: 1, detail: 'fig' }]);
   });
 });
+
+// Found by the second review of the tests (sprint-tests/critique-round-2.md).
+describe('pandoc-to-markdown.mjs — what the second test review found', () => {
+  const R = String.raw;
+  const linksOf = (markdown: string) =>
+    all(read(markdown), 'link').map((link) => [textOf(link), link.url]);
+  const ref = (label: string, words: string): Json => ({
+    t: 'Link',
+    c: [
+      [
+        '',
+        [],
+        [
+          ['reference-type', 'ref'],
+          ['reference', label],
+        ],
+      ],
+      [str(words)],
+      [`#${label}`, ''],
+    ],
+  });
+  const ownList = (): { blocks: Json[]; skipped: Json[] } => ({
+    blocks: [para(str('tokB9'), sp, str('tokA'), sp, inl('The one entry.'), sp, str('tokZ'))],
+    skipped: [
+      piece(R`\begin{thebibliography}`, 'tokB'),
+      piece(R`\bibitem{a}`, 'tokA'),
+      piece(R`\end{thebibliography}`, 'tokZ'),
+    ],
+  });
+
+  it('test_paper_own_bibliography_heading_kept: the list keeps the heading’s anchor, and only a list’s heading', () => {
+    const { blocks, skipped } = ownList();
+    const named = write(
+      [
+        para(inl('See Section'), sp, ref('sec:refs', '2'), str('.')),
+        header(1, 'References', 'sec:refs'),
+        ...blocks,
+      ],
+      { skipped },
+    );
+    const markdown = body(named.markdown);
+    expect(linksOf(markdown)).toEqual([['2', '#ref-sec-refs']]);
+    expect(markdown).toContain(
+      '<a id="ref-sec-refs"></a>\n\n## References\n\n1. <a id="ref-bib-a"></a>The one entry.',
+    );
+    expect(markdown.split('## References').length - 1).toBe(1);
+    // A heading that names no list stays the paper's, and the list has its own.
+    const conclusion = write([header(1, 'Conclusion'), ...blocks], { skipped });
+    expect(all(read(conclusion.markdown), 'heading').map(textOf)).toEqual([
+      'paper',
+      'Conclusion',
+      'References',
+    ]);
+    // The same for the list `citeproc` makes.
+    const entry: Json = { t: 'Div', c: [['ref-a', ['csl-entry'], []], [para(inl('Entry A.'))]] };
+    const worked = write([
+      para(ref('sec:bib', '3')),
+      header(1, 'Bibliography', 'sec:bib'),
+      { t: 'Div', c: [['refs', ['references'], []], [entry]] },
+    ]);
+    expect(linksOf(worked.markdown)).toEqual([['3', '#ref-sec-bib']]);
+    expect(body(worked.markdown)).toContain(
+      '<a id="ref-sec-bib"></a>\n\n## Bibliography\n\n<a id="ref-ref-a"></a>',
+    );
+  });
+
+  it('test_paper_own_link_nowhere: a link of the writer’s own to no label is its words, counted', () => {
+    const out = write([para(inl('See'), sp, linkTo('#sec:none', 'nowhere'), str('.'))]);
+    expect(linksOf(out.markdown)).toEqual([]);
+    expect(body(out.markdown)).toBe('See nowhere.\n');
+    expect(out.leftOut).toEqual([{ kind: 'reference', count: 1, detail: 'sec:none' }]);
+  });
+
+  it('test_paper_typst_label_after_shorter: `@sec:a.b` leads to its own label, though `<sec>` exists', () => {
+    const label = (id: string): Json => ({ t: 'Span', c: [[id, [], []], []] });
+    const typstRef = (id: string): Json => ({
+      t: 'Link',
+      c: [['', ['ref'], []], [str(`[${id}]`)], [`#${id}`, '']],
+    });
+    const out = writePaper({
+      tree: doc([
+        header(1, 'Intro'),
+        para(label('sec')),
+        header(1, 'Two'),
+        para(label('sec:a.b')),
+        para(
+          inl('Then'),
+          sp,
+          typstRef('sec'),
+          str(':a.b.'),
+          sp,
+          inl('and'),
+          sp,
+          typstRef('sec'),
+          str('.'),
+        ),
+      ]),
+      format: 'typst',
+    });
+    expect(linksOf(out.markdown)).toEqual([
+      ['Two', '#ref-sec-a-b'],
+      ['Intro', '#ref-sec'],
+    ]);
+    expect(body(out.markdown)).toContain('Then [Two](#ref-sec-a-b). and [Intro](#ref-sec).');
+    expect(out.leftOut).toEqual([]);
+  });
+});

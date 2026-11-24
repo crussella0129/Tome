@@ -58,6 +58,43 @@ function tokenFor(nonce, index) {
 const TODAY_OR_CODE =
   /\\begin\{(verbatim\*?|lstlisting|minted)\}[\s\S]*?\\end\{\1\}|\\verb\*?([^A-Za-z\s])[^\n]*?\2|\\today(?![A-Za-z])/g;
 
+/** Code in a LaTeX file: what the paper shows as written, and nothing names. */
+const LATEX_CODE =
+  /\\begin\{(verbatim\*?|lstlisting|minted)\}[\s\S]*?\\end\{\1\}|\\verb\*?([^A-Za-z\s])[^\n]*?\2/g;
+/** Code in a Typst file: a raw block, or raw text within a line. */
+const TYPST_CODE = /(`{3,})[\s\S]*?\1|`[^`\n]*`/g;
+
+/**
+ * A text with `change` made outside its code only: what the paper shows as
+ * code is shown as the paper wrote it.
+ * @param {string} text @param {RegExp} code @param {(part: string) => string} change
+ */
+function outsideCode(text, code, change) {
+  let out = '';
+  let last = 0;
+  for (const match of text.matchAll(new RegExp(code.source, 'g'))) {
+    out += change(text.slice(last, match.index)) + match[0];
+    last = match.index + match[0].length;
+  }
+  return out + change(text.slice(last));
+}
+
+/**
+ * The files a Typst file includes or imports, as written: `#include "…"`,
+ * `#import "…"`, `#include("…")`, and `include "…"` where code stands (after
+ * `{`, `;`, `(`, `=`, `=>` or at a line's start). Words of prose that read
+ * "import "a.typ"" name nothing; nor does a comment or raw text.
+ * @param {string} text
+ */
+export function typstFilesNamed(text) {
+  const shown = outsideCode(text, TYPST_CODE, (part) =>
+    part.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1'),
+  ).replace(TYPST_CODE, '');
+  return [
+    ...shown.matchAll(/(?:#|(?:^|[{;(=]|=>)[ \t]*)(?:include|import)\s*\(?\s*"([^"\n]+)"/gm),
+  ].map((match) => match[1]);
+}
+
 /**
  * The paper's own files as pandoc is given them.
  * `texts` maps the name pandoc knows a file by to its content; `rels` maps
@@ -264,21 +301,23 @@ function replaceable(found) {
  * @param {'latex' | 'typst'} format
  */
 function refuseCycle(supply, format) {
-  const naming =
-    format === 'latex'
-      ? /\\(?:input|include|subfile)\s*\{\s*([^{}]+?)\s*\}/g
-      : /\b(?:include|import)\s*\(?\s*"([^"\n]+)"/g;
   const edges = new Map();
   for (const [name, text] of supply.texts) {
-    const shown =
+    // What the paper shows as code, or holds in a comment, names no file.
+    const named =
       format === 'latex'
-        ? text.replace(/(\\*)%.*$/gm, (rest, slashes) =>
-            slashes.length % 2 === 1 ? rest : slashes,
-          )
-        : text.replace(/\/\/.*$/gm, '');
+        ? [
+            ...text
+              .replace(LATEX_CODE, '')
+              .replace(/(\\*)%.*$/gm, (rest, slashes) =>
+                slashes.length % 2 === 1 ? rest : slashes,
+              )
+              .matchAll(/\\(?:input|include|subfile)\s*\{\s*([^{}]+?)\s*\}/g),
+          ].map((match) => match[1])
+        : typstFilesNamed(text);
     const to = new Set();
-    for (const match of shown.matchAll(naming)) {
-      for (const candidate of [match[1], `${match[1]}.tex`]) {
+    for (const written of named) {
+      for (const candidate of [written, `${written}.tex`]) {
         if (supply.texts.has(candidate)) to.add(candidate);
       }
     }
@@ -316,7 +355,6 @@ async function readLatex(file, convert, nonce) {
     text
       .replace(/\r\n?/g, '\n')
       .replace(/\t/g, '    ')
-      .replace(/\\(begin|end)\{table\*\}/g, '\\$1{table}')
       .replace(TODAY_OR_CODE, (found) => {
         if (!found.startsWith('\\today')) return found;
         const entry = {
@@ -331,8 +369,15 @@ async function readLatex(file, convert, nonce) {
         return entry.token;
       });
 
+  const copyOf = (name) => (text) =>
+    asCopy(name)(
+      outsideCode(text.replace(/\r\n?/g, '\n'), LATEX_CODE, (part) =>
+        part.replace(/\\(begin|end)\{table\*\}/g, '\\$1{table}'),
+      ),
+    );
+
   const main = path.basename(file);
-  if (!(await supply.add(main, { flat: true, change: asCopy(main) }))) {
+  if (!(await supply.add(main, { flat: true, change: copyOf(main) }))) {
     throw new PaperRefused(`${main} could not be opened`);
   }
   // `line` of a made piece is found now, while its word stands once in the copy.
@@ -375,7 +420,7 @@ async function readLatex(file, convert, nonce) {
       const relPath = rel;
       const name = await supply.add(relPath, {
         flat: true,
-        change: (text) => asCopy(relPath)(text),
+        change: (text) => copyOf(relPath)(text),
       });
       if (!name) {
         if (!quiet) missing.push(written);
@@ -385,7 +430,12 @@ async function readLatex(file, convert, nonce) {
       if (name !== relPath) {
         const standIn = name.replace(/\.tex$/i, '');
         for (const [holder] of named) {
-          supply.texts.set(holder, supply.texts.get(holder).replace(naming, `$1${standIn}$2`));
+          supply.texts.set(
+            holder,
+            outsideCode(supply.texts.get(holder), LATEX_CODE, (part) =>
+              part.replace(naming, `$1${standIn}$2`),
+            ),
+          );
         }
       }
       added = true;
@@ -475,6 +525,26 @@ function finish(tree, skipped, missing, supply) {
   };
 }
 
+/**
+ * Typst reads a picture's path from the file that names it. A file in a folder
+ * of its own is given to pandoc under a name with no folder, so in its copy
+ * each such path is written from the paper's folder (`/chapter/fig.png`),
+ * which is where the stage looks for a path from `/`.
+ * @param {string} rel the file's path from the paper's folder
+ */
+function picturesFromRoot(rel) {
+  const dir = path.posix.dirname(rel);
+  if (dir === '.') return undefined;
+  return (text) =>
+    outsideCode(text, TYPST_CODE, (part) =>
+      part.replace(/\b(image\s*\(\s*)"([^"\n]+)"/g, (found, call, named) =>
+        named.startsWith('/') || /^[A-Za-z][A-Za-z\d+.-]*:/.test(named)
+          ? found
+          : `${call}"/${path.posix.join(dir, named)}"`,
+      ),
+    );
+}
+
 async function readTypst(file, convert) {
   const dir = path.dirname(file);
   const supply = new Supply(dir, await realpath(dir));
@@ -510,10 +580,13 @@ async function readTypst(file, convert) {
         const from = literal.startsWith('/') ? '.' : path.posix.dirname(supply.rels.get(holder));
         const rel = path.posix.normalize(path.posix.join(from, literal.replace(/^\/+/, '')));
         const flat = from === '.' && !literal.includes('/');
-        const name = await supply.add(rel, { flat });
+        const name = await supply.add(rel, { flat, change: picturesFromRoot(rel) });
         if (!name) continue;
         if (name !== literal) {
-          supply.texts.set(holder, text.replaceAll(`"${literal}"`, `"${name}"`));
+          supply.texts.set(
+            holder,
+            outsideCode(text, TYPST_CODE, (part) => part.replaceAll(`"${literal}"`, `"${name}"`)),
+          );
         }
         supplied = true;
         break;
