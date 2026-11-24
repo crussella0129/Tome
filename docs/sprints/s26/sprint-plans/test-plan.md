@@ -1,3 +1,5 @@
+Finalized - DO NOT EDIT
+
 # Sprint 26 Test Plan
 
 Revised with the build plan to answer the first plan review
