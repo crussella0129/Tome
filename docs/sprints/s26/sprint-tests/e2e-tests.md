@@ -1,15 +1,20 @@
 # Sprint 26 End-to-End Verification
 
-- **Tested head:** `8353ba9`. Every suite and gate below was run on this
-  Windows machine at that head, in one pass with nothing changed in the
-  checkout before or after, and each exited 0: `npx vitest run`, `npx astro
-  check`, `check:math`, `check:documents`, `check:external`,
-  `check:multibook`, `check:search`, `npx playwright test` and
-  `check:electron`, the last two with
-  `TOME_CONFIG=fixtures/empty-library.toml`. CI on Linux ran at the same
-  head (run 45449718557, success).
+- **Tested code:** `c9f4e2e`, at the head `98e138e` (records only since).
+  Every suite and gate below was run on this Windows machine at that head,
+  in one pass with nothing changed in the checkout before or after, and each
+  exited 0: `npx vitest run` (451 passed, 1 skipped), `npx astro check`,
+  `check:math`, `check:documents`, `check:external`, `check:multibook`,
+  `check:search`, `npx playwright test` and `check:electron`, the last two
+  with `TOME_CONFIG=fixtures/empty-library.toml`. They were run the same
+  way, and passed, at the end of the build (`8353ba9`) and after each of the
+  first three reviews' answers (`21ad786`, `2c27689`, `860b165`). CI on
+  Linux ran at `98e138e` (run 45470222548, success).
 - **Status:** possible, and run. Browsers: Chromium and WebKit as Playwright
   provides them.
+- The answers to the reviews changed the reader, the writer and the stage,
+  not the fixtures' result: the kept trees were remade at each change and
+  the browser tests below are unedited, and all ten pass at the tested code.
 
 ## `check:documents`: its fourth build, the papers
 
@@ -89,7 +94,10 @@ wide, so the figure looks small.
   section and SHALL open at it". Tome's search opens a section only for a
   match in a heading's own words, and the chapter for a match in its text
   (INT-0008, not changed here). `test_papers_search` holds what search does
-  (above). Recorded in `sprint-meta.md`, Blockages.
+  (above). Recorded in `sprint-meta.md`, Blockages. T-093 clause 6 is
+  therefore not met: INT-0008 AC2 promises it ("deep-links to the most
+  relevant heading when the match is within a section"), and backlog task
+  T-096 carries it.
 - **Names.** The plan calls the two gate checks `check_papers_routes` and
   `check_papers_output`; both are in the one function `checkPapers()` of
   `scripts/check-documents.mjs`, under comments of those names.

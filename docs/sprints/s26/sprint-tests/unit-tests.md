@@ -1,30 +1,34 @@
 # Sprint 26 Unit Verification
 
-- **Tested head:** `8353ba9` (the nine tasks, T-086 to T-094; one commit
-  after T-093, `a382e5c`, that gives a test file back its own formatting;
-  one that corrects a count in a record).
-  `npx vitest run` on this Windows machine: **37 files, 412 tests: 411
-  passed, 0 failed, 1 skipped**. Before the sprint the suite was 35 files,
-  337 tests. The 75 new cases: `document-source` 5, `pandoc-read` 16 (a new
-  file), `pandoc-to-markdown` 30 (a new file), `rehype-math` 6,
-  `document-stage` 7, `load-books` 4, `find-books` 3, `fixture-commands` 1,
-  `tutorial` 3.
+- **Tested code:** `c9f4e2e`, at the head `98e138e` (records only since).
+  That is the nine tasks, T-086 to T-094, then the answers to four reviews
+  of the tests: `2fe447b` (`critique-round-1.md`), `5662158`
+  (`critique-round-2.md`), `43c9a66` (`critique-round-3.md`) and `c9f4e2e`
+  (`critique-round-4.md`). `npx vitest run` on this Windows machine: **37
+  files, 452 tests: 451 passed, 0 failed, 1 skipped**; the same in CI on
+  Linux, run 45470222548 at `98e138e`. Before the sprint the suite was 35
+  files, 337 tests; at the end of the build (`8353ba9`) it was 412.
+- The 115 new cases by file: `document-source` 8, `pandoc-read` 32 (a new
+  file), `pandoc-to-markdown` 42 (a new file), `rehype-math` 6 (and two of
+  the sprint's own cases tightened), `document-stage` 16, `load-books` 4,
+  `find-books` 3, `fixture-commands` 1, `tutorial` 3. Of them, 40 were
+  written to answer the reviews; each was checked to fail with its fix
+  undone (one, the cycle's, by timing out, since pandoc then never returns).
 - The one skip is the loader case for a note named `Summary.md`, which needs
   a file system that tells it from `SUMMARY.md`; it runs in CI on Linux, where
   the staging case for a drive-letter path is skipped instead.
-- The whole suite was run at T-092's commit (407 passed, 1 skipped) and at
-  the head. At the other tasks' commits the task's own test files and their
-  neighbours were run, as each task's entry in `completed-tasks.md` says.
-- `npx astro check`: 0 errors, 0 warnings. (At T-092 it first reported 14
-  errors, all in the types of this sprint's new test files; they were
-  corrected in that task's commit.)
+- `npx astro check`: 0 errors, 0 warnings.
 - **Stubs:** named here, each for what it stands in for.
-  - Five cases of `pandoc-read.test.ts` give `readPaper()` a stand-in for
+  - Six cases of `pandoc-read.test.ts` give `readPaper()` a stand-in for
     pandoc's `convert`, to produce what the real one will not on demand: one
     piece reported four times, a piece reported where the file does not hold
-    it, a second reading that is refused, and a paper that never stops
-    asking for files. It stands in for pandoc's answer (a tree and a list of
-    notices), not for Tome's reading of it.
+    it, a second reading that is refused, a paper that never stops asking
+    for files, a beginning reported where the file does not hold it
+    (`test_pandoc_unpaired_environment`), and a file asked for again
+    (`test_pandoc_asked_again`). It stands in for pandoc's answer (a tree and
+    a list of notices), not for Tome's reading of it.
+  - `test_pandoc_input_cycle` wraps the real `convert` to count its
+    readings; it stands in for nothing.
   - `pandoc-wasm` itself is replaced in two cases, to count how often it is
     loaded: `test_pandoc_loaded_on_call` and
     `test_read_documents_no_paper_no_pandoc`.
@@ -33,16 +37,21 @@
   - `fetch` and `net.Socket.prototype.connect` are replaced by functions
     that count and throw, in `test_pandoc_fetches_nothing`.
   - `console.warn` is spied in `rehype-math.test.ts`, as before the sprint.
-  - Everything else is real: pandoc itself (eleven cases of
-    `pandoc-read.test.ts`, and every case that calls `prepareDocument()` or
-    the loader on a paper), the Markdown parser with Tome's own plugins, the
-    layout engine (Temml), real temporary folders, and spawned processes for
-    the loader, `books:add` and the config.
+  - Everything else is real: pandoc itself, the Markdown parser with Tome's
+    own plugins, the layout engine (Temml), real temporary folders, and
+    spawned processes for the loader, `books:add` and the config.
 - A tree given to `writePaper()` in a unit test is written out as pandoc's
   JSON, so those cases do not run pandoc. The two kept trees
   (`src/lib/__tests__/papers/latex-tree.json`, `typst-tree.json`) are what
-  `readPaper()` gives for the fixtures, and `test_pandoc_latex_tree` and
-  `test_pandoc_typst_tree` compare each with a fresh reading by pandoc.
+  `readPaper()` gives for the fixtures at the tested code, and
+  `test_pandoc_latex_tree` and `test_pandoc_typst_tree` compare each with a
+  fresh reading by pandoc.
+- `.gitattributes` keeps the bytes of `fixtures/latex` and `fixtures/typst`
+  as committed, so a clone that turns line ends to CRLF cannot change what
+  the tests read.
+- The tables below describe the cases written in the build. The cases
+  written to answer the reviews follow, under "Tests added in answer to the
+  reviews".
 
 ## T-086: two more kinds of document (`document-source.test.ts`, 16 cases, 5 new)
 
@@ -162,3 +171,47 @@ are in `integration-tests.md`.
   tree, as planned; its second half checks a page of labelled formulas for
   no `id` and unchanged numbers, since no kept tree exists for a page
   written for this test.
+
+## Tests added in answer to the reviews
+
+Each row's concern is in the critique file named. "Real pandoc" marks a
+case that runs pandoc itself.
+
+| Test | Answers | What it shows |
+|---|---|---|
+| `test_pandoc_environment_with_option` (real pandoc) | round 1 C-001 | `algorithmic[1]`, `definition[Compactness]`, a drawing and a command in one paper: each placed, each word once in the tree, the definition's words kept |
+| `test_pandoc_wide_table` (real pandoc) | round 1 C-001 | a `table*` is read as a table with its caption and label, and its reference reads `1`; the file on disk still says `table*` |
+| `test_pandoc_unpaired_environment` (stand-in) | round 1 C-001 | an `\end` whose `\begin` was reported where the file does not hold it is left as typed in the copy |
+| `test_pandoc_crlf` (real pandoc) | round 1 C-002 | a CRLF copy of the LaTeX fixture gives the same result as the LF one, the drawing placed |
+| `test_pandoc_input_cycle` (real pandoc, counted) | round 1 C-010, round 2 C-007 | `a.tex → b.tex → a.tex`, a file that inputs itself, and a Typst loop are refused with the loop named, after three readings at most; the same file twice, and one named in a comment, are no cycle |
+| `test_pandoc_typst_parent_path` (real pandoc) | round 1 C-006 | a chapter's `#import "../template.typ"` is read; a file above the paper's folder is still not |
+| `test_paper_table_spans` | round 1 C-003 | a cell spanning columns, rows or both keeps every other cell under its own heading |
+| `test_paper_cell_double_bar` | round 1 C-004 | `\|x\|_2`, `|x|`, `\left\| y \right\|`, `a \\| b` in table cells show what the paper wrote |
+| `test_paper_other_properties` | round 1 C-008 | a subtitle and a dedication are written; pandoc's settings are not |
+| `test_paper_own_link_to_label` | round 1 C-014 | `\hyperref[sec:x]{these words}` leads to the label's anchor |
+| `test_paper_empty_emphasis` | round 1 C-014 | empty emphasis, strong and struck text write nothing |
+| `test_paper_own_bibliography_heading_and_twice` | round 1 C-014 | `\section*{References}` before the list is its one heading; a key given twice is anchored once |
+| `test_paper_typst_colon_labels` | round 1 C-009 | `@sec:intro` and `@eq.one.` lead to their labels; `@fig:gone` stays a citation with no entry |
+| `test_source_subfiles_part`, `test_source_typst_include_in_code`, `test_source_typst_commented_include` | round 1 C-013 | a `subfiles` part, a Typst include in code or with brackets, and a name only in a comment |
+| `test_pandoc_code_names_nothing` (real pandoc) | round 2 C-001 | a listing, a `\verb`, a Typst raw block and Typst prose that name a file are no cycle |
+| `test_pandoc_code_untouched` (real pandoc) | round 2 C-003, C-006 | `table*` and `\input{chapters/intro}` shown in `verbatim`, in `\verb` and in Typst raw are shown as written, with no stand-in name |
+| `test_paper_own_bibliography_heading_kept` | round 2 C-005 | a referred heading before the list keeps its anchor; `Conclusion` before the list stays the paper's; the same for `citeproc`'s list |
+| `test_paper_own_link_nowhere` | round 2 C-005 | `\hyperref` to a label that is nowhere is its words, counted |
+| `test_paper_typst_label_after_shorter` | round 2 C-004 | `@sec:a.b` leads to its own label though `<sec>` exists |
+| `test_pandoc_commented_begin` (real pandoc) | round 3 C-001 | a `\begin{verbatim}` in a comment, in `\lstinline`, or a half-commented `lstlisting` hides no file, and code the paper shows is left as written |
+| `test_pandoc_asked_again` (stand-in) | round 3 C-001 | a file pandoc asks for again is renamed wherever it stands; asked for after that, it is in `missing` |
+| `test_pandoc_typst_same_name_file` (real pandoc) | round 3 C-002 | a chapter's own `notes.typ` is read though one is beside the paper, in either order, and when the paper names it only in a comment |
+| `test_pandoc_more_code_shapes` (real pandoc) | round 3 C-005 | `Verbatim`, `comment`, `\iffalse … \fi` name no file; a `Verbatim` showing `\input` is shown as written |
+| `test_paper_list_heading_words` | round 3 C-006 | `Referencias`, `Literature Cited`, `References and Notes`, `Notes and References` head the list; a layout-only paragraph between is passed over, one with words is not |
+| `test_pandoc_odd_backtick` (real pandoc) | round 4 C-001 | an escaped backtick, one in a comment and one in a string hide no include |
+| `test_pandoc_today_after_percent` (real pandoc) | round 4 C-003 | after a `\url` or `\href` with `%`, a `\lstinline{…%…}`, an `\iffalse … \else` and a `\\%` comment, `\today` is a piece and no year is written |
+| `test_pandoc_lstinline_forms` (real pandoc) | round 4 C-003 | `\lstinline[language=C]|…|` and `\lstinline{…}` are code, and no stand-in name reaches shown code |
+| `test_pandoc_typst_names_only_in_calls` (real pandoc) | round 4 C-004 | `#raw("notes.typ")` is shown as written; a chapter's `own.typ` is read though the paper is `own.typ` |
+| `test_paper_list_heading_keeps_content` | round 4 C-002 | a formula, a note, or a layout command with a formula before the list is kept; `\phantomsection` is passed over |
+
+Two of the build's own cases were tightened: `test_math_no_link_no_change`
+also compares `papers/labels-and-links.md` with the tree the layout step
+gave before T-090 (`papers/labels-before-links.json`, made by running the
+step of `a6d02c8^`), and `test_math_label_link_words` shows that a link
+whose words are the label is taken for the equation though a heading has
+the same address (round 1 C-012).

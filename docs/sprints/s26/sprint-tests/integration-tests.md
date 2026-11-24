@@ -1,8 +1,10 @@
 # Sprint 26 Integration Verification
 
-- **Tested head:** `8353ba9`. The Vitest cases below ran in the whole-suite
-  run recorded in `unit-tests.md` (412 tests, 411 passed, 1 skipped), on this
-  Windows machine, and in CI on Linux at the same head.
+- **Tested code:** `c9f4e2e`, at the head `98e138e`. The Vitest cases
+  below ran in the whole-suite run recorded in `unit-tests.md` (452 tests,
+  451 passed, 1 skipped), on this Windows machine and in CI on Linux (run
+  45470222548). The tables first describe the cases written in the build;
+  those written to answer the reviews follow at the end.
 - Every case here uses pandoc itself (`pandoc-wasm` 1.1.0, pandoc 3.10), real
   temporary folders, and, for the loader and `books:add`, the program spawned
   as a process.
@@ -64,3 +66,17 @@
   system allows one, and the assertion that the linked file is not read
   (`missing` holds `linked.tex`) runs only then. This Windows machine
   allows it (tried), and so does CI's Linux, so the assertion ran in both.
+
+## Tests added in answer to the reviews (real pandoc, through the stage)
+
+| Test | Answers | What it shows |
+|---|---|---|
+| `test_prepare_paper_hayagriva` | round 1 C-005 | a Typst paper with a `.yml` bibliography: citations are keys in brackets, each counted once, and no `References` heading over nothing |
+| `test_prepare_paper_pictures_by_path` | round 1 C-007 | a Typst picture named from `/` and one beside an included file are staged; a LaTeX picture at `/home/…` takes the mark and is counted |
+| `test_prepare_paper_subtitle` | round 1 C-008 | `\subtitle` is on the page and nothing is counted |
+| `test_prepare_paper_typst_colon_label` | round 1 C-009 | `@sec:intro` and `@eq:one` lead to their anchors |
+| `test_prepare_paper_table_spans` | round 1 C-003 | `\multicolumn` and `\multirow` keep the numbers in their columns |
+| `test_prepare_paper_pictures_same_name` | round 2 C-002 | two chapters with a `fig.png` of different bytes each show their own; a chapter's picture not beside it is marked |
+| `test_prepare_paper_picture_named_argument` | round 3 C-003 | `image(width: 50%, "fig.png")` and `image(alt: "A dog", "fig.png")` in a chapter show the chapter's picture; prose reading `image("fig.png")` is left as written |
+| `test_prepare_paper_typst_include_after_comma` | round 3 C-004 | `#grid(columns: 2, include "a.typ", include "b.typ")` and `#align(center, include "c.typ")`: one chapter, holding all three |
+| `test_prepare_paper_odd_backtick` | round 4 C-001 | a lone backtick in the paper and in a chapter hides no part and no picture |

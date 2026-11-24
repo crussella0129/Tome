@@ -24,3 +24,18 @@
   folder of its own, gives a result for each paper, each opening at that section with the
   heading in view. Opening at the section a word of the text stands in would be a change
   to search, and is not made here.
+- **Resolved during the Test phase (source changed after Build):** four
+  reviews of the tests found faults no planned test had tried, and each was
+  corrected in the phase with a test, as the critique files record:
+  `2fe447b` (`critique-round-1.md`: an environment with an option, Windows
+  line ends, spanning cells, a norm in a cell, a Hayagriva bibliography,
+  `../` in Typst, pictures by path, other properties of a paper, Typst
+  labels with a colon, `\input` cycles, parts of a paper); `5662158`
+  (`critique-round-2.md`: the cycle guard and code the paper shows, Typst
+  pictures of one name, the heading before the list); `43c9a66`
+  (`critique-round-3.md`: a file lost when its argument stood where code
+  was found, a chapter's file answered by one beside the paper); `c9f4e2e`
+  (`critique-round-4.md`: a lone backtick, `	oday` after a `%`, Typst names
+  only in calls). The design stands; what the reader cannot know by pattern
+  is recorded in INT-0033's Consequences. T-096 (backlog, INT-0008) carries
+  T-093 clause 6.
