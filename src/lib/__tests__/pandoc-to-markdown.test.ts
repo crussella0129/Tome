@@ -1,0 +1,731 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import remarkGfm from 'remark-gfm';
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
+import {
+  LATEX_MARK,
+  LAYOUT_COMMANDS,
+  oneLine,
+  writePaper,
+} from '../../../scripts/pandoc-to-markdown.mjs';
+import { readable } from '../../../scripts/rehype-math.mjs';
+import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
+
+// INT-0033 — pandoc's tree written as the Markdown of a chapter. A tree is
+// written out here as pandoc's JSON, so these tests do not run pandoc; the two
+// kept trees are what `readPaper()` gives for the fixtures, and
+// pandoc-read.test.ts compares them with a fresh reading.
+const kept = (name: string) =>
+  JSON.parse(readFileSync(join(process.cwd(), 'src/lib/__tests__/papers', name), 'utf8'));
+const latex = kept('latex-tree.json');
+const typst = kept('typst-tree.json');
+
+type Json = Record<string, unknown>;
+type Md = { type: string; value?: string; children?: Md[]; [key: string]: unknown };
+
+// --- pandoc's JSON, briefly -------------------------------------------------
+const NO_ATTR = ['', [], []];
+const str = (c: string): Json => ({ t: 'Str', c });
+const sp: Json = { t: 'Space' };
+/** Words as pandoc gives them: `Str` and `Space` in turn. */
+const inl = (words: string): Json[] =>
+  words.split(' ').flatMap((word, i) => (i === 0 ? [str(word)] : [sp, str(word)]));
+const para = (...c: (Json | Json[])[]): Json => ({ t: 'Para', c: c.flat() });
+const plain = (...c: (Json | Json[])[]): Json => ({ t: 'Plain', c: c.flat() });
+const header = (level: number, words: string, id = ''): Json => ({
+  t: 'Header',
+  c: [level, [id, [], []], inl(words)],
+});
+const math = (tex: string, display = false): Json => ({
+  t: 'Math',
+  c: [{ t: display ? 'DisplayMath' : 'InlineMath' }, tex],
+});
+const wrap = (t: string, ...c: (Json | Json[])[]): Json => ({ t, c: c.flat() });
+const linkTo = (address: string, words: string): Json => ({
+  t: 'Link',
+  c: [NO_ATTR, inl(words), [address, '']],
+});
+const cell = (...blocks: Json[]): unknown[] => [NO_ATTR, { t: 'AlignDefault' }, 1, 1, blocks];
+const row = (...cells: unknown[][]): unknown[] => [NO_ATTR, cells];
+const table = (
+  aligns: string[],
+  head: unknown[][],
+  body: unknown[][],
+  caption: Json[] = [],
+): Json => ({
+  t: 'Table',
+  c: [
+    NO_ATTR,
+    [null, caption],
+    aligns.map((t) => [{ t }, { t: 'ColWidthDefault' }]),
+    [NO_ATTR, head],
+    [[NO_ATTR, 0, [], body]],
+    [NO_ATTR, []],
+  ],
+});
+const metaInlines = (words: string): Json => ({ t: 'MetaInlines', c: inl(words) });
+const doc = (blocks: Json[], meta: Json = {}) => ({ blocks, meta });
+const piece = (contents: string, token: string, more: Json = {}) => ({
+  contents,
+  source: 'paper.tex',
+  line: 7,
+  token,
+  placed: true,
+  ...more,
+});
+
+// --- reading the Markdown back ----------------------------------------------
+const reader = unified().use(remarkParse).use(remarkGfm).use(remarkMathDollars);
+const read = (markdown: string): Md => reader.runSync(reader.parse(markdown), markdown) as Md;
+function all(tree: Md, type: string): Md[] {
+  const found: Md[] = [];
+  const walk = (node: Md) => {
+    if (node.type === type) found.push(node);
+    (node.children ?? []).forEach(walk);
+  };
+  walk(tree);
+  return found;
+}
+const textOf = (node: Md): string =>
+  node.type === 'text' || node.type === 'inlineCode'
+    ? String(node.value)
+    : (node.children ?? []).map(textOf).join('');
+/** The formulas Tome's reader finds, in order, with whether each is set apart. */
+const formulas = (tree: Md) =>
+  [
+    ...all(tree, 'inlineMath').map((n) => ({ ...n, apart: false })),
+    ...all(tree, 'math').map((n) => ({ ...n, apart: true })),
+  ].sort(
+    (a, b) =>
+      (a.position as { start: { offset: number } }).start.offset -
+      (b.position as { start: { offset: number } }).start.offset,
+  );
+const write = (blocks: Json[], more: Json = {}) =>
+  writePaper({
+    tree: doc(blocks, (more.meta as Json) ?? {}),
+    fallbackTitle: 'paper',
+    name: 'paper.tex',
+    ...more,
+  });
+/** The Markdown under the title. */
+const body = (markdown: string) => markdown.replace(/^# .*\n+/, '');
+
+describe('pandoc-to-markdown.mjs — the title and what stands under it (INT-0033 AC2)', () => {
+  it('test_paper_title: the paper’s own title, or the file’s name', () => {
+    const titled = write([para(inl('Text.'))], { meta: { title: metaInlines('A Short Paper') } });
+    expect(titled.markdown.startsWith('# A Short Paper\n')).toBe(true);
+    expect(titled.title).toBe('A Short Paper');
+    const untitled = write([para(inl('Text.'))]);
+    expect(untitled.markdown.startsWith('# paper\n')).toBe(true);
+    expect(untitled.title).toBe('paper');
+    const formula = write([para(inl('Text.'))], {
+      meta: { title: { t: 'MetaInlines', c: [...inl('Why'), sp, math(String.raw`x^2 \ge 0`)] } },
+    });
+    expect(formula.title).toBe('Why x² ≥ 0');
+    expect(formulas(read(formula.markdown)).map((f) => f.value)).toEqual([String.raw`x^2 \ge 0`]);
+  });
+
+  it('test_paper_title_note_and_piece: a note and a skipped piece are kept out of the title', () => {
+    const out = write([para(inl('Text.'))], {
+      meta: {
+        title: {
+          t: 'MetaInlines',
+          c: [
+            ...inl('On Sums'),
+            { t: 'Note', c: [para(inl('Thanks to the fund.'))] },
+            sp,
+            str('tokA'),
+          ],
+        },
+        author: { t: 'MetaList', c: [metaInlines('A. Writer')] },
+      },
+      skipped: [piece(String.raw`\mycmd{x}`, 'tokA')],
+    });
+    expect(out.title).toBe('On Sums');
+    const tree = read(out.markdown);
+    expect(textOf(all(tree, 'heading')[0])).toBe('On Sums');
+    const paragraphs = all(tree, 'paragraph').map(textOf);
+    expect(paragraphs.slice(0, 2)).toEqual(['A. Writer', 'Thanks to the fund.']);
+    expect(out.markdown).not.toContain('tokA');
+    expect(out.markdown).not.toContain(LATEX_MARK.slice(1));
+    expect(out.leftOut).toMatchObject([{ kind: 'command', name: String.raw`\mycmd` }]);
+  });
+
+  it('test_paper_heading_levels: a section is one level under the title', () => {
+    const out = write([header(1, 'One'), header(2, 'Two'), header(3, 'Three'), header(6, 'Six')], {
+      meta: { title: metaInlines('The Paper') },
+    });
+    expect(all(read(out.markdown), 'heading').map((h) => [h.depth, textOf(h)])).toEqual([
+      [1, 'The Paper'],
+      [2, 'One'],
+      [3, 'Two'],
+      [4, 'Three'],
+      [6, 'Six'],
+    ]);
+    // A Typst paper writes its title as its first heading: one `#`, and the rest as they are.
+    const own = writePaper({
+      tree: doc([header(1, 'The Paper'), header(2, 'Introduction'), header(3, 'Lists')], {
+        title: metaInlines('The Paper'),
+      }),
+      format: 'typst',
+      name: 'paper.typ',
+      fallbackTitle: 'paper',
+    });
+    expect(all(read(own.markdown), 'heading').map((h) => [h.depth, textOf(h)])).toEqual([
+      [1, 'The Paper'],
+      [2, 'Introduction'],
+      [3, 'Lists'],
+    ]);
+    // The Typst fixture is such a paper.
+    const fixture = writePaper({ tree: typst.tree, format: 'typst', name: 'paper.typ' });
+    const headings = all(read(fixture.markdown), 'heading').map((h) => [h.depth, textOf(h)]);
+    expect(headings.filter(([, words]) => words === 'A Short Paper on Sums')).toEqual([
+      [1, 'A Short Paper on Sums'],
+    ]);
+    expect(headings).toContainEqual([2, 'Introduction']);
+    expect(headings).toContainEqual([3, 'Lists and a table']);
+  });
+
+  it('test_paper_front_matter: authors and date, then the abstract', () => {
+    const meta = {
+      title: metaInlines('The Paper'),
+      author: { t: 'MetaList', c: [metaInlines('A. Writer'), metaInlines('B. Reader')] },
+      date: metaInlines('November 2026'),
+      abstract: { t: 'MetaBlocks', c: [para(inl('We prove it.'))] },
+    };
+    const out = write([para(inl('Text.'))], { meta });
+    expect(body(out.markdown)).toBe(
+      '_A. Writer, B. Reader, November 2026_\n\n**Abstract**\n\nWe prove it.\n\nText.\n',
+    );
+    // A date that is empty, or only the word that stands for `\today`.
+    for (const date of [
+      { t: 'MetaInlines', c: [] },
+      { t: 'MetaInlines', c: [str('tokT')] },
+    ]) {
+      const dated = write([para(inl('Text.'))], {
+        meta: { ...meta, date, abstract: undefined },
+        skipped: [piece(String.raw`\today`, 'tokT')],
+      });
+      expect(body(dated.markdown)).toBe('_A. Writer, B. Reader_\n\nText.\n');
+    }
+    expect(
+      body(write([para(inl('Text.'))], { meta: { title: metaInlines('The Paper') } }).markdown),
+    ).toBe('Text.\n');
+    // Typst does not print what `#set document(author: …)` holds.
+    const typstOut = writePaper({
+      tree: doc([para(inl('Text.'))], { title: metaInlines('T'), author: meta.author }),
+      format: 'typst',
+    });
+    expect(body(typstOut.markdown)).toBe('Text.\n');
+  });
+});
+
+describe('pandoc-to-markdown.mjs — what a paper holds (INT-0033 AC2)', () => {
+  it('test_paper_node_rules: each kind of node reads back as that kind', () => {
+    const cases: [string, Json[], string, string][] = [
+      ['emphasis', [para(wrap('Emph', inl('leaned words')))], 'emphasis', 'leaned words'],
+      ['strong', [para(wrap('Strong', inl('strong words')))], 'strong', 'strong words'],
+      ['struck', [para(wrap('Strikeout', inl('struck words')))], 'delete', 'struck words'],
+      ['code', [para({ t: 'Code', c: [NO_ATTR, 'a_b * c'] })], 'inlineCode', 'a_b * c'],
+      ['link', [para(linkTo('https://example.org/a', 'the archive'))], 'link', 'the archive'],
+      [
+        'bullets',
+        [{ t: 'BulletList', c: [[plain(inl('one'))], [plain(inl('two'))]] }],
+        'list',
+        'onetwo',
+      ],
+      [
+        'quotation',
+        [{ t: 'BlockQuote', c: [para(inl('Quoted words.'))] }],
+        'blockquote',
+        'Quoted words.',
+      ],
+      ['rule', [para(inl('a')), { t: 'HorizontalRule' }, para(inl('b'))], 'thematicBreak', ''],
+    ];
+    for (const [label, blocks, type, words] of cases) {
+      const found = all(read(write(blocks).markdown), type);
+      expect(found, label).toHaveLength(1);
+      expect(textOf(found[0]), label).toBe(words);
+    }
+    const one = (blocks: Json[]) => read(write(blocks).markdown);
+    // A paragraph, a line break, and quoted text.
+    expect(textOf(all(one([para(inl('Plain words.'))]), 'paragraph')[0])).toBe('Plain words.');
+    expect(body(write([para(inl('one'), { t: 'LineBreak' }, inl('two'))]).markdown)).toBe(
+      'one<br>two\n',
+    );
+    expect(
+      body(write([para({ t: 'Quoted', c: [{ t: 'DoubleQuote' }, inl('so')] })]).markdown),
+    ).toBe('“so”\n');
+    // A numbered list keeps its first number.
+    const numbered = all(
+      one([
+        {
+          t: 'OrderedList',
+          c: [
+            [3, { t: 'Decimal' }, { t: 'Period' }],
+            [[plain(inl('three'))], [plain(inl('four'))]],
+          ],
+        },
+      ]),
+      'list',
+    )[0];
+    expect([numbered.ordered, numbered.start]).toEqual([true, 3]);
+    // A code block keeps its language.
+    const code = all(
+      one([{ t: 'CodeBlock', c: [['', ['python'], []], 'print(1)\n# not a heading'] }]),
+      'code',
+    )[0];
+    expect([code.lang, code.value]).toEqual(['python', 'print(1)\n# not a heading']);
+    // A footnote.
+    const noted = one([para(inl('Words'), { t: 'Note', c: [para(inl('A note.'))] })]);
+    expect(all(noted, 'footnoteReference')).toHaveLength(1);
+    expect(textOf(all(noted, 'footnoteDefinition')[0])).toBe('A note.');
+    // Raised and lowered text.
+    expect(
+      body(
+        write([
+          para(str('x'), wrap('Superscript', str('2')), str('y'), wrap('Subscript', str('i'))),
+        ]).markdown,
+      ),
+    ).toBe('x<sup>2</sup>y<sub>i</sub>\n');
+    // A definition list: a bullet for each term, the term in bold first.
+    const defined = write([
+      {
+        t: 'DefinitionList',
+        c: [
+          [inl('Sum'), [[plain(inl('what adding gives.'))]]],
+          [inl('Product'), [[plain(inl('what multiplying gives.'))]]],
+        ],
+      },
+    ]);
+    expect(body(defined.markdown)).toBe(
+      '- **Sum**: what adding gives.\n- **Product**: what multiplying gives.\n',
+    );
+    // Underlining, small capitals and a span are their words, and nothing is counted.
+    const dressed = write([
+      para(wrap('Underline', inl('under')), sp, wrap('SmallCaps', inl('caps')), sp, {
+        t: 'Span',
+        c: [NO_ATTR, inl('span')],
+      }),
+    ]);
+    expect(body(dressed.markdown)).toBe('under caps span\n');
+    expect(dressed.leftOut).toEqual([]);
+  });
+
+  it('test_paper_table: cells, alignments, a heading row and a caption', () => {
+    const paper = body(
+      writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' }).markdown,
+    );
+    const sums = all(read(paper), 'table')[0];
+    expect(sums.align).toEqual(['left', 'right', 'right']);
+    expect((sums.children ?? []).map((r) => (r.children ?? []).map(textOf))).toEqual([
+      ['', 'sum', 'square'],
+      ['1', '1', '1'],
+      ['2', '3', '4'],
+      ['3', '6', '9'],
+    ]);
+    expect(all(sums, 'inlineMath').map((f) => f.value)).toEqual(['n']);
+    expect(paper).toMatch(/\| 3 +\| +6 \| +9 \|\n\n(?:.*\n)?.*The first three sums\./);
+
+    // No heading row from pandoc: the first row heads the table.
+    const headless = write([
+      table(
+        ['AlignDefault', 'AlignDefault'],
+        [],
+        [
+          row(cell(plain(inl('a'))), cell(plain(inl('b')))),
+          row(cell(plain(inl('c'))), cell(plain(inl('d')))),
+        ],
+      ),
+    ]);
+    const rows = (all(read(headless.markdown), 'table')[0].children ?? []).map((r) =>
+      (r.children ?? []).map(textOf),
+    );
+    expect(rows).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+    // A cell of two paragraphs is one line; a caption stands directly under.
+    const tall = write([
+      table(
+        ['AlignLeft'],
+        [row(cell(plain(inl('head'))))],
+        [row(cell(para(inl('first')), para(inl('second | third'))))],
+        [plain(inl('What it shows.'))],
+      ),
+    ]);
+    expect(body(tall.markdown)).toMatch(
+      /^\| head +\|\n\| :-+ \|\n\| first<br>second \\\| third \|\n\nWhat it shows\.\n$/,
+    );
+  });
+
+  it('test_paper_figure: the picture, its caption, and the address for the stage to settle', () => {
+    const out = write([
+      {
+        t: 'Figure',
+        c: [
+          ['fig:t', [], []],
+          [null, [plain(inl('A triangle of dots.'))]],
+          [plain({ t: 'Image', c: [NO_ATTR, [], ['figures/triangle.png', '']] })],
+        ],
+      },
+    ]);
+    expect(out.images).toEqual([
+      { url: 'figures/triangle.png', placeholder: 'tome-paper-image-0' },
+    ]);
+    expect(body(out.markdown)).toBe('![](tome-paper-image-0)\n\nA triangle of dots.\n');
+  });
+
+  it('test_paper_own_blocks: a theorem, a proof, and an environment pandoc does not know', () => {
+    const paper = body(
+      writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' }).markdown,
+    );
+    expect(paper).toContain('**Theorem 1** (Gauss). _For every whole number $n \\ge 1$,_');
+    expect(paper).toContain('_Proof._ By induction.');
+    expect(paper).toContain('\n\n◻\n');
+    expect(paper).toContain('**Lemma 2**.');
+    const own = write([
+      { t: 'Div', c: [['', ['myenv'], []], [para(inl('Inside my own environment.'))]] },
+    ]);
+    expect(body(own.markdown)).toBe('Inside my own environment.\n');
+  });
+
+  it('test_paper_text_stays_text: nothing the paper’s words hold becomes Markdown', () => {
+    for (const words of [
+      'It costs $5 to print this paper, and 50% of it is formulas.',
+      '*not emphasis*',
+      '_nor this_',
+      '[not](a link)',
+      'a \\ backslash',
+      '<b>not bold</b>',
+      '- not a list',
+      '# not a heading',
+      '1. not numbered',
+      '$a$ and $b$',
+    ]) {
+      const tree = read(body(write([para(inl(words))]).markdown));
+      expect(tree.children, words).toHaveLength(1);
+      expect(tree.children![0].type, words).toBe('paragraph');
+      expect(textOf(tree.children![0]), words).toBe(words);
+      for (const type of [
+        'emphasis',
+        'strong',
+        'link',
+        'html',
+        'list',
+        'heading',
+        'inlineMath',
+        'math',
+      ]) {
+        expect(all(tree, type), `${words}: ${type}`).toEqual([]);
+      }
+    }
+  });
+
+  it('test_paper_unsafe_links: only an address a browser may follow is a link', () => {
+    for (const address of [
+      'javascript:alert(1)',
+      'file:///c:/x',
+      'data:text/html,x',
+      'vbscript:x',
+    ]) {
+      const tree = read(write([para(linkTo(address, 'the words'))]).markdown);
+      expect(all(tree, 'link'), address).toEqual([]);
+      expect(textOf(all(tree, 'paragraph')[0]), address).toBe('the words');
+    }
+    for (const address of ['https://example.org', 'http://example.org/a', 'mailto:a@example.org']) {
+      expect(
+        all(read(write([para(linkTo(address, 'the words'))]).markdown), 'link')[0].url,
+        address,
+      ).toBe(address);
+    }
+  });
+
+  it('test_paper_deterministic: the same tree is the same Markdown', () => {
+    const once = writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' });
+    const twice = writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' });
+    expect(twice.markdown).toBe(once.markdown);
+    expect(twice.leftOut).toEqual(once.leftOut);
+  });
+});
+
+describe('pandoc-to-markdown.mjs — formulas (INT-0033 AC3)', () => {
+  it('test_paper_formula_one_line: comments dropped, lines joined, nothing Markdown can take for a block', () => {
+    const typed = String.raw`\begin{equation}
+\label{eq:one}
+a = b % a comment with $ in it
+  + c
+- d \% e
+\end{equation}`;
+    const one = String.raw`\begin{equation} \label{eq:one} a = b + c - d \% e \end{equation}`;
+    expect(oneLine(typed)).toBe(one);
+    const out = write([para(inl('Before'), math(typed, true), inl('after.'))]);
+    expect(out.markdown).toContain(`$$${one}$$`);
+    expect(formulas(read(out.markdown))).toMatchObject([{ value: one, apart: true }]);
+    expect(out.leftOut).toEqual([]);
+    // Lines that Markdown would take for a quotation, a heading's underline or a list.
+    // (`#` cannot begin a line of a formula: it is TeX's own parameter sign.)
+    const blocks = 'a\n> b\n= c\n- d\n+ e\n* f';
+    const second = write([para(math(blocks, true))]);
+    expect(formulas(read(second.markdown))).toMatchObject([
+      { value: oneLine(blocks), apart: true },
+    ]);
+    expect(second.leftOut).toEqual([]);
+    // A line that ends in a comment is joined to the next as TeX joins them.
+    expect(oneLine('\\text{foo%\n  bar}')).toBe('\\text{foobar}');
+    expect(oneLine('a \\\\% c\nb')).toBe('a \\\\ b');
+    expect(oneLine('\\alpha% c\nb')).toBe('\\alpha b');
+    expect(oneLine('a = b\n% only a comment\n+ c')).toBe('a = b + c');
+  });
+
+  it('test_paper_formulas: within a line, set apart, and where nothing can stand apart', () => {
+    const inline = write([
+      para(inl('For'), sp, math(String.raw`n \ge 1`), str(','), sp, inl('so.')),
+    ]);
+    expect(body(inline.markdown)).toBe('For $n \\ge 1$, so.\n');
+    expect(formulas(read(inline.markdown))).toMatchObject([
+      { value: String.raw`n \ge 1`, apart: false },
+    ]);
+
+    const apart = read(
+      body(
+        write([para(inl('words before'), sp, math('a = b', true), sp, inl('words after'))])
+          .markdown,
+      ),
+    );
+    expect(apart.children!.map((node) => node.type)).toEqual(['paragraph', 'math', 'paragraph']);
+    expect(
+      apart.children!.map((node) => (node.type === 'math' ? node.value : textOf(node))),
+    ).toEqual(['words before', 'a = b', 'words after']);
+
+    const held = write([
+      table(
+        ['AlignDefault'],
+        [row(cell(plain(math('c = d', true))))],
+        [row(cell(plain(inl('x'))))],
+      ),
+      header(1, 'h'),
+      { t: 'Header', c: [1, NO_ATTR, [str('On'), sp, math('e = f', true)]] },
+      para({ t: 'Link', c: [NO_ATTR, [math('g = h', true)], ['https://example.org', '']] }),
+      {
+        t: 'Figure',
+        c: [NO_ATTR, [null, [plain(math('i = j', true))]], [plain(inl('pictured'))]],
+      },
+    ]);
+    const found = formulas(read(held.markdown));
+    expect(found.map((f) => [f.value, f.apart])).toEqual([
+      ['c = d', false],
+      ['e = f', false],
+      ['g = h', false],
+      ['i = j', false],
+    ]);
+    expect(held.leftOut).toEqual([]);
+  });
+
+  it('test_paper_formula_set_apart_in_emphasis: the emphasis is divided with the paragraph', () => {
+    const paper = read(
+      body(writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' }).markdown),
+    );
+    const at = paper.children!.findIndex((node) => textOf(node).startsWith('Theorem 1 (Gauss).'));
+    const [words, formula] = paper.children!.slice(at, at + 2);
+    expect(all(words, 'emphasis').map(textOf)).toEqual(['For every whole number ,']);
+    expect(formula.type).toBe('math');
+    expect(String(formula.value)).toContain(String.raw`\begin{equation}`);
+
+    const both = read(
+      body(write([para(wrap('Emph', inl('a'), sp, math('x = y', true), sp, inl('b')))]).markdown),
+    );
+    expect(both.children!.map((node) => node.type)).toEqual(['paragraph', 'math', 'paragraph']);
+    expect(all(both, 'emphasis').map(textOf)).toEqual(['a', 'b']);
+  });
+
+  it('test_paper_formulas_read_back: every formula of the paper comes back, and can be laid out', () => {
+    const carried: { tex: string; display: boolean }[] = [];
+    const collect = (value: unknown) => {
+      if (Array.isArray(value)) return value.forEach(collect);
+      if (value && typeof value === 'object') {
+        const node = value as { t?: string; c?: [{ t: string }, string] };
+        if (node.t === 'Math')
+          carried.push({ tex: oneLine(node.c![1]), display: node.c![0].t === 'DisplayMath' });
+        else Object.values(value).forEach(collect);
+      }
+    };
+    // In the order the chapter has them: the abstract, the text, then the notes.
+    collect(latex.tree.meta.abstract);
+    const notes: unknown[] = [];
+    const withoutNotes = JSON.parse(JSON.stringify(latex.tree.blocks), (_key, value) => {
+      if (value && value.t === 'Note') {
+        notes.push(value);
+        return { t: 'Str', c: '' };
+      }
+      return value;
+    });
+    collect(withoutNotes);
+    collect(notes);
+    expect(carried.length).toBeGreaterThanOrEqual(16);
+    const out = writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' });
+    const found = formulas(read(out.markdown));
+    expect(found.map((f) => f.value)).toEqual(carried.map((f) => f.tex));
+    for (const formula of found) {
+      expect(readable(String(formula.value), formula.apart), String(formula.value)).toBe(true);
+    }
+    expect(out.leftOut.filter((entry: { kind: string }) => entry.kind === 'equation')).toEqual([]);
+    expect(out.markdown).not.toContain('[equation not shown]');
+  });
+
+  it('test_paper_formula_refused_is_marked: a formula that cannot be laid out where it stands', () => {
+    const aligned = String.raw`\begin{align} a &= b \end{align}`;
+    const out = write([
+      para(inl('See'), sp, math(String.raw`x = \badmacro{1}`, true)),
+      table(
+        ['AlignDefault'],
+        [row(cell(plain(inl('head'))))],
+        [row(cell(plain(math(aligned, true))))],
+      ),
+    ]);
+    expect(out.markdown.split('\\[equation not shown]').length - 1).toBe(2);
+    expect(out.leftOut).toEqual([{ kind: 'equation', count: 2 }]);
+    expect(formulas(read(out.markdown))).toEqual([]);
+  });
+});
+
+describe('pandoc-to-markdown.mjs — what pandoc skipped (INT-0033 AC5)', () => {
+  const marks = (markdown: string) => markdown.split(`\\${LATEX_MARK}`).length - 1;
+
+  it('test_paper_skipped_marked: a drawing, and a command that holds words', () => {
+    const drawing =
+      String.raw`\begin{tikzpicture}` +
+      '\n    ' +
+      String.raw`\draw (0,0);` +
+      '\n    ' +
+      String.raw`\end{tikzpicture}`;
+    const skipped = [
+      piece(String.raw`\mycmd{x}`, 'tokA', { line: 4 }),
+      piece(String.raw`\other[opt]`, 'tokB', { line: 5 }),
+      piece(drawing, 'tokC', { line: 6 }),
+      piece(String.raw`\appcmd{y}`, 'tokD', { line: 2, source: 'appendix.tex' }),
+      piece(String.raw`\noindent{\bf Keywords:}`, 'tokE'),
+      piece(String.raw`\centering{\includegraphics{a.png}}`, 'tokF'),
+      piece(String.raw`\color{red}{Red words}`, 'tokG'),
+      piece(String.raw`\begin{definition}[Compactness]`, 'tokH'),
+    ];
+    const out = write(
+      [
+        para(inl('We write tokA here and tokB there.')),
+        para(str('tokC')),
+        para(inl('In the appendix tokD stands.')),
+        para(inl('tokE sums. tokF tokG tokH')),
+      ],
+      { skipped },
+    );
+    expect(marks(out.markdown)).toBe(8);
+    expect(body(out.markdown).split('\n')[0]).toBe(
+      `We write \\${LATEX_MARK} here and \\${LATEX_MARK} there.`,
+    );
+    for (const entry of skipped) expect(out.markdown).not.toContain(entry.token);
+    // The mark is text, and stays text though a definition of that name is in the chapter.
+    const tree = read(`${out.markdown}\n${LATEX_MARK}: https://example.org\n`);
+    expect(all(tree, 'linkReference')).toEqual([]);
+    expect(all(tree, 'link')).toEqual([]);
+    expect(out.leftOut.map((entry: { kind: string }) => entry.kind)).toEqual(
+      Array(8).fill('latex'),
+    );
+    expect(out.leftOut.slice(0, 4)).toMatchObject([
+      { name: String.raw`\mycmd`, line: 4, detail: String.raw`\mycmd at line 4` },
+      { name: String.raw`\other`, line: 5 },
+      { name: 'tikzpicture', line: 6, detail: 'tikzpicture at line 6' },
+      {
+        name: String.raw`\appcmd`,
+        line: 2,
+        file: 'appendix.tex',
+        detail: String.raw`\appcmd in appendix.tex at line 2`,
+      },
+    ]);
+    for (const entry of out.leftOut.slice(0, 3)) expect(entry).not.toHaveProperty('file');
+    expect(out.leftOut.slice(4).map((entry: { name: string }) => entry.name)).toEqual([
+      String.raw`\noindent`,
+      String.raw`\centering`,
+      String.raw`\color`,
+      'definition',
+    ]);
+  });
+
+  it('test_paper_skipped_counted_only: a bare command, and a piece with no place', () => {
+    const bare = write([para(inl('a tokA b'))], { skipped: [piece(String.raw`\myname`, 'tokA')] });
+    expect(body(bare.markdown)).toBe('a b\n');
+    expect(bare.leftOut).toMatchObject([{ kind: 'command', count: 1, name: String.raw`\myname` }]);
+    // Hard against the words either side, as `x\quad y` leaves it.
+    const glued = write([para(str('x'), sp, str('tokAy'))], {
+      skipped: [piece(String.raw`\myname `, 'tokA')],
+    });
+    expect(body(glued.markdown)).toBe('x y\n');
+    const unplaced = write([para(inl('Text.'))], {
+      skipped: [piece(String.raw`\mycmd{x}`, 'tokA', { placed: false })],
+    });
+    expect(body(unplaced.markdown)).toBe('Text.\n');
+    expect(unplaced.leftOut).toMatchObject([
+      { kind: 'command', count: 1, name: String.raw`\mycmd` },
+    ]);
+    for (const out of [bare, glued, unplaced]) {
+      expect(out.markdown).not.toContain('tokA');
+      expect(marks(out.markdown)).toBe(0);
+    }
+  });
+
+  it('test_paper_layout_commands_quiet: a command that only lays the page out is passed over', () => {
+    expect(LAYOUT_COMMANDS.size).toBeGreaterThanOrEqual(70);
+    for (const [name, takes] of LAYOUT_COMMANDS) {
+      const argument = '{1em}'.repeat(takes);
+      for (const contents of [
+        `\\${name}`,
+        `\\${name}*`,
+        `\\${name} `,
+        `\\${name}${argument}`,
+        `\\${name}*[t]${argument}`,
+      ]) {
+        const out = write([para(inl('x tokA y'))], { skipped: [piece(contents, 'tokA')] });
+        expect(body(out.markdown), contents).toBe('x y\n');
+        expect(out.leftOut, contents).toEqual([]);
+      }
+      // One group more than it takes holds something of the paper's.
+      const more = write([para(inl('x tokA y'))], {
+        skipped: [piece(`\\${name}${argument}{Words}`, 'tokA')],
+      });
+      expect(marks(more.markdown), name).toBe(1);
+      expect(more.leftOut, name).toMatchObject([{ kind: 'latex' }]);
+    }
+    for (const contents of [
+      String.raw`\begin{myenv}`,
+      String.raw`\end{myenv}`,
+      String.raw`\bibitem{gauss}`,
+      String.raw`\begin{thebibliography}`,
+      String.raw`\end{thebibliography}`,
+    ]) {
+      const out = write([para(inl('x tokA y'))], { skipped: [piece(contents, 'tokA')] });
+      expect(body(out.markdown), contents).toBe('x y\n');
+      expect(out.leftOut, contents).toEqual([]);
+    }
+    const styled = write([para(inl('x tokA y'))], {
+      skipped: [piece(String.raw`\mystyle{x}`, 'tokA', { source: 'house.sty' })],
+    });
+    expect(body(styled.markdown)).toBe('x y\n');
+    expect(styled.leftOut).toEqual([]);
+    // In the paper itself: `x\quad y` is two words and no mark.
+    const paper = writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' });
+    expect(paper.markdown).toContain('and set x y apart.');
+  });
+
+  it('test_paper_unknown_node: a kind with no rule keeps its words and is counted', () => {
+    const out = write([
+      para(inl('before'), sp, { t: 'Invented', c: [str('kept')] }, sp, inl('after')),
+      { t: 'InventedBlock', c: [para(inl('block words'))] },
+    ]);
+    expect(body(out.markdown)).toBe('before kept after\n\nblock words\n');
+    expect(out.leftOut).toEqual([
+      { kind: 'node', count: 1, detail: 'Invented' },
+      { kind: 'node', count: 1, detail: 'InventedBlock' },
+    ]);
+  });
+});
