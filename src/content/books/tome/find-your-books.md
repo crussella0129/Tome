@@ -111,13 +111,14 @@ never touched.
 
 ## Add a document
 
-Tome also reads what is not an mdBook: a Markdown file, a Word document, or a
-folder of them. No `SUMMARY.md` is needed, and your files are only read, never
-changed.
+Tome also reads what is not an mdBook: a Markdown file, a Word document, a
+paper written in LaTeX (`.tex`) or Typst (`.typ`), or a folder of them. No
+`SUMMARY.md` is needed, and your files are only read, never changed.
 
 ```bash
 npm run books:add -- ~/notes/ideas.md
 npm run books:add -- "C:\Users\you\Documents\Thesis draft.docx"
+npm run books:add -- ~/papers/sums/paper.tex
 npm run books:add -- ~/notes
 ```
 
@@ -130,7 +131,7 @@ title = "Thesis Draft"
 ```
 
 A single file becomes a tome of one chapter. A folder becomes a tome with one
-chapter per `.md` and `.docx` file, at any depth:
+chapter per `.md`, `.docx`, `.tex` and `.typ` file, at any depth:
 
 - The folder's own documents come first, by name, with numbers counted as
   numbers: `2-notes.md` sorts before `10-notes.md`.
@@ -139,6 +140,9 @@ chapter per `.md` and `.docx` file, at any depth:
   first document does.
 - Dot-folders, `.git`, `node_modules`, `target`, `dist`, `vendor` and `venv`
   are skipped, and so is any subfolder that is itself an mdBook.
+- A paper of several files is one chapter. A `.tex` file is a chapter when it
+  holds `\documentclass`; one without it is taken to be part of another paper.
+  A `.typ` file that another includes or imports is part of that paper.
 
 **Google Docs.** In the document, choose File → Download → Microsoft Word
 (.docx), then add the downloaded file.
@@ -167,6 +171,54 @@ The build prints a line for each document that left something out, for example
 `left out 1 equation`. Page headers and footers, comments, colours, fonts and
 underlining are not carried over and are not reported.
 
+### What carries over from a LaTeX or Typst paper
+
+The paper's title heads the page, with its authors and date beneath and its
+abstract under "Abstract". Its sections become the page's sections. Formulas
+are laid out as [Write Mathematics](write-mathematics.md) describes, a
+numbered one with its number. Theorems and proofs, lists, tables, figures
+with their captions, footnotes, quotations and code are kept. So are the
+paper's own commands (`\newcommand`), and the files it pulls in with `\input`
+or `#include`, from the paper's folder and the folders inside it.
+
+A reference shows what it refers to and leads there: the number of a section,
+theorem, table, figure or equation in a LaTeX paper, and in a Typst paper the
+heading's own words. A citation shows its entry: author and year when the
+paper has a `.bib` file, or the entry's number when the list is written in
+the paper itself. A number in a reference is the one the reader gives it,
+which may differ from the PDF's: each part of a figure is counted, and a
+section of an appendix has a number where LaTeX gives it a letter.
+
+What cannot be carried over is marked where it stood:
+
+| In the paper | On the page |
+|---|---|
+| A drawing made with commands (TikZ), or a command from a package the reader does not know | `[LaTeX not shown]` |
+| A figure kept as PDF or EPS, or a picture that is missing or lies outside the paper's folder | `[image not shown]` |
+| A formula the layout cannot read | `[equation not shown]` |
+| A reference to a label that is not there, or a citation with no entry | the label or the key, in square brackets |
+| A paper the reader refuses outright | a chapter that reads `[document not shown]` |
+
+The build prints a line for each paper that left something out, and names
+it, for example
+`left out 2 pieces of LaTeX not shown (tikzpicture, \mycmd), 1 citation with no entry (smith2020)`.
+A command that only spaces or sizes the text, such as `\quad` or `\small`,
+takes no mark. One the reader does not know and that stood alone, with
+nothing in braces after it, is named in that line without a mark.
+
+Three limits are worth knowing:
+
+- A Typst document that uses a package, or a function the reader does not
+  carry, cannot be read at all. It becomes the chapter that says so, and the
+  build gives the line and the reason.
+- A `.bbl` file is not read. A paper kept without its `.bib` file shows its
+  citations as keys.
+- A table inside `\resizebox` takes the mark and loses its caption.
+
+The reading is done by [pandoc](https://pandoc.org), which Tome installs with
+`npm` as `pandoc-wasm` and runs only when your library holds a paper. Pandoc
+is under the GPL, version 2 or later.
+
 ### What to know about Markdown notes
 
 - A settings block at the top of a note (front matter between `---` lines) is
@@ -177,8 +229,8 @@ underlining are not carried over and are not reported.
 - A picture written as HTML (`<img src="…">`) is not copied; write it as
   `![alt](picture.png)`.
 
-`npm run dev` shows a document, but a change to it appears only after a
-restart. Live editing covers mdBook folders.
+`npm run dev` shows a document, a paper among them, but a change to it
+appears only after a restart. Live editing covers mdBook folders.
 
 ## For agents
 
