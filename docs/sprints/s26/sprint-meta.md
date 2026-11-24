@@ -9,5 +9,5 @@
 - **Exit status:** in-progress
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Read papers: a document written in LaTeX or Typst is read as a tome, its formulas laid out and whatever cannot be carried over marked and named.
-- **Intents:** [INT-0033](../../intents/INT-0033-latex-and-typst-documents.md) — planned; INT-0029 and INT-0030 realized compatibility boundaries; INT-0032 and INT-0026 proposed constraints.
+- **Intents:** [INT-0033](../../intents/INT-0033-latex-and-typst-documents.md) — active; INT-0029 and INT-0030 realized compatibility boundaries; INT-0032 and INT-0026 proposed constraints.
 - **Completion evidence:** (filled at Loop Phase)

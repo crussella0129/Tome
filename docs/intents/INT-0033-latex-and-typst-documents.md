@@ -2,7 +2,7 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0033
-- **State:** planned
+- **State:** active
 - **Work evidence:** [Sprint 26 build plan](../sprints/s26/sprint-plans/build-plan.md) (T-086 to T-094)
 - **Completion evidence:** none
 - **Code evidence:** none
@@ -185,3 +185,6 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
   alone, as INT-0029 does; criterion 5 says a layout command is passed over
   only when it holds nothing of the paper's; Consequences gained four more
   limits.
+- 2026-11-24: `planned` to `active` in Sprint 26's Build phase, as T-086
+  began. The plans were locked after a second review returned
+  proceed-with-caveats and its concerns were answered in them.
