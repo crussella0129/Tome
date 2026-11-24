@@ -1584,3 +1584,53 @@ describe('pandoc-to-markdown.mjs — what the third test review found', () => {
     ]);
   });
 });
+
+// Found by the fourth review of the tests (sprint-tests/critique-round-4.md).
+describe('pandoc-to-markdown.mjs — what the fourth test review found', () => {
+  const R = String.raw;
+  const list = (between: Json[], extraPieces: Json[] = []) => ({
+    blocks: [
+      header(1, 'References'),
+      ...between,
+      para(str('tokB9'), sp, str('tokA'), sp, inl('The one entry.'), sp, str('tokZ')),
+    ],
+    skipped: [
+      piece(R`\begin{thebibliography}`, 'tokB'),
+      piece(R`\bibitem{a}`, 'tokA'),
+      piece(R`\end{thebibliography}`, 'tokZ'),
+      ...extraPieces,
+    ],
+  });
+
+  it('test_paper_list_heading_keeps_content: a formula or a note before the list is kept', () => {
+    const cases: [string, Json[], Json[]][] = [
+      ['a formula', [para(math('E = mc^2', true))], []],
+      ['a note', [para({ t: 'Note', c: [para(inl('SOURCE NOTE WORDS.'))] })], []],
+      [
+        'a layout command and a formula',
+        [para(str('tokS'), sp, math('x^2 + y^2'))],
+        [piece(R`\bibliographystyle{plain}`, 'tokS')],
+      ],
+    ];
+    for (const [label, between, pieces] of cases) {
+      const { blocks, skipped } = list(between, pieces);
+      const out = write(blocks, { skipped });
+      const tree = read(out.markdown);
+      expect(
+        all(tree, 'math').length +
+          all(tree, 'inlineMath').length +
+          all(tree, 'footnoteDefinition').length,
+        label,
+      ).toBe(1);
+      expect(all(tree, 'heading').map(textOf).slice(1), label).toEqual([
+        'References',
+        'References',
+      ]);
+    }
+    // `\phantomsection` is layout, passed over.
+    const { blocks, skipped } = list([para(str('tokP'))], [piece(R`\phantomsection`, 'tokP')]);
+    const out = write(blocks, { skipped });
+    expect(all(read(out.markdown), 'heading').map(textOf).slice(1)).toEqual(['References']);
+    expect(out.leftOut).toEqual([]);
+  });
+});

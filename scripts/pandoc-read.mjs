@@ -58,20 +58,32 @@ function tokenFor(nonce, index) {
 /**
  * What of a LaTeX file is not text the paper names a file in: a comment; code
  * the paper shows as written (`verbatim`, fancyvrb's `Verbatim`, `lstlisting`,
- * `minted`, `\verb`, `\lstinline`); and what LaTeX never reads (`comment`,
- * `\iffalse … \fi`). A comment is matched first where it begins, so a
- * `\begin{verbatim}` in a comment starts nothing.
+ * `minted`, `\verb`, `\lstinline` in any of its forms); and what LaTeX never
+ * reads (`comment`, and `\iffalse` up to its `\else` or `\fi`). The address of
+ * a `\url` or `\href` is matched first, since a `%` in it is a character; then
+ * a comment, where it begins, so a `\begin{verbatim}` in a comment starts
+ * nothing. A `%` after an even run of backslashes (`\\%`) begins a comment.
  */
 const LATEX_CODE_SOURCE =
-  String.raw`(?<!\\)%[^\n]*` +
+  String.raw`\\(?:url|href)\s*\{[^{}]*\}` +
+  String.raw`|(?<=(?:^|[^\\])(?:\\\\)*)%[^\n]*` +
   String.raw`|\\begin\{(verbatim\*?|Verbatim\*?|BVerbatim\*?|LVerbatim\*?|lstlisting|minted|comment)\}[\s\S]*?\\end\{\1\}` +
-  String.raw`|\\(?:verb|lstinline)\*?([^A-Za-z\s\[{])[^\n]*?\2` +
-  String.raw`|\\iffalse(?![A-Za-z])[\s\S]*?\\fi(?![A-Za-z])`;
+  String.raw`|\\verb\*?([^A-Za-z\s])[^\n]*?\2` +
+  String.raw`|\\lstinline(?:\[[^\]]*\])?(?:\{[^{}]*\}|([^A-Za-z\s\[{])[^\n]*?\3)` +
+  String.raw`|\\iffalse(?![A-Za-z])[\s\S]*?\\(?:else|fi)(?![A-Za-z])`;
 const LATEX_CODE = new RegExp(LATEX_CODE_SOURCE, 'g');
 /** The same, and `\today` outside it. */
 const TODAY_OR_CODE = new RegExp(`${LATEX_CODE_SOURCE}|\\\\today(?![A-Za-z])`, 'g');
-/** Code in a Typst file: a raw block, or raw text, which may run over a line end. */
-const TYPST_CODE = /(`{3,})[\s\S]*?\1|`[^`]*`/g;
+/**
+ * Code in a Typst file: a raw block, or raw text within one line. (Raw text
+ * may run over a line end in Typst, but a lone backtick, escaped or in a
+ * comment or a string, would then pair with the next raw text and hide all
+ * between: a line is the safer reach.)
+ */
+const TYPST_CODE = /(`{3,})[\s\S]*?\1|`[^`\n]*`/g;
+/** A Typst call that names a file the paper reads, and the name, as written. */
+const TYPST_FILE_CALL =
+  /(\b(?:include|import|read|csv|json|yaml|toml|xml|cbor)\s*\(?\s*)"([^"\n]+)"/g;
 /** Where Typst code stands: after `#`, or after what opens or joins code, or at a line's start. */
 const TYPST_CODE_PLACE = String.raw`(?:#|(?:^|[{;(=,+]|=>)[ \t]*)`;
 
@@ -608,10 +620,10 @@ function picturesFromRoot(rel) {
 async function readTypst(file, convert) {
   const dir = path.dirname(file);
   const supply = new Supply(dir, await realpath(dir));
-  const main = path.basename(file);
-  if (!(await supply.add(main, { flat: true }))) {
-    throw new PaperRefused(`${main} could not be opened`);
-  }
+  // The paper's own file takes a stand-in name too, so that a chapter's file
+  // of the same name is never answered by the paper itself.
+  const main = await supply.add(path.basename(file), { flat: false });
+  if (!main) throw new PaperRefused(`${path.basename(file)} could not be opened`);
   const missing = [];
   const options = { from: 'typst', 'input-files': [main] };
   let read;
@@ -632,9 +644,10 @@ async function readTypst(file, convert) {
       let supplied = false;
       let asWritten = wanted;
       for (const [holder, text] of [...supply.texts]) {
-        // A name in raw text names nothing: look past it, to the file that includes.
-        const literal = [...text.replace(TYPST_CODE, '').matchAll(/"([^"\n]+)"/g)]
-          .map((match) => match[1])
+        // Only a call that reads a file names one; a name in raw text names
+        // nothing: look past it, to the file that includes.
+        const literal = [...text.replace(TYPST_CODE, '').matchAll(TYPST_FILE_CALL)]
+          .map((match) => match[2])
           .find((value) => value.replace(/^\.?\/+/, '') === wanted);
         if (literal === undefined) continue;
         asWritten = literal;
@@ -647,7 +660,11 @@ async function readTypst(file, convert) {
         if (name !== literal) {
           supply.texts.set(
             holder,
-            outsideCode(text, TYPST_CODE, (part) => part.replaceAll(`"${literal}"`, `"${name}"`)),
+            outsideCode(text, TYPST_CODE, (part) =>
+              part.replace(TYPST_FILE_CALL, (found, call, named) =>
+                named === literal ? `${call}"${name}"` : found,
+              ),
+            ),
           );
         }
         supplied = true;

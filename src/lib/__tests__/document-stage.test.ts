@@ -950,3 +950,43 @@ describe('document-stage.mjs — what the third test review found', { timeout: 1
       expect(reads(out.markdown)).toContain(words);
   });
 });
+
+// Found by the fourth review of the tests (sprint-tests/critique-round-4.md).
+describe('document-stage.mjs — what the fourth test review found', { timeout: 180_000 }, () => {
+  const reader = unified().use(remarkParse).use(remarkGfm).use(remarkMathDollars);
+  const images = (markdown: string): string[] => {
+    const found: string[] = [];
+    const walk = (node: MdNode) => {
+      if (node.type === 'image') found.push(String(node.url));
+      (node.children ?? []).forEach(walk);
+    };
+    walk(reader.runSync(reader.parse(markdown), markdown) as unknown as MdNode);
+    return found;
+  };
+
+  it('test_prepare_paper_odd_backtick: a lone backtick in a chapter hides no picture, and no part', async () => {
+    const atRoot = Buffer.from('the picture beside the paper');
+    const inChapter = Buffer.from('the picture beside the chapter');
+    const root = vault({
+      'main.typ':
+        '= Main\n\n#image("fig.png")\n\n// the ` key\n#include "ch1/ch1.typ"\n\nUse `code` here.\n',
+      'ch1/ch1.typ':
+        '== One\n\nWrite \\` for a backtick.\n\n#image("fig.png")\n\nUse `code` here.\n',
+      'fig.png': atRoot,
+      'ch1/fig.png': inChapter,
+    });
+    const source = await resolveSource(root);
+    expect(source.documents!.map((document) => document.rel)).toEqual(['main.typ']);
+    const out = await prepareDocument(
+      { file: join(root, 'main.typ'), rel: 'main.typ', format: 'typst', staged: 'main.md' },
+      { root },
+    );
+    expect(images(out.markdown)).toEqual([
+      './__tome_parent_assets__/fig.png',
+      './__tome_parent_assets__/ch1/fig.png',
+    ]);
+    const bytes = new Map(out.files.map((file) => [file.to, readFileSync(file.from!)]));
+    expect(bytes.get('__tome_parent_assets__/ch1/fig.png')).toEqual(inChapter);
+    expect(out.leftOut).toEqual([]);
+  });
+});

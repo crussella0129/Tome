@@ -85,6 +85,7 @@ export const LAYOUT_COMMANDS = new Map([
     'allowdisplaybreaks',
     'makeatletter',
     'makeatother',
+    'phantomsection',
     'vskip',
     'hskip',
   ].map((name) => [name, 0]),
@@ -728,13 +729,18 @@ function arrangeBibliography(blocks, ctx) {
 /** A paragraph that holds nothing but the words of pieces passed over. */
 function quietOnly(block, ctx) {
   if (block?.t !== 'Para' && block?.t !== 'Plain') return false;
-  let rest = wordsOf(block);
-  for (const [token, entry] of ctx.pieces) {
-    if (!rest.includes(token)) continue;
-    if (classify(entry).way !== 'quiet') return false;
-    rest = rest.replaceAll(token, '');
-  }
-  return rest.trim() === '';
+  // Every inline is a space or the words of pieces passed over: a formula, a
+  // note or a word of the paper's own makes the paragraph the paper's.
+  return block.c.every((inline) => {
+    if (inline.t === 'Space' || inline.t === 'SoftBreak') return true;
+    if (inline.t !== 'Str' || !ctx.pattern) return false;
+    let rest = inline.c;
+    for (const token of inline.c.match(ctx.pattern) ?? []) {
+      if (classify(ctx.pieces.get(token)).way !== 'quiet') return false;
+      rest = rest.replace(token, '');
+    }
+    return rest.trim() === '';
+  });
 }
 
 /** The anchor before an entry of the paper's own list. */

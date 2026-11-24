@@ -1071,3 +1071,90 @@ describe('pandoc-read.mjs — what the third test review found', () => {
     expect(words(raw.tree.blocks)).toContain('here.');
   }, 120_000);
 });
+
+// Found by the fourth review of the tests (sprint-tests/critique-round-4.md).
+describe('pandoc-read.mjs — what the fourth test review found', () => {
+  const R = String.raw;
+  const code = (tree: unknown) =>
+    [...nodes(tree, 'Code'), ...nodes(tree, 'CodeBlock')]
+      .map((node) => (node.c as [unknown, string])[1])
+      .sort();
+
+  it('test_pandoc_odd_backtick: a lone backtick hides no include', async () => {
+    const dir = join(tmp, 'odd-backtick');
+    write(dir, {
+      'ch1/ch1.typ': '== One\n\nCHAPTER ONE WORDS\n',
+      'escaped.typ':
+        '= Main\n\nWrite \\` for a backtick.\n\n#include "ch1/ch1.typ"\n\nUse `code` here.\n',
+      'comment.typ': '= Main\n\n// the ` key is odd\n#include "ch1/ch1.typ"\n\nUse `code` here.\n',
+      'string.typ': '= Main\n\n#let tick = "`"\n#include "ch1/ch1.typ"\n\nUse `code` here.\n',
+    });
+    for (const name of ['escaped.typ', 'comment.typ', 'string.typ']) {
+      const read = await readPaper({ file: join(dir, name), format: 'typst' });
+      expect(words(read.tree.blocks), name).toContain('CHAPTER ONE WORDS');
+    }
+  }, 120_000);
+
+  it('test_pandoc_today_after_percent: the build’s day is not written after an address, a listing or an \\iffalse', async () => {
+    const dir = join(tmp, 'today-percent');
+    write(dir, {
+      'url.tex': DOC(R`See \url{http://x.org/a%20b}, built \today.`, R`\usepackage{hyperref}`),
+      'href.tex': DOC(
+        R`\href{https://doi.org/10.1000/a%2Fb}{doi}, \today.`,
+        R`\usepackage{hyperref}`,
+      ),
+      'listing.tex': DOC(R`Type \lstinline{x % y} on \today.`, R`\usepackage{listings}`),
+      'else.tex': DOC([R`\iffalse`, 'draft', R`\else`, R`Printed \today.`, R`\fi`].join('\n')),
+      'row.tex': DOC([R`Row one\\% a comment \today`, R`Row two \today.`].join('\n')),
+    });
+    const year = String(new Date().getFullYear());
+    for (const name of ['url.tex', 'href.tex', 'listing.tex', 'else.tex', 'row.tex']) {
+      const read = await readPaper({ file: join(dir, name), format: 'latex' });
+      expect(JSON.stringify(read.tree), name).not.toContain(year);
+      expect(
+        read.skipped.filter((entry: { contents: string }) => entry.contents === R`\today`).length,
+        name,
+      ).toBe(1);
+    }
+  }, 120_000);
+
+  it('test_pandoc_lstinline_forms: a listing with an option or braces is code, and left as written', async () => {
+    const dir = join(tmp, 'lstinline');
+    write(dir, {
+      'chapters/intro.tex': 'INTRO WORDS.\n',
+      'paper.tex': DOC(
+        [
+          R`Use \lstinline[language=C]|\begin{verbatim}| here, and \lstinline{a % b} too.`,
+          R`\input{chapters/intro}`,
+          R`\begin{verbatim}`,
+          R`\input{chapters/intro}`,
+          R`\end{verbatim}`,
+        ].join('\n'),
+        R`\usepackage{listings}`,
+      ),
+    });
+    const read = await readPaper({ file: join(dir, 'paper.tex'), format: 'latex' });
+    expect(words(read.tree.blocks)).toContain('INTRO WORDS.');
+    expect(code(read.tree)).toContain(R`\input{chapters/intro}`);
+    expect(JSON.stringify(read.tree)).not.toMatch(/tomefile/);
+  }, 120_000);
+
+  it('test_pandoc_typst_names_only_in_calls: a shown string is left, and the paper’s own name answers no chapter', async () => {
+    const dir = join(tmp, 'typst-calls');
+    write(dir, {
+      'main.typ': '= Main\n\nSource file: #raw("notes.typ")\n\n#include "ch1/ch1.typ"\n',
+      'notes.typ': 'ROOT NOTES\n',
+      'ch1/ch1.typ': '== One\n\n#include "notes.typ"\n',
+      'ch1/notes.typ': 'CHAPTER NOTES\n',
+      'own.typ': '= Own\n\n#include "ch2/index.typ"\n',
+      'ch2/index.typ': '== Two\n\n#include "own.typ"\n',
+      'ch2/own.typ': 'CHAPTER TWO OWN WORDS\n',
+    });
+    const read = await readPaper({ file: join(dir, 'main.typ'), format: 'typst' });
+    expect(code(read.tree)).toEqual(['notes.typ']);
+    expect(words(read.tree.blocks)).toContain('CHAPTER NOTES');
+    expect(words(read.tree.blocks)).not.toContain('ROOT NOTES');
+    const own = await readPaper({ file: join(dir, 'own.typ'), format: 'typst' });
+    expect(words(own.tree.blocks)).toContain('CHAPTER TWO OWN WORDS');
+  }, 120_000);
+});
