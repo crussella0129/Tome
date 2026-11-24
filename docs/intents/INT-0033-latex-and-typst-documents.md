@@ -2,12 +2,12 @@
 
 <!-- sprint-loop-intent-v2 -->
 - **Intent ID:** INT-0033
-- **State:** active
+- **State:** realized
 - **Work evidence:** [Sprint 26 build plan](../sprints/s26/sprint-plans/build-plan.md) (T-086 to T-094)
-- **Completion evidence:** none
-- **Code evidence:** none
+- **Completion evidence:** [T-086 completion](../work/completed-tasks.md#t-086-sprint-26), [T-087 completion](../work/completed-tasks.md#t-087-sprint-26), [T-088 completion](../work/completed-tasks.md#t-088-sprint-26), [T-089 completion](../work/completed-tasks.md#t-089-sprint-26), [T-090 completion](../work/completed-tasks.md#t-090-sprint-26), [T-091 completion](../work/completed-tasks.md#t-091-sprint-26), [T-092 completion](../work/completed-tasks.md#t-092-sprint-26), [T-093 completion](../work/completed-tasks.md#t-093-sprint-26), [T-094 completion](../work/completed-tasks.md#t-094-sprint-26)
+- **Code evidence:** [which files are papers](../../scripts/document-source.mjs), [pandoc reads a paper](../../scripts/pandoc-read.mjs), [the paper written as a chapter](../../scripts/pandoc-to-markdown.mjs), [a link to an equation](../../scripts/rehype-math.mjs), [a paper staged](../../scripts/document-stage.mjs), [the papers gate](../../scripts/check-documents.mjs), [the papers in two engines](../../e2e/papers.spec.ts)
 - **Test evidence:** [Sprint 26 test report](../sprints/s26/sprint-tests/test-report.md)
-- **Documentation evidence:** none
+- **Documentation evidence:** [Find Your Books](../../src/content/books/tome/find-your-books.md), [Write Mathematics](../../src/content/books/tome/write-mathematics.md), [README](../../README.md)
 
 ## Intent
 
@@ -241,3 +241,10 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
   the fourth review of the tests found about reading code by pattern.
 - 2026-11-24: revised again in Sprint 26's Test phase, still `active`: what
   the fifth review of the tests found.
+- 2026-11-24: `active` to `realized` in Sprint 26's Loop phase. T-086 to
+  T-094 are complete; the seven acceptance criteria are verified in the
+  sprint's test report at `ec59737`, with CI green; five reviews of the
+  tests and a check of the last ended in proceed-with-caveats, every fault
+  they found answered with a test or recorded above as a limit. What was
+  not run (Safari itself, Firefox, the Tauri window, a paper of another's)
+  is in the test report.
