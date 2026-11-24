@@ -114,137 +114,126 @@ function alive(pid: number) {
 
 // Each case spawns real CLIs (and npm builds) bounded by `run`'s 30s timeout;
 // Vitest's 5s default trips under full-suite load before that bound applies.
-describe(
-  'fixture commands — real CLI failure and preservation paths',
-  { timeout: 30_000 },
-  () => {
-    let root: string;
+describe('fixture commands — real CLI failure and preservation paths', { timeout: 30_000 }, () => {
+  let root: string;
 
-    beforeEach(() => {
-      root = mkdtempSync(join(tempParent, tempPrefix));
-      write(root, samplePath, sample);
-      write(
-        root,
-        `${contentPath}/sample/staged.txt`,
-        'committed staged file\n',
-      );
-      write(
-        root,
-        '.gitignore',
-        `${contentPath}/ignored/\nnode_modules/\n.astro/\ndist/\n`,
-      );
-      write(root, 'outside/sentinel.txt', 'outside must survive\n');
-      git(root, 'init', '--quiet');
-      git(root, 'add', '--', '.');
-      git(root, 'commit', '--quiet', '-m', 'Commit fixture sample');
-    });
-
-    afterEach(() => {
-      const started = join(root, 'server-started.json');
-      if (existsSync(started)) {
-        const { pid, book } = JSON.parse(readFileSync(started, 'utf8')) as {
-          pid: number;
-          book: string;
-        };
-        if (alive(pid)) process.kill(pid, 'SIGKILL');
-        const bookParent = dirname(book);
-        if (existsSync(bookParent)) removeTemp(bookParent, 'tome-lr-');
-      }
-      removeTemp(root, tempPrefix);
-    });
-
-    function run(script: string, overrides: NodeJS.ProcessEnv = {}) {
-      return spawnSync(
-        process.execPath,
-        [join(projectRoot, 'scripts', script)],
-        {
-          cwd: root,
-          env: {
-            ...process.env,
-            ASTRO_TELEMETRY_DISABLED: '1',
-            ...overrides,
-          },
-          encoding: 'utf8',
-          timeout: 30_000,
-          windowsHide: true,
-        },
-      );
-    }
-
-    function expectSample() {
-      expect(readFileSync(join(root, samplePath), 'utf8')).toBe(sample);
-      expect(status(root)).toBe('');
-      expect(readFileSync(join(root, 'outside/sentinel.txt'), 'utf8')).toBe(
-        'outside must survive\n',
-      );
-    }
-
-    it.each([
-      'check-external-build.mjs',
-      'check-multibook.mjs',
-      'check-search.mjs',
-      'check-live-reload.mjs',
-      'check-documents.mjs',
-      'check-math.mjs',
-    ])(
-      'test_fixture_commands_refuse_dirty_content: %s exits before setup or cleanup',
-      (script) => {
-        const personal = {
-          [samplePath]: '# Personal tracked content\n',
-          [`${contentPath}/sample/staged.txt`]: 'personal staged content\n',
-          [`${contentPath}/untracked.txt`]: 'personal untracked content\n',
-          [`${contentPath}/ignored/personal.txt`]: 'personal ignored content\n',
-        };
-        for (const [path, contents] of Object.entries(personal))
-          write(root, path, contents);
-        git(root, 'add', '--', `${contentPath}/sample/staged.txt`);
-        const beforeStatus = status(root);
-        const beforeIndex = git(
-          root,
-          'show',
-          `:${contentPath}/sample/staged.txt`,
-        );
-        write(
-          root,
-          'package.json',
-          JSON.stringify({
-            scripts: { build: 'node started.mjs', dev: 'node started.mjs' },
-          }),
-        );
-        write(
-          root,
-          'started.mjs',
-          "import { writeFileSync } from 'node:fs'; writeFileSync('setup-ran.txt', 'unexpected');\n",
-        );
-
-        const result = run(script);
-
-        expect(result.error).toBeUndefined();
-        expect(result.status).not.toBe(0);
-        expect(result.stderr).toMatch(/refusing destructive fixture sync/);
-        expect(existsSync(join(root, 'setup-ran.txt'))).toBe(false);
-        expect(status(root)).toBe(beforeStatus);
-        expect(git(root, 'show', `:${contentPath}/sample/staged.txt`)).toBe(
-          beforeIndex,
-        );
-        for (const [path, contents] of Object.entries(personal))
-          expect(readFileSync(join(root, path), 'utf8')).toBe(contents);
-        expect(readFileSync(join(root, 'outside/sentinel.txt'), 'utf8')).toBe(
-          'outside must survive\n',
-        );
-      },
+  beforeEach(() => {
+    root = mkdtempSync(join(tempParent, tempPrefix));
+    write(root, samplePath, sample);
+    write(root, `${contentPath}/sample/staged.txt`, 'committed staged file\n');
+    write(
+      root,
+      '.gitignore',
+      `${contentPath}/ignored/\nnode_modules/\n.astro/\ndist/\n`,
     );
+    write(root, 'outside/sentinel.txt', 'outside must survive\n');
+    git(root, 'init', '--quiet');
+    git(root, 'add', '--', '.');
+    git(root, 'commit', '--quiet', '-m', 'Commit fixture sample');
+  });
 
-    it('test_fixture_gate_reports_build_failure: real multibook CLI fails on its final default rebuild', () => {
+  afterEach(() => {
+    const started = join(root, 'server-started.json');
+    if (existsSync(started)) {
+      const { pid, book } = JSON.parse(readFileSync(started, 'utf8')) as {
+        pid: number;
+        book: string;
+      };
+      if (alive(pid)) process.kill(pid, 'SIGKILL');
+      const bookParent = dirname(book);
+      if (existsSync(bookParent)) removeTemp(bookParent, 'tome-lr-');
+    }
+    removeTemp(root, tempPrefix);
+  });
+
+  function run(script: string, overrides: NodeJS.ProcessEnv = {}) {
+    return spawnSync(process.execPath, [join(projectRoot, 'scripts', script)], {
+      cwd: root,
+      env: {
+        ...process.env,
+        ASTRO_TELEMETRY_DISABLED: '1',
+        ...overrides,
+      },
+      encoding: 'utf8',
+      timeout: 30_000,
+      windowsHide: true,
+    });
+  }
+
+  function expectSample() {
+    expect(readFileSync(join(root, samplePath), 'utf8')).toBe(sample);
+    expect(status(root)).toBe('');
+    expect(readFileSync(join(root, 'outside/sentinel.txt'), 'utf8')).toBe(
+      'outside must survive\n',
+    );
+  }
+
+  it.each([
+    'check-external-build.mjs',
+    'check-multibook.mjs',
+    'check-search.mjs',
+    'check-live-reload.mjs',
+    'check-documents.mjs',
+    'check-math.mjs',
+  ])(
+    'test_fixture_commands_refuse_dirty_content: %s exits before setup or cleanup',
+    (script) => {
+      const personal = {
+        [samplePath]: '# Personal tracked content\n',
+        [`${contentPath}/sample/staged.txt`]: 'personal staged content\n',
+        [`${contentPath}/untracked.txt`]: 'personal untracked content\n',
+        [`${contentPath}/ignored/personal.txt`]: 'personal ignored content\n',
+      };
+      for (const [path, contents] of Object.entries(personal))
+        write(root, path, contents);
+      git(root, 'add', '--', `${contentPath}/sample/staged.txt`);
+      const beforeStatus = status(root);
+      const beforeIndex = git(
+        root,
+        'show',
+        `:${contentPath}/sample/staged.txt`,
+      );
       write(
         root,
         'package.json',
-        JSON.stringify({ scripts: { build: 'node build.mjs' } }),
+        JSON.stringify({
+          scripts: { build: 'node started.mjs', dev: 'node started.mjs' },
+        }),
       );
       write(
         root,
-        'build.mjs',
-        `
+        'started.mjs',
+        "import { writeFileSync } from 'node:fs'; writeFileSync('setup-ran.txt', 'unexpected');\n",
+      );
+
+      const result = run(script);
+
+      expect(result.error).toBeUndefined();
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toMatch(/refusing destructive fixture sync/);
+      expect(existsSync(join(root, 'setup-ran.txt'))).toBe(false);
+      expect(status(root)).toBe(beforeStatus);
+      expect(git(root, 'show', `:${contentPath}/sample/staged.txt`)).toBe(
+        beforeIndex,
+      );
+      for (const [path, contents] of Object.entries(personal))
+        expect(readFileSync(join(root, path), 'utf8')).toBe(contents);
+      expect(readFileSync(join(root, 'outside/sentinel.txt'), 'utf8')).toBe(
+        'outside must survive\n',
+      );
+    },
+  );
+
+  it('test_fixture_gate_reports_build_failure: real multibook CLI fails on its final default rebuild', () => {
+    write(
+      root,
+      'package.json',
+      JSON.stringify({ scripts: { build: 'node build.mjs' } }),
+    );
+    write(
+      root,
+      'build.mjs',
+      `
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -268,35 +257,35 @@ if (process.env.TOME_BOOKS) {
   process.exit(37);
 }
 `.trimStart(),
-      );
+    );
 
-      const result = run('check-multibook.mjs');
+    const result = run('check-multibook.mjs');
 
-      expect(result.error).toBeUndefined();
-      expect(result.status).not.toBe(0);
-      expect(result.stdout).toContain('OK — two-tome Bibliotheca');
-      expect(result.stdout).toContain('rebuilding default');
-      expect(result.stdout).toContain('FINAL DEFAULT BUILD FAILURE');
-      expect(result.stderr).toContain('FAIL');
-      expect(readFileSync(join(root, 'final-build-evidence.txt'), 'utf8')).toBe(
-        'default build saw restored sample',
-      );
-      expectSample();
-      expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
-    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('OK — two-tome Bibliotheca');
+    expect(result.stdout).toContain('rebuilding default');
+    expect(result.stdout).toContain('FINAL DEFAULT BUILD FAILURE');
+    expect(result.stderr).toContain('FAIL');
+    expect(readFileSync(join(root, 'final-build-evidence.txt'), 'utf8')).toBe(
+      'default build saw restored sample',
+    );
+    expectSample();
+    expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
+  });
 
-    // INT-0029 (T-073): the documents gate builds on a temporary copy of its
-    // fixtures. A failed build must leave neither that folder nor changed content.
-    it('test_documents_gate_cleans_up_on_failure: a failed build restores the sample and removes its temporary folder', () => {
-      write(
-        root,
-        'package.json',
-        JSON.stringify({ scripts: { build: 'node build.mjs' } }),
-      );
-      write(
-        root,
-        'build.mjs',
-        `
+  // INT-0029 (T-073): the documents gate builds on a temporary copy of its
+  // fixtures. A failed build must leave neither that folder nor changed content.
+  it('test_documents_gate_cleans_up_on_failure: a failed build restores the sample and removes its temporary folder', () => {
+    write(
+      root,
+      'package.json',
+      JSON.stringify({ scripts: { build: 'node build.mjs' } }),
+    );
+    write(
+      root,
+      'build.mjs',
+      `
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 const papers = process.env.TOME_BOOK ?? '';
@@ -311,40 +300,38 @@ writeFileSync('${contentPath}/residue.txt', 'build residue');
 console.log('DOCUMENTS BUILD FAILURE');
 process.exit(29);
 `.trimStart(),
-      );
+    );
 
-      const result = run('check-documents.mjs');
+    const result = run('check-documents.mjs');
 
-      expect(result.error).toBeUndefined();
-      expect(result.status).not.toBe(0);
-      expect(result.stdout).toContain('DOCUMENTS BUILD FAILURE');
-      expect(result.stderr).toContain('check-documents: FAIL');
-      const saw = JSON.parse(
-        readFileSync(join(root, 'build-saw.json'), 'utf8'),
-      );
-      // The build was given a temporary folder holding the notes and both papers…
-      expect(saw).toMatchObject({ note: true, word: true, nested: true });
-      expect(basename(saw.papers)).toBe('papers');
-      expect(basename(dirname(saw.papers))).toMatch(/^tome-docs-/);
-      expect(relative(tempParent, saw.papers).startsWith('..')).toBe(false);
-      // …which is gone, with the sample as it was.
-      expect(existsSync(dirname(saw.papers))).toBe(false);
-      expectSample();
-      expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
-    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('DOCUMENTS BUILD FAILURE');
+    expect(result.stderr).toContain('check-documents: FAIL');
+    const saw = JSON.parse(readFileSync(join(root, 'build-saw.json'), 'utf8'));
+    // The build was given a temporary folder holding the notes and both papers…
+    expect(saw).toMatchObject({ note: true, word: true, nested: true });
+    expect(basename(saw.papers)).toBe('papers');
+    expect(basename(dirname(saw.papers))).toMatch(/^tome-docs-/);
+    expect(relative(tempParent, saw.papers).startsWith('..')).toBe(false);
+    // …which is gone, with the sample as it was.
+    expect(existsSync(dirname(saw.papers))).toBe(false);
+    expectSample();
+    expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
+  });
 
-    // INT-0030 (T-081): the mathematics gate reads what its build prints. A
-    // failed build must still be shown, reported, and leave the sample as it was.
-    it('test_math_gate_cleans_up_on_failure: a failed build restores the sample', () => {
-      write(
-        root,
-        'package.json',
-        JSON.stringify({ scripts: { build: 'node build.mjs' } }),
-      );
-      write(
-        root,
-        'build.mjs',
-        `
+  // INT-0030 (T-081): the mathematics gate reads what its build prints. A
+  // failed build must still be shown, reported, and leave the sample as it was.
+  it('test_math_gate_cleans_up_on_failure: a failed build restores the sample', () => {
+    write(
+      root,
+      'package.json',
+      JSON.stringify({ scripts: { build: 'node build.mjs' } }),
+    );
+    write(
+      root,
+      'build.mjs',
+      `
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 const proofs = process.env.TOME_BOOK ?? '';
@@ -360,83 +347,74 @@ console.log('MATH BUILD FAILURE');
 console.error('MATH BUILD STDERR');
 process.exit(31);
 `.trimStart(),
-      );
+    );
 
-      const result = run('check-math.mjs');
+    const result = run('check-math.mjs');
 
-      expect(result.error).toBeUndefined();
-      expect(result.status).not.toBe(0);
-      // What the build printed is still shown, both streams.
-      expect(result.stdout).toContain('MATH BUILD FAILURE');
-      expect(result.stderr).toContain('MATH BUILD STDERR');
-      expect(result.stderr).toContain('check-math: FAIL');
-      const saw = JSON.parse(
-        readFileSync(join(root, 'build-saw.json'), 'utf8'),
-      );
-      // The build was given the two pages of formulas and the empty manifest.
-      expect(saw).toMatchObject({ first: true, second: true });
-      expect(basename(saw.proofs)).toBe('proofs');
-      expect(basename(saw.config)).toBe('empty-library.toml');
-      expectSample();
-      expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
-    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).not.toBe(0);
+    // What the build printed is still shown, both streams.
+    expect(result.stdout).toContain('MATH BUILD FAILURE');
+    expect(result.stderr).toContain('MATH BUILD STDERR');
+    expect(result.stderr).toContain('check-math: FAIL');
+    const saw = JSON.parse(readFileSync(join(root, 'build-saw.json'), 'utf8'));
+    // The build was given the two pages of formulas and the empty manifest.
+    expect(saw).toMatchObject({ first: true, second: true });
+    expect(basename(saw.proofs)).toBe('proofs');
+    expect(basename(saw.config)).toBe('empty-library.toml');
+    expectSample();
+    expect(readdirSync(join(root, contentPath))).toEqual(['sample']);
+  });
 
-    // INT-0030 (T-081): the formulas are checked in two engines, and only by
-    // the mathematics gate; the default suite is what it was.
-    it('test_math_e2e_mode: the mathematics mode lists one spec in Chromium and WebKit', () => {
-      const list = (env: NodeJS.ProcessEnv) => {
-        const result = spawnSync('npx --no-install playwright test --list', {
-          cwd: projectRoot,
-          env: { ...process.env, ...env },
-          encoding: 'utf8',
-          shell: true,
-        });
-        expect(result.status, result.stderr).toBe(0);
-        return (
-          result.stdout
-            .split(/\r?\n/)
-            .map((line) =>
-              line.match(/^\s*(?:\[(\w+)\] › )?([\w.-]+\.spec\.ts):/),
-            )
-            .filter((match): match is RegExpMatchArray => match !== null)
-            // With no projects set, the list names no engine: the default one.
-            .map((match) => ({
-              project: match[1] ?? 'default',
-              file: match[2]!,
-            }))
-        );
-      };
-      const unique = (values: string[]) => [...new Set(values)].sort();
-
-      const math = list({ TOME_MATH_E2E: '1' });
-      expect(math.length).toBeGreaterThan(10);
-      expect(unique(math.map((entry) => entry.file))).toEqual(['math.spec.ts']);
-      expect(unique(math.map((entry) => entry.project))).toEqual([
-        'chromium',
-        'webkit',
-      ]);
-      // Every test runs in both.
-      expect(math.filter((entry) => entry.project === 'chromium').length).toBe(
-        math.filter((entry) => entry.project === 'webkit').length,
-      );
-
-      const standard = list({
-        TOME_MATH_E2E: '',
-        TOME_DOCUMENTS_E2E: '',
-        TOME_EXTERNAL_BOOK_E2E: '',
+  // INT-0030 (T-081): the formulas are checked in two engines, and only by
+  // the mathematics gate; the default suite is what it was.
+  it('test_math_e2e_mode: the mathematics mode lists one spec in Chromium and WebKit', () => {
+    const list = (env: NodeJS.ProcessEnv) => {
+      const result = spawnSync('npx --no-install playwright test --list', {
+        cwd: projectRoot,
+        env: { ...process.env, ...env },
+        encoding: 'utf8',
+        shell: true,
       });
-      expect(unique(standard.map((entry) => entry.file))).toEqual([
-        'reader.spec.ts',
-        'scaling.spec.ts',
-        'search.spec.ts',
-        'theme.spec.ts',
-      ]);
-      expect(unique(standard.map((entry) => entry.project))).not.toContain(
-        'webkit',
-      );
-    }, 60_000);
+      expect(result.status, result.stderr).toBe(0);
+      return result.stdout
+        .split(/\r?\n/)
+        .map((line) => line.match(/^\s*(?:\[(\w+)\] › )?([\w.-]+\.spec\.ts):/))
+        .filter((match): match is RegExpMatchArray => match !== null)
+        // With no projects set, the list names no engine: the default one.
+        .map((match) => ({ project: match[1] ?? 'default', file: match[2]! }));
+    };
+    const unique = (values: string[]) => [...new Set(values)].sort();
 
-    it('test_papers_e2e_mode: the papers mode lists one spec in Chromium and WebKit, and the others are as they were', () => {
+    const math = list({ TOME_MATH_E2E: '1' });
+    expect(math.length).toBeGreaterThan(10);
+    expect(unique(math.map((entry) => entry.file))).toEqual(['math.spec.ts']);
+    expect(unique(math.map((entry) => entry.project))).toEqual([
+      'chromium',
+      'webkit',
+    ]);
+    // Every test runs in both.
+    expect(math.filter((entry) => entry.project === 'chromium').length).toBe(
+      math.filter((entry) => entry.project === 'webkit').length,
+    );
+
+    const standard = list({
+      TOME_MATH_E2E: '',
+      TOME_DOCUMENTS_E2E: '',
+      TOME_EXTERNAL_BOOK_E2E: '',
+    });
+    expect(unique(standard.map((entry) => entry.file))).toEqual([
+      'reader.spec.ts',
+      'scaling.spec.ts',
+      'search.spec.ts',
+      'theme.spec.ts',
+    ]);
+    expect(unique(standard.map((entry) => entry.project))).not.toContain(
+      'webkit',
+    );
+  }, 60_000);
+
+  it('test_papers_e2e_mode: the papers mode lists one spec in Chromium and WebKit, and the others are as they were', () => {
       const list = (env: NodeJS.ProcessEnv) => {
         const result = spawnSync('npx --no-install playwright test --list', {
           cwd: projectRoot,
@@ -512,26 +490,26 @@ process.exit(31);
       );
     }, 90_000);
 
-    it('test_live_reload_stops_before_restore_on_failure: real server stops before content and temp cleanup', () => {
-      cpSync(
-        join(projectRoot, 'fixtures/handbook'),
-        join(root, 'fixtures/handbook'),
-        { recursive: true },
-      );
-      symlinkSync(
-        join(projectRoot, 'node_modules'),
-        join(root, 'node_modules'),
-        process.platform === 'win32' ? 'junction' : 'dir',
-      );
-      write(
-        root,
-        'package.json',
-        JSON.stringify({ scripts: { dev: 'node start-dev.mjs' } }),
-      );
-      write(
-        root,
-        'start-dev.mjs',
-        `
+  it('test_live_reload_stops_before_restore_on_failure: real server stops before content and temp cleanup', () => {
+    cpSync(
+      join(projectRoot, 'fixtures/handbook'),
+      join(root, 'fixtures/handbook'),
+      { recursive: true },
+    );
+    symlinkSync(
+      join(projectRoot, 'node_modules'),
+      join(root, 'node_modules'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    write(
+      root,
+      'package.json',
+      JSON.stringify({ scripts: { dev: 'node start-dev.mjs' } }),
+    );
+    write(
+      root,
+      'start-dev.mjs',
+      `
 import { spawn } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 writeFileSync(${JSON.stringify(samplePath)}, ${JSON.stringify(liveFixture)});
@@ -541,11 +519,11 @@ const deadline = Date.now() + 5000;
 while (!existsSync('.astro/dev.json') && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
 if (!existsSync('.astro/dev.json')) throw new Error('test server failed to start');
 `.trimStart(),
-      );
-      write(
-        root,
-        'server.mjs',
-        `
+    );
+    write(
+      root,
+      'server.mjs',
+      `
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -563,14 +541,14 @@ server.listen(0, '127.0.0.1', () => {
 });
 setTimeout(() => { server.close(); process.exit(0); }, 25000).unref();
 `.trimStart(),
-      );
-      // Windows terminates Node directly on SIGTERM. Observe the real Astro
-      // liveness probe instead of relying on an unavailable child signal handler.
-      // Forward every syscall and its result unchanged; this only records order.
-      write(
-        root,
-        'observe-stop.mjs',
-        `
+    );
+    // Windows terminates Node directly on SIGTERM. Observe the real Astro
+    // liveness probe instead of relying on an unavailable child signal handler.
+    // Forward every syscall and its result unchanged; this only records order.
+    write(
+      root,
+      'observe-stop.mjs',
+      `
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 const kill = process.kill.bind(process);
 process.kill = function (pid, signal) {
@@ -585,33 +563,32 @@ process.kill = function (pid, signal) {
   }
 };
 `.trimStart(),
-      );
-      const observer = pathToFileURL(join(root, 'observe-stop.mjs')).href;
+    );
+    const observer = pathToFileURL(join(root, 'observe-stop.mjs')).href;
 
-      const result = run('check-live-reload.mjs', {
-        NODE_OPTIONS: `--import=${observer}`,
-      });
+    const result = run('check-live-reload.mjs', {
+      NODE_OPTIONS: `--import=${observer}`,
+    });
 
-      expect(result.error).toBeUndefined();
-      expect(result.status).not.toBe(0);
-      expect(result.stdout).toContain('original chapter served');
-      expect(result.stderr).toContain(
-        'the parent-relative image did not resolve after the live edit',
-      );
-      const started = JSON.parse(
-        readFileSync(join(root, 'server-started.json'), 'utf8'),
-      ) as { pid: number; book: string };
-      const stopped = JSON.parse(
-        readFileSync(join(root, 'stop-evidence.json'), 'utf8'),
-      );
-      expect(stopped.pid).toBe(started.pid);
-      expect(stopped.content).toBe(liveFixture);
-      expect(stopped.bookExists).toBe(true);
-      expect(stopped.argv).toContain('stop');
-      expect(alive(started.pid)).toBe(false);
-      expect(existsSync(started.book)).toBe(false);
-      expect(existsSync(dirname(started.book))).toBe(false);
-      expectSample();
-    }, 35_000);
-  },
-);
+    expect(result.error).toBeUndefined();
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('original chapter served');
+    expect(result.stderr).toContain(
+      'the parent-relative image did not resolve after the live edit',
+    );
+    const started = JSON.parse(
+      readFileSync(join(root, 'server-started.json'), 'utf8'),
+    ) as { pid: number; book: string };
+    const stopped = JSON.parse(
+      readFileSync(join(root, 'stop-evidence.json'), 'utf8'),
+    );
+    expect(stopped.pid).toBe(started.pid);
+    expect(stopped.content).toBe(liveFixture);
+    expect(stopped.bookExists).toBe(true);
+    expect(stopped.argv).toContain('stop');
+    expect(alive(started.pid)).toBe(false);
+    expect(existsSync(started.book)).toBe(false);
+    expect(existsSync(dirname(started.book))).toBe(false);
+    expectSample();
+  }, 35_000);
+});
