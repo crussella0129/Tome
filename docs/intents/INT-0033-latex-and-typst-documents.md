@@ -157,6 +157,23 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
   - A Typst paper's authors are shown as the paper sets them in its text;
     what `#set document(author: …)` holds is not written, since Typst does
     not print it.
+- Limits found in the first review of Sprint 26's tests, each tried and
+  left as it is:
+  - A caption inside `wrapfigure` or `sidewaystable` is dropped by pandoc
+    with no notice. (`table*` is read as a table, with its caption.)
+  - In a Typst paper the words after a citation (`@gauss[p.~5]`) are
+    dropped by pandoc.
+  - A Typst paper whose bibliography is a Hayagriva `.yml` shows its
+    citations as keys, each counted.
+  - Authors set with a class's own commands (`\IEEEauthorblockN`) are not
+    shown under the title; the commands are named in the report.
+  - A second `thebibliography` in one paper is not read as a list; a rule
+    of `booktabs` with a range (`\cmidrule{2-3}`) leaves the range in a
+    cell; `multicols` leaves its number in the text.
+  - A cell that spans columns or rows keeps its place, and the cells it
+    covers are written empty, since a Markdown table has no spanning cell.
+  - A paper whose files pull each other in without end is refused, as
+    LaTeX cannot set it either.
 - Which commands are layout, and so passed over, is a list in Tome
   (`scripts/pandoc-to-markdown.mjs`). A command missing from it is never
   lost without a word: with an argument it is marked, bare it is named in
@@ -188,3 +205,5 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
 - 2026-11-24: `planned` to `active` in Sprint 26's Build phase, as T-086
   began. The plans were locked after a second review returned
   proceed-with-caveats and its concerns were answered in them.
+- 2026-11-24: revised in Sprint 26's Test phase, still `active`, to record
+  the limits the first review of the tests found and left as they are.

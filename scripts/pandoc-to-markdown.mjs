@@ -123,6 +123,29 @@ export const LAYOUT_COMMANDS = new Map([
   ['addcontentsline', 3],
 ]);
 
+/**
+ * The properties of a paper this module writes in a place of their own, and
+ * those that are pandoc's settings and hold none of the paper's words.
+ */
+const KNOWN_PROPERTIES = new Set([
+  'title',
+  'author',
+  'date',
+  'abstract',
+  'bibliography',
+  'link-citations',
+  'csl',
+  'citation-style',
+  'nocite',
+  'references',
+  'reference-section-title',
+  'suppress-bibliography',
+  'lang',
+  'header-includes',
+  'numbersections',
+  'toc',
+]);
+
 /** Link addresses written as links; any other is written as its words. */
 const SAFE_ADDRESS = /^(?:https?:|mailto:)/i;
 
@@ -321,6 +344,26 @@ function emptyReferences() {
   };
 }
 
+/**
+ * The label a Typst reference names, when pandoc read it as a citation and
+ * some text: `@sec:intro` reaches the tree as a citation of `sec` followed by
+ * `:intro`. It is that label when the paper holds one of that name; the
+ * longest such name is taken, so a full stop that ends the sentence is left.
+ * @param {any} cite @param {any} next the inline after it @param {any} refs
+ * @returns {{ label: string, used: number } | null} `used`: how much of `next` is the label's
+ */
+function joinedLabel(cite, next, refs) {
+  if (cite?.t !== 'Cite' || cite.c[0].length !== 1 || next?.t !== 'Str') return null;
+  const id = String(cite.c[0][0].citationId);
+  const rest = next.c.match(/^[:.][^\s]*/)?.[0];
+  if (!rest) return null;
+  for (let used = rest.length; used > 1; used--) {
+    const label = id + rest.slice(0, used);
+    if (refs.targets.has(label)) return { label, used };
+  }
+  return null;
+}
+
 /** What a link refers to, when it is a reference: its label or labels. */
 function referenceOf(node) {
   const [, classes, pairs] = node.c[0];
@@ -386,8 +429,15 @@ function surveyReferences(top, format) {
         }
         case 'Link': {
           const label = referenceOf(node);
-          if (label !== null && !refs.referred.has(label)) {
-            refs.referred.set(label, format === 'typst' ? null : wordsOf(node.c[1]).trim());
+          if (label !== null) {
+            // The words of the first reference that has any are its number.
+            if ((refs.referred.get(label) ?? null) === null) {
+              refs.referred.set(label, format === 'typst' ? null : wordsOf(node.c[1]).trim());
+            }
+          } else if (node.c[2][0].startsWith('#')) {
+            // A link of the writer's own to a label (`\hyperref[sec:x]{words}`).
+            const own = internalLabel(node);
+            if (!refs.referred.has(own)) refs.referred.set(own, null);
           }
           inlines(node.c[1], false);
           break;
@@ -477,7 +527,30 @@ function surveyReferences(top, format) {
     });
   };
   blocks(top, true);
+  if (format === 'typst') {
+    // A label with a colon or a full stop is referred to by a citation and
+    // the text after it; every label is known by now.
+    const scan = (value) => {
+      if (Array.isArray(value)) {
+        value.forEach((node, i) => {
+          const joined = joinedLabel(node, value[i + 1], refs);
+          if (joined && !refs.referred.has(joined.label)) refs.referred.set(joined.label, null);
+          scan(node);
+        });
+      } else if (value && typeof value === 'object') Object.values(value).forEach(scan);
+    };
+    scan(top);
+  }
   return refs;
+}
+
+/** The label a link within the paper names, by its address. */
+function internalLabel(node) {
+  try {
+    return decodeURIComponent(node.c[2][0].slice(1));
+  } catch {
+    return node.c[2][0].slice(1);
+  }
 }
 
 /** The anchor a label is reached by: `ref-` and the label, made safe and its own. */
@@ -543,10 +616,13 @@ function inlinesOf(blocks) {
 function arrangeBibliography(blocks, ctx) {
   const at = blocks.findIndex((block) => block.t === 'Div' && block.c[0][0] === 'refs');
   if (at !== -1) {
-    ctx.cites.mode = 'citeproc';
     const entries = blocks[at].c[1]
       .filter((block) => block.t === 'Div' && block.c[0][0])
       .map((block) => ({ id: block.c[0][0], blocks: block.c[1] }));
+    // An empty list is no list: pandoc writes one, with its heading, for a
+    // Typst paper whose bibliography it cannot read (a Hayagriva `.yml`), and
+    // the citations are then keys with no entry.
+    if (entries.length > 0) ctx.cites.mode = 'citeproc';
     for (const entry of entries) ctx.cites.listed.add(entry.id);
     const headed = blocks[at - 1]?.t === 'Header';
     // An empty list writes nothing, the heading pandoc wrote for it included.
@@ -620,10 +696,12 @@ function arrangeBibliography(blocks, ctx) {
     if (!ctx.cites.own.has(entry.key)) ctx.cites.own.set(entry.key, index + 1);
   });
   const words = (inlines) => (wordsOf(inlines).trim() ? [{ t: 'Para', c: inlines }] : []);
+  // A heading the paper itself wrote directly before its list is the list's heading.
+  const headed = words(before).length === 0 && blocks[from - 1]?.t === 'Header';
   return [
-    ...blocks.slice(0, from),
+    ...blocks.slice(0, headed ? from - 1 : from),
     ...words(before),
-    { t: 'TomeBibliography', entries },
+    { t: 'TomeBibliography', heading: headed ? blocks[from - 1].c[2] : null, entries },
     ...words(after),
     ...blocks.slice(to + 1),
   ];
@@ -680,21 +758,29 @@ function referenceList(node, ctx) {
 
 /** The paper's own list: a heading, then a numbered list, each item behind its anchor. */
 function ownList(node, ctx) {
+  const heading = node.heading ? line(node.heading, ctx) : [];
+  /** A key given to two entries names the first: an anchor is written once. */
+  const anchored = new Set();
   return [
-    { type: 'heading', depth: 2, children: [text('References')] },
+    { type: 'heading', depth: 2, children: heading.length > 0 ? heading : [text('References')] },
     {
       type: 'list',
       ordered: true,
       start: 1,
       spread: false,
-      children: node.entries.map((entry) =>
-        item([
+      children: node.entries.map((entry) => {
+        const first = !anchored.has(entry.key);
+        anchored.add(entry.key);
+        return item([
           {
             type: 'paragraph',
-            children: [anchorTag(ownAnchor(ctx, entry.key)), ...line(entry.inlines, ctx)],
+            children: [
+              ...(first ? [anchorTag(ownAnchor(ctx, entry.key))] : []),
+              ...line(entry.inlines, ctx),
+            ],
           },
-        ]),
-      ),
+        ]);
+      }),
     },
   ];
 }
@@ -760,7 +846,16 @@ function textWithPieces(value, ctx, { mark = true } = {}) {
 /** Carry a formula as a place-holder; `where` says whether it can stand apart. */
 function carry(node, ctx, where) {
   const display = node.c[0].t === 'DisplayMath' && where.apart;
-  ctx.carried.push({ latex: oneLine(node.c[1]), display, cell: Boolean(where.cell) });
+  let latex = oneLine(node.c[1]);
+  // In a table cell every `|` is written `\vert`, since a `|` ends the cell
+  // (docx-to-markdown.mjs). The double bar `\|` is one command, not a
+  // backslash and a bar: it is written `\Vert` first, which is the same sign.
+  if (where.cell) {
+    latex = latex.replace(/(\\*)\|/g, (found, slashes) =>
+      slashes.length % 2 === 1 ? `${slashes.slice(1)}\\Vert ` : found,
+    );
+  }
+  ctx.carried.push({ latex, display, cell: Boolean(where.cell) });
   const index = ctx.carried.length - 1;
   return display ? { type: 'tomeDisplay', index } : text(ctx.marks.token(index));
 }
@@ -771,10 +866,20 @@ function carry(node, ctx, where) {
  */
 function phrasing(inlines, ctx, where) {
   const out = [];
-  for (const node of inlines ?? []) {
+  const list = inlines ?? [];
+  /** How much of the next run of text a joined Typst label has taken. */
+  let taken = 0;
+  /** Emphasis, strong or struck text, when it holds anything: `\emph{}` writes nothing. */
+  const wrapped = (type, children) => {
+    if (shows(children)) out.push({ type, children });
+  };
+  for (let i = 0; i < list.length; i++) {
+    const node = list[i];
+    const skip = node.t === 'Str' ? taken : 0;
+    taken = 0;
     switch (node.t) {
       case 'Str':
-        out.push(text(textWithPieces(node.c, ctx, where)));
+        out.push(text(textWithPieces(node.c.slice(skip), ctx, where)));
         break;
       case 'Space':
       case 'SoftBreak':
@@ -784,13 +889,13 @@ function phrasing(inlines, ctx, where) {
         out.push(html('<br>'));
         break;
       case 'Emph':
-        out.push({ type: 'emphasis', children: phrasing(node.c, ctx, where) });
+        wrapped('emphasis', phrasing(node.c, ctx, where));
         break;
       case 'Strong':
-        out.push({ type: 'strong', children: phrasing(node.c, ctx, where) });
+        wrapped('strong', phrasing(node.c, ctx, where));
         break;
       case 'Strikeout':
-        out.push({ type: 'delete', children: phrasing(node.c, ctx, where) });
+        wrapped('delete', phrasing(node.c, ctx, where));
         break;
       case 'Superscript':
         out.push(html('<sup>'), ...phrasing(node.c, ctx, where), html('</sup>'));
@@ -857,9 +962,29 @@ function phrasing(inlines, ctx, where) {
         out.push({ type: 'footnoteReference', identifier, label: identifier });
         break;
       }
-      case 'Cite':
-        out.push(...citation(node, ctx, where));
+      case 'Cite': {
+        // A Typst label that holds a colon or a full stop (`@sec:intro`) is
+        // read by pandoc as a citation of `sec` and the text `:intro`.
+        const joined = ctx.format === 'typst' ? joinedLabel(node, list[i + 1], ctx.refs) : null;
+        if (joined) {
+          taken = joined.used;
+          out.push(
+            ...link(
+              {
+                t: 'Link',
+                c: [
+                  ['', ['ref'], []],
+                  [{ t: 'Str', c: `[${joined.label}]` }],
+                  [`#${joined.label}`, ''],
+                ],
+              },
+              ctx,
+              where,
+            ),
+          );
+        } else out.push(...citation(node, ctx, where));
         break;
+      }
       case 'RawInline':
         break;
       default:
@@ -886,6 +1011,11 @@ function link(node, ctx, where) {
   const label = referenceOf(node);
   if (label !== null) return referenceLink(node, label, ctx, inside);
   const children = phrasing(node.c[1], ctx, inside);
+  if (node.c[2][0].startsWith('#') && ctx.refs.targets.has(internalLabel(node))) {
+    // A link of the writer's own to a label: it leads to that label's anchor.
+    const anchor = anchorOf(ctx, internalLabel(node));
+    return [{ type: 'link', url: `#${anchor}`, title: null, children }];
+  }
   const address = node.c[2][0];
   if (!SAFE_ADDRESS.test(address)) return children;
   return [{ type: 'link', url: address, title: null, children }];
@@ -1009,14 +1139,34 @@ const ALIGN = { AlignLeft: 'left', AlignRight: 'right', AlignCenter: 'center', A
 
 function table(node, ctx) {
   const [, caption, specs, head, bodies, foot] = node.c;
-  const rowsOf = (rows) =>
-    rows.map((row) => row[1].map((cell) => lineOfBlocks(cell[4], ctx, { cell: true })));
-  const heads = rowsOf(head[1]);
-  const body = [
-    ...bodies.flatMap((part) => [...rowsOf(part[2]), ...rowsOf(part[3])]),
-    ...rowsOf(foot[1]),
-  ];
-  const rows = [...heads, ...body];
+  // A cell that spans columns or rows keeps its place: the columns and rows it
+  // covers are written as empty cells, so every other cell stays under its
+  // own heading. (A Markdown table has no cell that spans.)
+  const rows = [];
+  /** For each column, how many more rows a cell above it reaches down. */
+  const held = [];
+  for (const row of [
+    ...head[1],
+    ...bodies.flatMap((part) => [...part[2], ...part[3]]),
+    ...foot[1],
+  ]) {
+    const cells = [];
+    const covered = () => {
+      while (held[cells.length] > 0) {
+        held[cells.length] -= 1;
+        cells.push([]);
+      }
+    };
+    for (const [, , rowSpan, colSpan, blocks] of row[1]) {
+      covered();
+      for (let wide = 0; wide < Math.max(1, colSpan); wide++) {
+        if (rowSpan > 1) held[cells.length] = rowSpan - 1;
+        cells.push(wide === 0 ? lineOfBlocks(blocks, ctx, { cell: true }) : []);
+      }
+    }
+    covered();
+    rows.push(cells);
+  }
   if (rows.length === 0) return [];
   const width = Math.max(specs.length, ...rows.map((row) => row.length));
   const out = [
@@ -1273,6 +1423,21 @@ export function writePaper({
       front.push({ type: 'paragraph', children: [{ type: 'emphasis', children: byline }] });
   }
   for (const note of frontNotes) front.push(...flow(note.c, ctx));
+  if (format !== 'typst') {
+    // Whatever else pandoc reads into the paper's properties and LaTeX prints
+    // (`\subtitle`, `\dedication`, `\address`): its words are written, each
+    // field a paragraph of its own, so none is lost without a word.
+    for (const [key, value] of Object.entries(meta)) {
+      if (KNOWN_PROPERTIES.has(key)) continue;
+      if (value?.t === 'MetaBlocks') front.push(...flow(value.c, ctx));
+      else {
+        for (const inlines of metaList(value)) {
+          const words = line(inlines, ctx);
+          if (shows(words)) front.push({ type: 'paragraph', children: words });
+        }
+      }
+    }
+  }
   if (meta.abstract) {
     const abstract =
       meta.abstract.t === 'MetaBlocks'

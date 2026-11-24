@@ -106,7 +106,7 @@ class Supply {
         this.full = true;
         return null;
       }
-      text = (await readFile(real, 'utf8')).replace(/^﻿/, '');
+      text = (await readFile(real, 'utf8')).replace(/^\uFEFF/, '');
       this.bytes += size;
     } catch {
       return null;
@@ -212,7 +212,9 @@ function lineStart(text, line) {
 /**
  * Where a skipped piece stands in the copy of its file: pandoc's place is
  * just after a piece on one line, and the end of the first line of an
- * environment on several. Returns -1 when the piece is not found there.
+ * environment on several; for a piece that ends its line (`\begin{name}[t]`
+ * and then the line end) it is the start of the line after. Returns -1 when
+ * the piece is not found there.
  */
 function placeOf(text, entry) {
   const begin = lineStart(text, entry.line);
@@ -220,10 +222,82 @@ function placeOf(text, entry) {
   const end = begin + entry.column - 1;
   const start = end - entry.contents.length;
   if (start >= 0 && text.slice(start, end) === entry.contents) return start;
+  if (entry.column <= 1 && begin > 0) {
+    const before = begin - 1 - entry.contents.length;
+    if (before >= 0 && text.slice(before, begin - 1) === entry.contents) return before;
+  }
   const lineEnd = text.indexOf('\n', begin);
   const found = text.indexOf(entry.contents, begin);
   if (found !== -1 && (lineEnd === -1 || found <= lineEnd)) return found;
   return -1;
+}
+
+/**
+ * Of the pieces found in one file, those that may be replaced. A `\begin{name}`
+ * and its `\end{name}` that pandoc skipped apart (it kept the words between)
+ * are replaced together or not at all: one without the other leaves an
+ * environment pandoc cannot close, and it then refuses the whole copy.
+ * @param {{ entry: { contents: string }, start: number, end: number }[]} found
+ */
+function replaceable(found) {
+  const keep = new Set(found);
+  const open = [];
+  for (const item of [...found].sort((a, b) => a.start - b.start)) {
+    const begins = item.entry.contents.match(/^\\begin\s*\{([^}]*)\}/);
+    const ends = item.entry.contents.match(/^\\end\s*\{([^}]*)\}/);
+    if (begins && !item.entry.contents.includes(`\\end{${begins[1]}}`)) {
+      open.push({ name: begins[1], item });
+    } else if (ends) {
+      const at = open.map((each) => each.name).lastIndexOf(ends[1]);
+      if (at === -1) keep.delete(item);
+      else open.splice(at, 1);
+    }
+  }
+  for (const { item } of open) keep.delete(item);
+  return found.filter((item) => keep.has(item));
+}
+
+/**
+ * Refuse a paper whose files pull each other in without end: pandoc would
+ * never finish reading it. (LaTeX cannot set such a paper either.)
+ * @param {Supply} supply
+ * @param {'latex' | 'typst'} format
+ */
+function refuseCycle(supply, format) {
+  const naming =
+    format === 'latex'
+      ? /\\(?:input|include|subfile)\s*\{\s*([^{}]+?)\s*\}/g
+      : /\b(?:include|import)\s*\(?\s*"([^"\n]+)"/g;
+  const edges = new Map();
+  for (const [name, text] of supply.texts) {
+    const shown =
+      format === 'latex'
+        ? text.replace(/(\\*)%.*$/gm, (rest, slashes) =>
+            slashes.length % 2 === 1 ? rest : slashes,
+          )
+        : text.replace(/\/\/.*$/gm, '');
+    const to = new Set();
+    for (const match of shown.matchAll(naming)) {
+      for (const candidate of [match[1], `${match[1]}.tex`]) {
+        if (supply.texts.has(candidate)) to.add(candidate);
+      }
+    }
+    edges.set(name, to);
+  }
+  const state = new Map();
+  const visit = (name, trail) => {
+    if (state.get(name) === 'done') return;
+    if (state.get(name) === 'open') {
+      const loop = [...trail.slice(trail.indexOf(name)), name].map(
+        (each) => supply.rels.get(each) ?? each,
+      );
+      throw new PaperRefused(`its files pull each other in without end: ${loop.join(' → ')}`);
+    }
+    state.set(name, 'open');
+    for (const next of edges.get(name) ?? []) visit(next, [...trail, name]);
+    state.set(name, 'done');
+  };
+  for (const name of edges.keys()) visit(name, []);
 }
 
 async function readLatex(file, convert, nonce) {
@@ -233,22 +307,29 @@ async function readLatex(file, convert, nonce) {
   const skipped = [];
   let pieces = 0;
 
-  // Tabs are made spaces, as pandoc makes them in what it reports; and
+  // In the copy: line ends are `\n` and tabs are spaces, as pandoc has them in
+  // what it reports, so a piece is found where pandoc says it stood; a wide
+  // table (`table*`) is a table, which pandoc reads with its caption and its
+  // label, where it reads `table*` as an environment it does not know; and
   // `\today` outside code is a piece of its own, so the day is never written.
   const asCopy = (name) => (text) =>
-    text.replace(/\t/g, '    ').replace(TODAY_OR_CODE, (found) => {
-      if (!found.startsWith('\\today')) return found;
-      const entry = {
-        contents: '\\today',
-        source: name,
-        line: 0,
-        token: tokenFor(nonce, pieces++),
-        placed: false,
-        made: true,
-      };
-      skipped.push(entry);
-      return entry.token;
-    });
+    text
+      .replace(/\r\n?/g, '\n')
+      .replace(/\t/g, '    ')
+      .replace(/\\(begin|end)\{table\*\}/g, '\\$1{table}')
+      .replace(TODAY_OR_CODE, (found) => {
+        if (!found.startsWith('\\today')) return found;
+        const entry = {
+          contents: '\\today',
+          source: name,
+          line: 0,
+          token: tokenFor(nonce, pieces++),
+          placed: false,
+          made: true,
+        };
+        skipped.push(entry);
+        return entry.token;
+      });
 
   const main = path.basename(file);
   if (!(await supply.add(main, { flat: true, change: asCopy(main) }))) {
@@ -269,6 +350,7 @@ async function readLatex(file, convert, nonce) {
   let read;
   const decided = new Set();
   for (let count = 0; ; count++) {
+    refuseCycle(supply, 'latex');
     read = await reading(convert, options, supply);
     let added = false;
     for (const notice of read.warnings) {
@@ -332,25 +414,29 @@ async function readLatex(file, convert, nonce) {
   }
   const reported = skipped.filter((entry) => !entry.made);
   if (reported.length > 0) {
-    // Replace from the end of each file, so earlier places stay true.
     const copies = new Map(supply.texts);
-    const placed = [];
+    /** file -> the pieces found in it, each with its place */
+    const found = new Map();
     for (const entry of reported) {
       const text = copies.get(entry.name);
       const start = typeof text === 'string' ? placeOf(text, entry) : -1;
-      if (start !== -1) placed.push({ entry, start, end: start + entry.contents.length });
+      if (start === -1) continue;
+      const list = found.get(entry.name) ?? [];
+      list.push({ entry, start, end: start + entry.contents.length });
+      found.set(entry.name, list);
     }
-    placed.sort((a, b) => (a.entry.name === b.entry.name ? b.start - a.start : 0));
-    const taken = new Map();
-    for (const { entry, start, end } of placed) {
-      const ranges = taken.get(entry.name) ?? [];
-      if (ranges.some((range) => start < range.end && range.start < end)) continue;
-      ranges.push({ start, end });
-      taken.set(entry.name, ranges);
-      const text = copies.get(entry.name);
-      // A space keeps the word apart from a command or a word that ends just before it.
-      const gap = /[A-Za-z]$/.test(text.slice(0, start)) ? ' ' : '';
-      copies.set(entry.name, `${text.slice(0, start)}${gap}${entry.token}${text.slice(end)}`);
+    for (const [name, list] of found) {
+      // Replace from the end of the file, so earlier places stay true.
+      const taken = [];
+      let text = copies.get(name);
+      for (const { entry, start, end } of replaceable(list).sort((a, b) => b.start - a.start)) {
+        if (taken.some((range) => start < range.end && range.start < end)) continue;
+        taken.push({ start, end });
+        // A space keeps the word apart from a command or a word that ends just before it.
+        const gap = /[A-Za-z]$/.test(text.slice(0, start)) ? ' ' : '';
+        text = `${text.slice(0, start)}${gap}${entry.token}${text.slice(end)}`;
+      }
+      copies.set(name, text);
     }
     const again = new Supply(supply.dir, supply.realDir);
     again.texts = copies;
@@ -364,15 +450,15 @@ async function readLatex(file, convert, nonce) {
       const first = JSON.stringify(read.tree);
       for (const entry of skipped)
         entry.placed = Boolean(entry.made) && first.includes(entry.token);
-      return finish(read.tree, skipped, missing);
+      return finish(read.tree, skipped, missing, supply);
     }
   }
   const whole = JSON.stringify(read.tree);
   for (const entry of skipped) entry.placed = whole.includes(entry.token);
-  return finish(read.tree, skipped, missing);
+  return finish(read.tree, skipped, missing, supply);
 }
 
-function finish(tree, skipped, missing) {
+function finish(tree, skipped, missing, supply) {
   return {
     tree,
     skipped: skipped.map(({ contents, source, line, token, placed }) => ({
@@ -383,6 +469,9 @@ function finish(tree, skipped, missing) {
       placed,
     })),
     missing,
+    // Every file that was read, the paper first: a picture a Typst file names
+    // is looked for beside that file.
+    files: [...supply.rels.values()],
   };
 }
 
@@ -397,13 +486,15 @@ async function readTypst(file, convert) {
   const options = { from: 'typst', 'input-files': [main] };
   let read;
   for (let count = 0; ; count++) {
+    refuseCycle(supply, 'typst');
     try {
       read = await reading(convert, options, supply);
       break;
     } catch (error) {
       if (!(error instanceof PaperRefused)) throw error;
       const asked = String(error.stderr ?? '').match(
-        /ERROR:\s*(.+?): withBinaryFile: does not exist/,
+        // "does not exist" for a file beside or below; "failed" for one reached by `..`.
+        /ERROR:\s*(.+?): withBinaryFile: (?:does not exist|failed)/,
       );
       if (!asked || count >= LIMITS.readings - 1) throw error;
       // Pandoc asks for a file by the words that name it; find who names it.
@@ -435,7 +526,7 @@ async function readTypst(file, convert) {
     }
   }
   ({ read } = await withBibliography(convert, options, supply, read, missing, '.'));
-  return finish(read.tree, [], missing);
+  return finish(read.tree, [], missing, supply);
 }
 
 /**
@@ -448,6 +539,7 @@ async function readTypst(file, convert) {
  *   tree: { blocks: any[], meta: Record<string, any> },
  *   skipped: { contents: string, source: string, line: number, token: string, placed: boolean }[],
  *   missing: string[],
+ *   files: string[],
  * }>} pandoc's tree; what it skipped, each piece once, with the word that
  *   stands for it and whether that word is in the tree; and the files the
  *   paper pulls in that were not read. `source` is a path from the paper's

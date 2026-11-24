@@ -135,6 +135,10 @@ Leave the link's words empty, or make them the name itself, as in
 pair of brackets it writes the number alone, so the brackets are not doubled.
 A link with words of your own is left as you wrote it.
 
+So give an equation a name no heading has: a link written `[intro](#intro)`
+is taken for an equation named `intro`, though a heading called "intro" has
+the same address. A prefix such as `eq:` keeps the two apart.
+
 The numbered equation above is named `eq:energy` in this chapter's source, so
 this sentence can refer to it as equation ([](#eq:energy)).
 

@@ -313,27 +313,44 @@ async function preparePaper(document, root) {
   });
   const folder = path.dirname(document.file);
   const realFolder = await realpath(folder);
-  const folders =
-    document.format === 'latex' && out.images.length > 0
-      ? graphicsPaths((await readFile(document.file, 'utf8')).replace(/^﻿/, ''))
-      : [];
+  // Where else a picture's name is looked for: the folders a LaTeX paper
+  // names in `\graphicspath`; for a Typst paper the folder of each file that
+  // was read, since Typst reads a picture's path from the file that names it.
+  let folders = [];
+  if (out.images.length > 0) {
+    folders =
+      document.format === 'latex'
+        ? graphicsPaths((await readFile(document.file, 'utf8')).replace(/^\uFEFF/, ''))
+        : [...new Set(read.files.map((rel) => path.posix.dirname(rel)))].filter(
+            (dir) => dir !== '.',
+          );
+  }
   const chapterDir = path.posix.dirname(document.staged);
   const files = new Map();
   const leftOut = [...out.leftOut];
   let markdown = out.markdown;
   for (const image of out.images) {
     const written = `](${image.placeholder})`;
-    const local = localPath(image.url);
-    if (!local) {
-      // An address on the web, or one that is no file of the paper's: as written.
+    // A path from `/` is read by Typst from the paper's own folder; in a LaTeX
+    // paper it is a place on the writer's machine, outside the paper's folder.
+    const rooted = /^\/(?!\/)/.test(image.url);
+    const local = rooted
+      ? document.format === 'typst'
+        ? localPath(image.url.replace(/^\/+/, ''))
+        : null
+      : localPath(image.url);
+    if (!local && !rooted) {
+      // An address on the web: as written.
       markdown = markdown.replaceAll(written, `](${image.url})`);
       continue;
     }
-    const staged = await paperPicture({ root, folder, realFolder, local, folders });
+    const staged = local
+      ? await paperPicture({ root, folder, realFolder, local, folders: rooted ? [] : folders })
+      : null;
     if (staged) {
       files.set(staged.to, staged);
       const refer = toMarkdownPath(path.posix.relative(chapterDir, staged.to));
-      markdown = markdown.replaceAll(written, `](${refer}${local.suffix})`);
+      markdown = markdown.replaceAll(written, `](${refer}${local?.suffix ?? ''})`);
       continue;
     }
     // The image with its words, whatever they hold, gives way to the mark.

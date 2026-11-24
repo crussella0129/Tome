@@ -99,9 +99,14 @@ function withoutTexComments(text) {
   );
 }
 
-/** The files a Typst file names in `#include "…"` or `#import "…"`, as written. */
+/**
+ * The files a Typst file includes or imports, as written: `#include "…"`,
+ * `#import "…"`, `#include("…")`, and `include "…"` inside code
+ * (`#show: doc => { include "…" }`). What stands in a comment names nothing.
+ */
 function typstNamed(text) {
-  return [...text.matchAll(/#(?:include|import)\s+"([^"\n]+)"/g)].map((match) => match[1]);
+  const shown = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  return [...shown.matchAll(/\b(?:include|import)\s*\(?\s*"([^"\n]+)"/g)].map((match) => match[1]);
 }
 
 /**
@@ -133,7 +138,14 @@ async function partsOfPapers(root, rels) {
     const text = await read(rel);
     if (text === null) continue;
     if (format === 'latex') {
-      if (!withoutTexComments(text).includes('\\documentclass')) parts.add(rel);
+      // A `subfiles` part names its paper as its class: it is that paper's.
+      const shown = withoutTexComments(text);
+      if (
+        !shown.includes('\\documentclass') ||
+        /\\documentclass\s*(?:\[[^\]]*\])?\s*\{subfiles\}/.test(shown)
+      ) {
+        parts.add(rel);
+      }
       continue;
     }
     for (const named of typstNamed(text)) {

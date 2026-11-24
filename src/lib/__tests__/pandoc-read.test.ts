@@ -637,3 +637,194 @@ describe('pandoc-read.mjs — with a stand-in for pandoc (INT-0033 AC5, AC6)', (
     }
   });
 });
+
+// Found by the first review of the tests (sprint-tests/critique-round-1.md).
+describe('pandoc-read.mjs — what the first test review found', () => {
+  const R = String.raw;
+  type Entry = { contents: string; placed: boolean; token: string; source: string; line: number };
+  const pieceOf = (read: { skipped: Entry[] }, start: string) =>
+    read.skipped.find((entry) => entry.contents.startsWith(start));
+
+  it('test_pandoc_environment_with_option: an environment with an option costs no other piece its place', async () => {
+    const dir = join(tmp, 'option');
+    write(dir, {
+      'paper.tex': DOC(
+        [
+          R`We use \mycmd{important words} here.`,
+          '',
+          R`\begin{algorithmic}[1]`,
+          R`\State do the thing`,
+          R`\end{algorithmic}`,
+          '',
+          R`\begin{definition}[Compactness]`,
+          'A set is compact.',
+          R`\end{definition}`,
+          '',
+          R`\begin{tikzpicture}`,
+          R`\draw (0,0) -- (1,1);`,
+          R`\end{tikzpicture}`,
+          '',
+          'Last words.',
+        ].join('\n'),
+      ),
+    });
+    const read = await readPaper({ file: join(dir, 'paper.tex'), format: 'latex' });
+    const whole = JSON.stringify(read.tree);
+    for (const start of [
+      R`\mycmd{important words}`,
+      R`\begin{algorithmic}[1]`,
+      R`\end{algorithmic}`,
+      R`\begin{definition}[Compactness]`,
+      R`\end{definition}`,
+      R`\begin{tikzpicture}`,
+    ]) {
+      const entry = pieceOf(read, start);
+      expect(entry, start).toBeDefined();
+      expect(entry!.placed, start).toBe(true);
+      expect(whole.split(entry!.token).length - 1, start).toBe(1);
+    }
+    // The words between an unknown environment's two ends are kept.
+    expect(words(read.tree.blocks)).toContain('A set is compact.');
+    expect(words(read.tree.blocks)).toContain('Last words.');
+  }, 120_000);
+
+  it('test_pandoc_wide_table: a table* is read as a table, with its caption and its number', async () => {
+    const dir = join(tmp, 'wide');
+    write(dir, {
+      'paper.tex': DOC(
+        [
+          R`We use \mycmd{important words} here.`,
+          '',
+          R`\begin{table*}[t]`,
+          R`\caption{Star table}\label{tab:s}`,
+          R`\begin{tabular}{ll} a & b \end{tabular}`,
+          R`\end{table*}`,
+          '',
+          R`See Table~\ref{tab:s}.`,
+        ].join('\n'),
+      ),
+    });
+    const before = readFileSync(join(dir, 'paper.tex'), 'utf8');
+    const read = await readPaper({ file: join(dir, 'paper.tex'), format: 'latex' });
+    const [table] = nodes(read.tree, 'Table');
+    expect((table.c as [[string]])[0][0]).toBe('tab:s');
+    expect(words((table.c as unknown[])[1])).toContain('Star table');
+    const reference = nodes(read.tree, 'Link')[0];
+    expect(words(reference)).toBe('1');
+    expect(pieceOf(read, R`\mycmd`)!.placed).toBe(true);
+    expect(read.skipped.some((entry: Entry) => entry.contents.includes('table'))).toBe(false);
+    // The paper itself still says `table*`.
+    expect(readFileSync(join(dir, 'paper.tex'), 'utf8')).toBe(before);
+  }, 120_000);
+
+  it('test_pandoc_unpaired_environment: an end whose beginning was not found is left where it is', async () => {
+    const dir = join(tmp, 'unpaired');
+    write(dir, { 'paper.tex': R`Before \begin{myenv} words \end{myenv} after \mycmd{x}.` + '\n' });
+    const given: Record<string, string>[] = [];
+    const convert = vi.fn(async (_o: unknown, _s: unknown, files: Record<string, string>) => {
+      given.push(files);
+      return {
+        stdout: JSON.stringify({
+          blocks: [{ t: 'Para', c: [{ t: 'Str', c: files['paper.tex'] }] }],
+          meta: {},
+        }),
+        stderr: '',
+        warnings: [
+          // The beginning is reported where the file does not hold it.
+          {
+            type: 'SkippedContent',
+            contents: R`\begin{myenv}`,
+            source: 'paper.tex',
+            line: 9,
+            column: 1,
+          },
+          {
+            type: 'SkippedContent',
+            contents: R`\end{myenv}`,
+            source: 'paper.tex',
+            line: 1,
+            column: 39,
+          },
+          {
+            type: 'SkippedContent',
+            contents: R`\mycmd{x}`,
+            source: 'paper.tex',
+            line: 1,
+            column: 55,
+          },
+        ],
+      };
+    });
+    const read = await readPaper({ file: join(dir, 'paper.tex'), format: 'latex' }, { convert });
+    expect(given).toHaveLength(2);
+    expect(given[1]['paper.tex']).toContain(R`\begin{myenv} words \end{myenv}`);
+    expect(given[1]['paper.tex']).not.toContain(R`\mycmd{x}`);
+    expect(read.skipped.map((entry: Entry) => entry.placed)).toEqual([false, false, true]);
+  });
+
+  it('test_pandoc_crlf: a paper with Windows line ends is read as the same paper', async () => {
+    const lf = join(tmp, 'lf');
+    const crlf = join(tmp, 'crlf');
+    cpSync(join(fixtures, 'latex'), lf, { recursive: true });
+    cpSync(join(fixtures, 'latex'), crlf, { recursive: true });
+    for (const name of ['paper.tex', 'appendix.tex', join('sections', 'closing.tex')]) {
+      const text = readFileSync(join(lf, name), 'utf8');
+      expect(text).not.toContain('\r');
+      writeFileSync(join(crlf, name), text.replace(/\n/g, '\r\n'));
+    }
+    const one = await readPaper({ file: join(lf, 'paper.tex'), format: 'latex' }, { nonce: 'T' });
+    const two = await readPaper({ file: join(crlf, 'paper.tex'), format: 'latex' }, { nonce: 'T' });
+    expect(two).toEqual(one);
+    const drawing = pieceOf(two, R`\begin{tikzpicture}`)!;
+    expect(drawing.placed).toBe(true);
+    expect(drawing.contents).toContain(R`\end{tikzpicture}`);
+    expect(readFileSync(join(crlf, 'paper.tex'), 'utf8')).toContain('\r\n');
+  }, 120_000);
+
+  it('test_pandoc_input_cycle: files that pull each other in are refused, and soon', async () => {
+    const dir = join(tmp, 'cycle');
+    write(dir, {
+      'paper.tex': DOC(R`Main. \input{a}`),
+      'a.tex': R`A words. \input{b}` + '\n',
+      'b.tex': R`B words. \input{a}` + '\n',
+      'self.tex': DOC(R`Self. \input{self}`),
+      'fine.tex': DOC(R`Fine. \input{a2} \input{a2} % \input{fine}`),
+      'a2.tex': 'Twice.\n',
+      'loop.typ': '= Loop\n\n#include "one.typ"\n',
+      'one.typ': 'One.\n\n#include "two.typ"\n',
+      'two.typ': 'Two.\n\n#include "one.typ"\n',
+    });
+    const refused = async (name: string, format: 'latex' | 'typst') => {
+      const started = Date.now();
+      await expect(readPaper({ file: join(dir, name), format })).rejects.toBeInstanceOf(
+        PaperRefused,
+      );
+      expect(Date.now() - started).toBeLessThan(30_000);
+      return readPaper({ file: join(dir, name), format }).catch((error: Error) => error.message);
+    };
+    expect(await refused('paper.tex', 'latex')).toMatch(/a\.tex → b\.tex → a\.tex/);
+    expect(await refused('self.tex', 'latex')).toMatch(/self\.tex → self\.tex/);
+    expect(await refused('loop.typ', 'typst')).toMatch(/one\.typ → two\.typ → one\.typ/);
+    // The same file twice, and a file named in a comment, are no cycle.
+    const fine = await readPaper({ file: join(dir, 'fine.tex'), format: 'latex' });
+    expect(words(fine.tree.blocks)).toContain('Twice. Twice.');
+  }, 120_000);
+
+  it('test_pandoc_typst_parent_path: a file in a folder may import one from the folder above', async () => {
+    const dir = join(tmp, 'parent');
+    write(dir, {
+      'main.typ': '= Title\n\n#include "chapters/intro.typ"\n',
+      'chapters/intro.typ': '#import "../template.typ": note\n\n== Intro\n\n#note[Hello]\n',
+      'template.typ': '#let note(body) = [Note: #body]\n',
+      'escape.typ': '= Title\n\n#include "../outside.typ"\n',
+    });
+    writeFileSync(join(tmp, 'outside.typ'), 'OUTSIDEWORD\n');
+    const read = await readPaper({ file: join(dir, 'main.typ'), format: 'typst' });
+    expect(words(read.tree.blocks)).toContain('Note: Hello');
+    expect(read.files.sort()).toEqual(['chapters/intro.typ', 'main.typ', 'template.typ']);
+    // A file above the paper's own folder is still not read.
+    await expect(readPaper({ file: join(dir, 'escape.typ'), format: 'typst' })).rejects.toThrow(
+      /\.\.\/outside\.typ/,
+    );
+  }, 120_000);
+});

@@ -135,7 +135,9 @@ code. Tome today shows `$x^2$` as the characters typed.
   address is `#` and the label of a numbered equation, and whose words are
   empty or are the label, shows that equation's number and leads to it. A
   link with words of its own is left as it is, so a link a chapter already
-  has to a heading is never taken over.
+  has to a heading is never taken over; a link whose words are the label is
+  taken for the equation even where a heading has the same address, which
+  *Write Mathematics* says.
 - A command defined in one formula (`\def`, `\newcommand`) is not known in
   the next: each formula is read on its own.
 - A formula can hold no link, image or attribute of its own: the commands
@@ -281,3 +283,6 @@ code. Tome today shows `$x^2$` as the characters typed.
 - 2026-11-24: revised in Sprint 26's Plan phase, still `realized`. The
   consequence on referring to an equation by its number says what Sprint 26
   plans for it; nothing this intent's criteria hold is changed.
+- 2026-11-24: revised in Sprint 26's Test phase, still `realized`: the
+  consequence on a link to an equation says what a link whose words are the
+  label does where a heading has the same address.

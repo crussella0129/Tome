@@ -674,6 +674,23 @@ describe('a link to a numbered equation shows its number', () => {
     ).tree;
     expect(links(heading)).toEqual([{ href: '#pythagoras', words: 'the theorem' }]);
     expect(ids(heading)).toEqual(['pythagoras']);
+    // A link whose words are the label itself, or none, is taken for the
+    // equation, though a heading holds the same address: that is the form the
+    // guide teaches for an equation, and it says so (Write Mathematics).
+    const same = render(
+      lines(
+        '# intro',
+        '',
+        '$$',
+        R`\begin{equation}\label{intro} a = b \end{equation}`,
+        '$$',
+        '',
+        'See [intro](#intro).',
+      ),
+      { asAstro: true },
+    ).tree;
+    expect(links(same)).toEqual([{ href: '#eq.intro', words: '(1)' }]);
+    expect(ids(same).sort()).toEqual(['eq.intro', 'intro']);
   });
 
   it('test_math_label_rows: each label is matched to its own row', () => {
@@ -798,6 +815,17 @@ describe('a link to a numbered equation shows its number', () => {
       );
       expect(plain, name).toEqual(before[name]);
     }
+    // A page of labelled formulas and of the writer's own links, to headings
+    // and to labels, none in the form that asks for a number: laid out exactly
+    // as the step did before it made links to equations (kept from `a6d02c8^`).
+    const papers = join(process.cwd(), 'src/lib/__tests__/papers');
+    const page = readFileSync(join(papers, 'labels-and-links.md'), 'utf8').replace(/\r\n/g, '\n');
+    const { tree: labelsTree } = render(page, { path: 'chapters/labels.md' });
+    expect(
+      JSON.parse(
+        JSON.stringify(labelsTree, (key, value) => (key === 'position' ? undefined : value)),
+      ),
+    ).toEqual(JSON.parse(readFileSync(join(papers, 'labels-before-links.json'), 'utf8')));
     const labelled = render(
       lines(
         GAUSS,

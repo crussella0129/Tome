@@ -206,14 +206,24 @@ A command that only spaces or sizes the text, such as `\quad` or `\small`,
 takes no mark. One the reader does not know and that stood alone, with
 nothing in braces after it, is named in that line without a mark.
 
-Three limits are worth knowing:
+Some limits are worth knowing:
 
 - A Typst document that uses a package, or a function the reader does not
   carry, cannot be read at all. It becomes the chapter that says so, and the
   build gives the line and the reason.
+- A paper whose files pull each other in without end (`a.tex` inputs `b.tex`,
+  which inputs `a.tex`) is refused the same way.
 - A `.bbl` file is not read. A paper kept without its `.bib` file shows its
-  citations as keys.
-- A table inside `\resizebox` takes the mark and loses its caption.
+  citations as keys, and so does a Typst paper whose bibliography is a `.yml`
+  file.
+- A table inside `\resizebox`, and a caption inside `wrapfigure` or
+  `sidewaystable`, are not carried over: the reader drops the caption.
+- A cell that spans columns or rows keeps its place, and the cells it covers
+  are left empty, since a table on the page has no cell that spans.
+- In a Typst paper, the words after a citation (`@gauss[p. 5]`) are dropped
+  by the reader.
+- Authors set with a class's own commands (`\IEEEauthorblockN`) are not shown
+  under the title; the build names the commands.
 
 The reading is done by [pandoc](https://pandoc.org), which Tome installs with
 `npm` as `pandoc-wasm` and runs only when your library holds a paper. Pandoc

@@ -10,7 +10,7 @@ import {
   oneLine,
   writePaper,
 } from '../../../scripts/pandoc-to-markdown.mjs';
-import { readable } from '../../../scripts/rehype-math.mjs';
+import { formulaText, readable } from '../../../scripts/rehype-math.mjs';
 import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
 
 // INT-0033 — pandoc's tree written as the Markdown of a chapter. A tree is
@@ -1221,5 +1221,217 @@ describe('pandoc-to-markdown.mjs — citations and the reference list (INT-0033 
       'the same book again \\[[1](#ref-bib-gauss), missing], and one page of it \\[[1](#ref-bib-gauss), p.',
     );
     expect(citations(paper)).toEqual([{ kind: 'citation', count: 1, detail: 'missing' }]);
+  });
+});
+
+// Found by the first review of the tests (sprint-tests/critique-round-1.md).
+describe('pandoc-to-markdown.mjs — what the first test review found', () => {
+  const R = String.raw;
+  const linksOf = (markdown: string) =>
+    all(read(markdown), 'link').map((link) => [textOf(link), link.url]);
+  /** A cell that spans `rows` rows and `cols` columns. */
+  const spanning = (rows: number, cols: number, ...blocks: Json[]): unknown[] => [
+    NO_ATTR,
+    { t: 'AlignDefault' },
+    rows,
+    cols,
+    blocks,
+  ];
+  const cellsOf = (markdown: string) =>
+    (all(read(markdown), 'table')[0].children ?? []).map((r) => (r.children ?? []).map(textOf));
+
+  it('test_paper_table_spans: a cell that spans keeps every other cell under its own heading', () => {
+    const across = write([
+      table(
+        ['AlignLeft', 'AlignRight', 'AlignRight'],
+        [row(cell(plain(inl('Method'))), cell(plain(inl('a'))), cell(plain(inl('b'))))],
+        [
+          row(spanning(1, 2, plain(inl('Total'))), cell(plain(inl('9')))),
+          row(cell(plain(inl('Lasso'))), cell(plain(inl('1'))), cell(plain(inl('2')))),
+        ],
+      ),
+    ]);
+    expect(cellsOf(across.markdown)).toEqual([
+      ['Method', 'a', 'b'],
+      ['Total', '', '9'],
+      ['Lasso', '1', '2'],
+    ]);
+    const down = write([
+      table(
+        ['AlignLeft', 'AlignRight', 'AlignRight'],
+        [row(cell(plain(inl('Method'))), cell(plain(inl('a'))), cell(plain(inl('b'))))],
+        [
+          row(spanning(2, 1, plain(inl('Ridge'))), cell(plain(inl('5'))), cell(plain(inl('6')))),
+          row(cell(plain(inl('50'))), cell(plain(inl('60')))),
+          row(cell(plain(inl('Lasso'))), cell(plain(inl('1'))), cell(plain(inl('2')))),
+        ],
+      ),
+    ]);
+    expect(cellsOf(down.markdown)).toEqual([
+      ['Method', 'a', 'b'],
+      ['Ridge', '5', '6'],
+      ['', '50', '60'],
+      ['Lasso', '1', '2'],
+    ]);
+    // Both at once: a cell two wide and two deep.
+    const both = write([
+      table(
+        ['AlignDefault', 'AlignDefault', 'AlignDefault'],
+        [row(cell(plain(inl('x'))), cell(plain(inl('y'))), cell(plain(inl('z'))))],
+        [row(spanning(2, 2, plain(inl('Big'))), cell(plain(inl('1')))), row(cell(plain(inl('2'))))],
+      ),
+    ]);
+    expect(cellsOf(both.markdown)).toEqual([
+      ['x', 'y', 'z'],
+      ['Big', '', '1'],
+      ['', '', '2'],
+    ]);
+    for (const out of [across, down, both]) expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_paper_cell_double_bar: a norm in a table cell shows what the paper wrote', () => {
+    const cases = [R`\|x\|_2`, R`|x|`, R`\left\| y \right\|`, R`a \\| b`];
+    const out = write([
+      table(
+        ['AlignDefault'],
+        [row(cell(plain(inl('Formula'))))],
+        cases.map((tex) => row(cell(plain(math(tex))))),
+      ),
+    ]);
+    const found = formulas(read(out.markdown));
+    expect(found).toHaveLength(cases.length);
+    found.forEach((formula, i) => {
+      expect(String(formula.value), cases[i]).not.toContain('|');
+      expect(formulaText(String(formula.value)), cases[i]).toBe(formulaText(cases[i]!));
+    });
+    expect(String(found[0].value)).toBe(R`\Vert x\Vert _2`);
+    expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_paper_other_properties: what pandoc reads into the paper’s properties is written', () => {
+    const out = write([para(inl('Text.'))], {
+      meta: {
+        title: metaInlines('Main Title'),
+        subtitle: metaInlines('The Subtitle Words'),
+        author: { t: 'MetaList', c: [metaInlines('Jane Doe')] },
+        dedication: { t: 'MetaBlocks', c: [para(inl('For my teachers.'))] },
+        'link-citations': { t: 'MetaBool', c: true },
+        bibliography: { t: 'MetaString', c: 'refs.bib' },
+      },
+    });
+    expect(body(out.markdown)).toBe(
+      '_Jane Doe_\n\nThe Subtitle Words\n\nFor my teachers.\n\nText.\n',
+    );
+    expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_paper_own_link_to_label: a link the writer made to a label leads to its anchor', () => {
+    const out = write([
+      header(1, 'One', 'sec:x'),
+      para(inl('See'), sp, linkTo('#sec:x', 'these words'), str('.')),
+    ]);
+    expect(body(out.markdown)).toBe(
+      '<a id="ref-sec-x"></a>\n\n## One\n\nSee [these words](#ref-sec-x).\n',
+    );
+    // A link to a label that is nowhere is left as its words.
+    const lost = write([para(linkTo('#nowhere', 'lost words'))]);
+    expect(linksOf(lost.markdown)).toEqual([]);
+    expect(body(lost.markdown)).toBe('lost words\n');
+  });
+
+  it('test_paper_empty_emphasis: emphasis with nothing in it writes nothing', () => {
+    const out = write([
+      para(str('a'), wrap('Emph', []), str('b'), sp, wrap('Strong', []), sp, wrap('Strikeout', [])),
+    ]);
+    expect(body(out.markdown)).toBe('ab\n');
+    expect(out.markdown).not.toContain('&#x');
+    expect(out.markdown).not.toContain('**');
+  });
+
+  it('test_paper_own_bibliography_heading_and_twice: the paper’s own heading, and a key given twice', () => {
+    const out = write(
+      [
+        header(1, 'References'),
+        para(
+          str('tokB9'),
+          sp,
+          str('tokA1'),
+          sp,
+          inl('First entry.'),
+          sp,
+          str('tokA2'),
+          sp,
+          inl('Second entry, same key.'),
+          sp,
+          str('tokZ'),
+        ),
+      ],
+      {
+        skipped: [
+          piece(R`\begin{thebibliography}`, 'tokB'),
+          piece(R`\bibitem{a}`, 'tokA1'),
+          piece(R`\bibitem{a}`, 'tokA2', { line: 8 }),
+          piece(R`\end{thebibliography}`, 'tokZ'),
+        ],
+      },
+    );
+    const markdown = body(out.markdown);
+    expect(all(read(markdown), 'heading').map(textOf)).toEqual(['References']);
+    expect(markdown.split('id="ref-bib-a"').length - 1).toBe(1);
+    expect(markdown).toContain(
+      '1. <a id="ref-bib-a"></a>First entry.\n2. Second entry, same key.\n',
+    );
+  });
+
+  it('test_paper_typst_colon_labels: a Typst label with a colon or a full stop is a reference', () => {
+    const cite = (key: string): Json => ({
+      t: 'Cite',
+      c: [
+        [
+          {
+            citationId: key,
+            citationPrefix: [],
+            citationSuffix: [],
+            citationMode: { t: 'NormalCitation' },
+          },
+        ],
+        [str(`[${key}]`)],
+      ],
+    });
+    const label = (id: string): Json => ({ t: 'Span', c: [[id, [], []], []] });
+    const out = writePaper({
+      tree: doc([
+        header(1, 'Intro'),
+        para(label('sec:intro')),
+        para(math('a = b', true), sp, label('eq.one')),
+        para(
+          inl('See'),
+          sp,
+          cite('sec'),
+          str(':intro'),
+          sp,
+          inl('and'),
+          sp,
+          cite('eq'),
+          str('.one.'),
+          sp,
+          inl('Not'),
+          sp,
+          cite('fig'),
+          str(':gone'),
+        ),
+      ]),
+      format: 'typst',
+    });
+    const markdown = body(out.markdown);
+    expect(linksOf(markdown)).toEqual([
+      ['Intro', '#ref-sec-intro'],
+      ['the equation', '#ref-eq-one'],
+    ]);
+    // A full stop that ends the sentence is the sentence's.
+    expect(markdown).toContain('[the equation](#ref-eq-one).');
+    // A label that is nowhere is still a citation with no entry.
+    expect(markdown).toContain('Not \\[fig]:gone');
+    expect(out.leftOut).toEqual([{ kind: 'citation', count: 1, detail: 'fig' }]);
   });
 });

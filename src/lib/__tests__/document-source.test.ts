@@ -427,3 +427,46 @@ describe('document-source.mjs — a paper in LaTeX or Typst (INT-0033 AC1)', () 
     expect(added).toContain('.typ');
   });
 });
+
+// Found by the first review of the tests (sprint-tests/critique-round-1.md).
+describe('document-source.mjs — which files are parts of a paper, as the review tried them', () => {
+  let tmp: string;
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'tome-parts-'));
+    write(tmp, {
+      'subfiles/main.tex': String.raw`\documentclass{article}\usepackage{subfiles}\begin{document}\subfile{intro}\end{document}`,
+      'subfiles/intro.tex':
+        String.raw`\documentclass[main]{subfiles}` +
+        '\n' +
+        String.raw`\begin{document}Intro.\end{document}`,
+      'code/main.typ':
+        '#show: doc => {\n  include "parts/one.typ"\n}\n#let two = include "parts/two.typ"\n#include("parts/three.typ")\n',
+      'code/parts/one.typ': 'One.\n',
+      'code/parts/two.typ': 'Two.\n',
+      'code/parts/three.typ': 'Three.\n',
+      'comments/main.typ':
+        '= Main\n// #include "parts/commented.typ"\n/* #include "parts/blocked.typ" */\n#link("https://example.org")[a link]\n',
+      'comments/parts/commented.typ': '= Commented\n',
+      'comments/parts/blocked.typ': '= Blocked\n',
+    });
+  });
+  afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+  const rels = async (folder: string) =>
+    (await resolveSource(join(tmp, folder))).documents!.map((document) => document.rel);
+
+  it('test_source_subfiles_part: a part written with the subfiles class is its paper’s', async () => {
+    expect(await rels('subfiles')).toEqual(['main.tex']);
+  });
+
+  it('test_source_typst_include_in_code: an include inside code, or with brackets, is seen', async () => {
+    expect(await rels('code')).toEqual(['main.typ']);
+  });
+
+  it('test_source_typst_commented_include: a file named only in a comment is a chapter', async () => {
+    expect(await rels('comments')).toEqual([
+      'main.typ',
+      'parts/blocked.typ',
+      'parts/commented.typ',
+    ]);
+  });
+});

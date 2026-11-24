@@ -1,0 +1,3 @@
+# Paper fixtures are read byte for byte by the tests; keep their line ends as committed.
+fixtures/latex/** -text
+fixtures/typst/** -text

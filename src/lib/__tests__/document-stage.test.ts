@@ -697,3 +697,140 @@ describe('document-stage.mjs — a paper in LaTeX or Typst', { timeout: 180_000 
     }
   });
 });
+
+// Found by the first review of the tests (sprint-tests/critique-round-1.md),
+// each tried with pandoc itself.
+describe('document-stage.mjs — what the first test review found', { timeout: 180_000 }, () => {
+  const R = String.raw;
+  const doc = (rel: string, root: string, staged = 'README.md') => ({
+    file: join(root, ...rel.split('/')),
+    rel,
+    format: (rel.endsWith('.typ') ? 'typst' : 'latex') as 'latex' | 'typst',
+    staged,
+  });
+  const reader = unified().use(remarkParse).use(remarkGfm).use(remarkMathDollars);
+  const tree = (markdown: string) =>
+    reader.runSync(reader.parse(markdown), markdown) as unknown as MdNode;
+  const every = (node: MdNode, type: string): MdNode[] => [
+    ...(node.type === type ? [node] : []),
+    ...(node.children ?? []).flatMap((child) => every(child, type)),
+  ];
+
+  it('test_prepare_paper_hayagriva: citations of a bibliography Tome cannot read are keys, counted', async () => {
+    const root = vault({
+      'paper.typ':
+        '= Title\n\nCite @gauss and @other, and @gauss again.\n\n#bibliography("refs.yml")\n',
+      'refs.yml':
+        'gauss:\n  type: book\n  title: Disquisitiones\n  author: Gauss, Carl Friedrich\n  date: 1801\n',
+    });
+    const out = await prepareDocument(doc('paper.typ', root), { root });
+    expect(reads(out.markdown)).toContain('Cite [gauss] and [other], and [gauss] again.');
+    expect(out.markdown).not.toMatch(/^#+ References/m);
+    expect(out.leftOut).toEqual([
+      { kind: 'citation', count: 1, detail: 'gauss' },
+      { kind: 'citation', count: 1, detail: 'other' },
+    ]);
+  });
+
+  it('test_prepare_paper_pictures_by_path: from the root of a Typst paper, beside an included file, and from elsewhere', async () => {
+    const root = vault({
+      'paper.typ': '= Title\n\n#image("/figs/root.png")\n\n#include "sub/part.typ"\n',
+      'sub/part.typ': '== Part\n\n#image("near.png")\n',
+      'figs/root.png': PNG,
+      'sub/near.png': PNG,
+      'abs.tex': [
+        R`\documentclass{article}`,
+        R`\usepackage{graphicx}`,
+        R`\begin{document}`,
+        R`\includegraphics{/home/me/figs/a.png}`,
+        R`\end{document}`,
+      ].join('\n'),
+    });
+    const typst = await prepareDocument(doc('paper.typ', root, 'paper.md'), { root });
+    expect(every(tree(typst.markdown), 'image').map((image) => image.url)).toEqual([
+      './__tome_parent_assets__/figs/root.png',
+      './__tome_parent_assets__/sub/near.png',
+    ]);
+    expect(typst.files.map((file) => file.to).sort()).toEqual([
+      '__tome_parent_assets__/figs/root.png',
+      '__tome_parent_assets__/sub/near.png',
+    ]);
+    expect(typst.leftOut).toEqual([]);
+
+    const latex = await prepareDocument(doc('abs.tex', root, 'abs.md'), { root });
+    expect(every(tree(latex.markdown), 'image')).toEqual([]);
+    expect(reads(latex.markdown)).toContain('[image not shown]');
+    expect(latex.files).toEqual([]);
+    expect(latex.leftOut).toEqual([{ kind: 'image', count: 1, detail: '/home/me/figs/a.png' }]);
+  });
+
+  it('test_prepare_paper_subtitle: a subtitle and the like are on the page', async () => {
+    const root = vault({
+      'paper.tex': [
+        R`\documentclass{article}`,
+        R`\title{Main Title}`,
+        R`\subtitle{The Subtitle Words}`,
+        R`\author{Jane Doe}`,
+        R`\begin{document}`,
+        R`\maketitle`,
+        'Text.',
+        R`\end{document}`,
+      ].join('\n'),
+    });
+    const out = await prepareDocument(doc('paper.tex', root), { root });
+    expect(out.title).toBe('Main Title');
+    expect(reads(out.markdown)).toContain('The Subtitle Words');
+    expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_prepare_paper_typst_colon_label: `@sec:intro` leads to its section', async () => {
+    const root = vault({
+      'paper.typ':
+        '#set document(title: "Title")\n#set heading(numbering: "1.")\n= Title\n\n== Intro <sec:intro>\n\nWords.\n\n$ a = b $ <eq:one>\n\nSee @sec:intro and @eq:one.\n',
+    });
+    const out = await prepareDocument(doc('paper.typ', root), { root });
+    const links = every(tree(out.markdown), 'link').map((link) => [
+      link.children?.map((c) => c.value).join(''),
+      link.url,
+    ]);
+    expect(links).toEqual([
+      ['Intro', '#ref-sec-intro'],
+      ['the equation', '#ref-eq-one'],
+    ]);
+    expect(out.markdown).toContain('<a id="ref-sec-intro"></a>\n\n## Intro');
+    expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_prepare_paper_table_spans: \\multicolumn and \\multirow keep the numbers in their columns', async () => {
+    const root = vault({
+      'paper.tex': [
+        R`\documentclass{article}`,
+        R`\usepackage{multirow}`,
+        R`\begin{document}`,
+        R`\begin{tabular}{lrr}`,
+        R`Method & a & b \\`,
+        R`\multicolumn{2}{l}{Total} & 9 \\`,
+        R`\multirow{2}{*}{Ridge} & 5 & 6 \\`,
+        R` & 50 & 60 \\`,
+        R`Lasso & 1 & 2`,
+        R`\end{tabular}`,
+        R`\end{document}`,
+      ].join('\n'),
+    });
+    const out = await prepareDocument(doc('paper.tex', root), { root });
+    const rows = (every(tree(out.markdown), 'table')[0].children ?? []).map((row) =>
+      (row.children ?? []).map((cell) =>
+        every(cell, 'text')
+          .map((t) => t.value)
+          .join(''),
+      ),
+    );
+    expect(rows).toEqual([
+      ['Method', 'a', 'b'],
+      ['Total', '', '9'],
+      ['Ridge', '5', '6'],
+      ['', '50', '60'],
+      ['Lasso', '1', '2'],
+    ]);
+  });
+});
