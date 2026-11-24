@@ -2,9 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  cpSync,
   mkdtempSync,
   mkdirSync,
   rmSync,
+  statSync,
   writeFileSync,
   readFileSync,
   existsSync,
@@ -1078,6 +1080,148 @@ describe(
       expect(meta(join(byEnv, 'paper')).title).toBe(
         'On the Weight of Obsidian',
       );
+    });
+  },
+);
+
+describe(
+  'load-books.mjs — papers in LaTeX and Typst (INT-0033)',
+  {
+    timeout: 180_000,
+  },
+  () => {
+    let tmp: string;
+    let vault: string;
+    let dest: string;
+    let printed: string;
+    let before: Record<string, string>;
+    const fixtures = join(root, 'fixtures');
+    const text = (...parts: string[]) => readFileSync(join(...parts), 'utf8');
+    /** Every file under `dir`: its bytes' hash and the time it was last changed. */
+    function state(dir: string, base = dir): Record<string, string> {
+      const out: Record<string, string> = {};
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) Object.assign(out, state(full, base));
+        else
+          out[full.slice(base.length + 1).replace(/\\/g, '/')] =
+            `${createHash('sha256').update(readFileSync(full)).digest('hex')} ${statSync(full).mtimeMs}`;
+      }
+      return out;
+    }
+
+    beforeAll(() => {
+      tmp = mkdtempSync(join(tmpdir(), 'tome-papers-'));
+      vault = join(tmp, 'vault');
+      cpSync(join(fixtures, 'latex'), join(vault, 'latex'), {
+        recursive: true,
+      });
+      cpSync(join(fixtures, 'typst'), join(vault, 'typst'), {
+        recursive: true,
+      });
+      before = state(vault);
+      dest = join(tmp, 'out');
+      printed = run(dest, { TOME_BOOK: vault });
+    });
+    afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+    it('test_loader_papers: a chapter for each paper, and none for a part of one', () => {
+      const tome = join(dest, 'vault');
+      expect(text(tome, 'SUMMARY.md')).toBe(
+        [
+          '# vault',
+          '',
+          '# latex',
+          '',
+          '- [A Short Paper on Sums](latex/paper.md)',
+          '',
+          '# typst',
+          '',
+          '- [A Short Paper on Sums](typst/paper.md)',
+          '- [uses-a-package](typst/uses-a-package.md)',
+          '',
+        ].join('\n'),
+      );
+      expect(readdirSync(join(tome, 'latex')).sort()).toEqual(['paper.md']);
+      expect(readdirSync(join(tome, 'typst')).sort()).toEqual([
+        'paper.md',
+        'uses-a-package.md',
+      ]);
+      expect(text(tome, 'latex', 'paper.md')).toMatch(
+        /^# A Short Paper on Sums\n/,
+      );
+      expect(text(tome, 'latex', 'paper.md')).toContain('## Appendix');
+      expect(text(tome, 'latex', 'paper.md')).toContain('## Closing');
+      expect(text(tome, 'typst', 'paper.md')).toContain('so, loudly!');
+      // Each paper's picture is staged under its own folder's name.
+      for (const kind of ['latex', 'typst']) {
+        const staged = join(
+          tome,
+          PARENT_ASSET_DIR,
+          kind,
+          'figures',
+          'triangle.png',
+        );
+        expect(readFileSync(staged)).toEqual(
+          readFileSync(join(fixtures, kind, 'figures', 'triangle.png')),
+        );
+        expect(text(tome, kind, 'paper.md')).toContain(
+          `](../${PARENT_ASSET_DIR}/${kind}/figures/triangle.png)`,
+        );
+      }
+      expect(text(tome, 'typst', 'uses-a-package.md')).toContain(
+        'could not be read as a Typst document',
+      );
+    });
+
+    it('test_loader_reports_papers: one line for each paper that left something out', () => {
+      const lines = printed
+        .split('\n')
+        .filter((line) => line.includes('left out'));
+      const latex = lines.find((line) => line.includes('latex/paper.tex'))!;
+      expect(latex).toContain('3 pieces of LaTeX not shown');
+      for (const name of [
+        'tikzpicture',
+        '\\mycmd',
+        '\\appcmd in appendix.tex',
+      ]) {
+        expect(latex).toContain(name);
+      }
+      expect(latex).toContain('1 command not read (\\today)');
+      expect(latex).toContain(
+        '1 reference that could not be followed (nowhere)',
+      );
+      expect(latex).toContain('1 citation with no entry (missing)');
+      expect(latex).not.toContain('quad');
+      const refused = lines.find((line) =>
+        line.includes('typst/uses-a-package.typ'),
+      )!;
+      expect(refused).toContain('the whole document');
+      expect(refused).toContain('HOME not defined');
+      expect(lines.some((line) => line.includes('typst/paper.typ'))).toBe(
+        false,
+      );
+      expect(lines).toHaveLength(2);
+    });
+
+    it('test_loader_paper_source_unchanged: the papers are as they were, to the byte and the minute', () => {
+      expect(state(vault)).toEqual(before);
+      expect(readdirSync(tmp).sort()).toEqual(['out', 'vault']);
+    });
+
+    it('test_loader_paper_alone: one paper is a tome of one chapter, and a refused one stops the load', () => {
+      const out = join(tmp, 'alone');
+      run(out, { TOME_BOOK: join(vault, 'latex', 'paper.tex') });
+      expect(text(out, 'paper', 'SUMMARY.md')).toBe(
+        '# A Short Paper on Sums\n\n[A Short Paper on Sums](README.md)\n',
+      );
+      rmSync(out, { recursive: true, force: true });
+      const failed = runExpectError(join(tmp, 'refused'), {
+        TOME_BOOK: join(vault, 'typst', 'uses-a-package.typ'),
+      });
+      expect(failed.code).not.toBe(0);
+      expect(failed.stderr).toContain('HOME not defined');
+      expect(existsSync(join(tmp, 'refused', 'uses-a-package'))).toBe(false);
     });
   },
 );

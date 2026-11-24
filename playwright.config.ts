@@ -4,9 +4,10 @@ import { defineConfig } from '@playwright/test';
 // isolated mode after it has already built its fixture, so that mode serves the
 // existing dist/ without mutating the shared content or build trees:
 // check-external-build.mjs an external mdBook, check-documents.mjs a folder of
-// loose documents (INT-0029), check-math.mjs two pages of formulas (INT-0030).
-// The formulas are laid out by the browser itself, so that mode runs in two
-// engines: Chromium, and WebKit, which is Safari's.
+// loose documents (INT-0029) and, in a build of their own, two papers written
+// in LaTeX and Typst (INT-0033), check-math.mjs two pages of formulas
+// (INT-0030). Formulas are laid out by the browser itself, so the modes that
+// show them run in two engines: Chromium, and WebKit, which is Safari's.
 const fixtureMode =
   process.env.TOME_EXTERNAL_BOOK_E2E === '1'
     ? { spec: '**/external-book.spec.ts', port: 4322, output: 'test-results/external-book' }
@@ -14,7 +15,9 @@ const fixtureMode =
       ? { spec: '**/documents.spec.ts', port: 4323, output: 'test-results/documents' }
       : process.env.TOME_MATH_E2E === '1'
         ? { spec: '**/math.spec.ts', port: 4324, output: 'test-results/math', engines: true }
-        : null;
+        : process.env.TOME_PAPERS_E2E === '1'
+          ? { spec: '**/papers.spec.ts', port: 4325, output: 'test-results/papers', engines: true }
+          : null;
 const PORT = fixtureMode?.port ?? 4321;
 const engines =
   fixtureMode && 'engines' in fixtureMode

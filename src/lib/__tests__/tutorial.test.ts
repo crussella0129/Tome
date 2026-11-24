@@ -122,3 +122,97 @@ describe('equations in a Word document, in the guide', () => {
     expect(readme).toContain(`](${path})`);
   });
 });
+
+// INT-0033 AC7 (T-094) — the guide says what a LaTeX or Typst paper becomes.
+describe('a paper in LaTeX or Typst, in the guide', () => {
+  const chapter = read(CHAPTERS[0]!);
+  const section = chapter
+    .slice(chapter.indexOf('## Add a document'), chapter.indexOf('## For agents'))
+    .replace(/\s+/g, ' ');
+  const papers = chapter
+    .slice(
+      chapter.indexOf('### What carries over from a LaTeX or Typst paper'),
+      chapter.indexOf('### What to know about Markdown notes'),
+    )
+    .replace(/\s+/g, ' ');
+
+  it('test_tutorial_covers_papers: what is read, what is marked, and what cannot be read', () => {
+    expect(papers.length).toBeGreaterThan(1000);
+    // A library entry may be a paper, and a books:add line names one.
+    expect(section).toContain('a paper written in LaTeX (`.tex`) or Typst (`.typ`)');
+    expect(section).toMatch(/npm run books:add -- \S+\.tex\b/);
+    expect(section).toContain('chapter per `.md`, `.docx`, `.tex` and `.typ` file');
+    // Which files of a folder are chapters.
+    expect(section).toContain('A paper of several files is one chapter');
+    expect(section).toContain('\\documentclass');
+    expect(section).toContain('includes or imports');
+    // What a paper keeps.
+    for (const kept of [
+      'sections',
+      'Formulas',
+      'Theorems',
+      'lists',
+      'tables',
+      'figures',
+      'footnotes',
+      'reference',
+      'citation',
+    ]) {
+      expect(papers, kept).toContain(kept);
+    }
+    // What is marked, each with its mark.
+    for (const mark of [
+      '[LaTeX not shown]',
+      '[image not shown]',
+      '[equation not shown]',
+      '[document not shown]',
+    ]) {
+      expect(papers, mark).toContain(mark);
+    }
+    expect(papers).toContain('PDF or EPS');
+    // The words the loader prints, as `describeLeftOut()` writes them.
+    expect(papers).toContain('pieces of LaTeX not shown (tikzpicture, \\mycmd)');
+    expect(papers).toContain('citation with no entry');
+    // The limits.
+    expect(papers).toContain('A Typst document that uses a package');
+    expect(papers).toContain('cannot be read at all');
+    expect(papers).toContain('may differ from the PDF');
+    expect(papers).toContain('`.bbl`');
+    expect(papers).toContain('\\resizebox');
+    // By what the reading is done, and under what licence.
+    expect(papers).toContain('pandoc-wasm');
+    expect(papers).toContain('GPL');
+    // Live reload is off for a paper as for any document.
+    expect(section).toContain('a paper among them');
+    expect(section).toContain('restart');
+  });
+
+  it('test_tutorial_equation_reference: a formula’s number can be referred to', () => {
+    const mathematics = read('src/content/books/tome/write-mathematics.md');
+    expect(mathematics).toContain('## Refer to an equation by its number');
+    expect(mathematics).toContain('[](#eq:gauss)');
+    expect(mathematics).toContain('\\label{eq:gauss}');
+    expect(mathematics).toContain('[eq:gauss](#eq:gauss)');
+    // The chapter does it itself, to one of its own equations.
+    expect(mathematics).toContain('([](#eq:energy))');
+    expect(mathematics.split('\\label{eq:energy}').length - 1).toBe(2);
+    // It no longer says a number cannot be referred to.
+    expect(mathematics).not.toContain('is not offered yet');
+    expect(mathematics.replace(/\s+/g, ' ')).toContain(
+      '`\\ref` and `\\eqref` inside a formula are not read',
+    );
+    expect(mathematics.replace(/\s+/g, ' ')).toContain(
+      'how a paper written in LaTeX or Typst is read',
+    );
+  });
+
+  it('test_readme_names_pandoc: what reads a paper, and under what licence', () => {
+    const about = readmeSection.replace(/\s+/g, ' ');
+    expect(about).toContain('LaTeX (`.tex`) or Typst (`.typ`)');
+    expect(about).toContain('[LaTeX not shown]');
+    expect(about).toContain('pandoc-wasm');
+    expect(about).toContain('GPL (version 2 or later)');
+    expect(about).toContain("it is not in Tome's built pages or in the desktop apps");
+    expect(readmeSection).toMatch(/npm run books:add -- \S+\.tex\b/);
+  });
+});

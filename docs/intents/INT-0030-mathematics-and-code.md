@@ -127,9 +127,17 @@ code. Tome today shows `$x^2$` as the characters typed.
   source annotation inside a formula, a sized wrapper round a set-apart
   formula, equation numbers written at build time). A check in that
   engine holds them.
-- Referring to an equation by its number is not part of this intent yet. A
-  formula that holds `\ref` or `\eqref` is treated as one that cannot be
-  read; `\label` is accepted and leaves nothing on the page.
+- Referring to an equation by its number from inside a formula is not
+  offered: a formula that holds `\ref` or `\eqref` is treated as one that
+  cannot be read. `\label` is accepted, and leaves nothing on the page
+  unless a link on that page leads to it. Sprint 26 plans that link
+  ([INT-0033](INT-0033-latex-and-typst-documents.md), T-090): a link whose
+  address is `#` and the label of a numbered equation, and whose words are
+  empty or are the label, shows that equation's number and leads to it. A
+  link with words of its own is left as it is, so a link a chapter already
+  has to a heading is never taken over; a link whose words are the label is
+  taken for the equation even where a heading has the same address, which
+  *Write Mathematics* says.
 - A command defined in one formula (`\def`, `\newcommand`) is not known in
   the next: each formula is read on its own.
 - A formula can hold no link, image or attribute of its own: the commands
@@ -272,3 +280,9 @@ code. Tome today shows `$x^2$` as the characters typed.
   sprint's test report, at `0eb7dd4`, with CI green; the final review of
   the tests returned proceed-with-caveats after five rounds. What was not
   run (Safari itself, Firefox, the Tauri window) is in Consequences.
+- 2026-11-24: revised in Sprint 26's Plan phase, still `realized`. The
+  consequence on referring to an equation by its number says what Sprint 26
+  plans for it; nothing this intent's criteria hold is changed.
+- 2026-11-24: revised in Sprint 26's Test phase, still `realized`: the
+  consequence on a link to an equation says what a link whose words are the
+  label does where a heading has the same address.

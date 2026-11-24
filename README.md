@@ -99,6 +99,7 @@ Find the mdBooks already on your machine, add one, and read it:
 npm run books:find                     # scan your home folder (or: -- <folders> --depth N --json)
 npm run books:add -- ../my-campaign    # validate + add it to your personal tome.local.toml
 npm run books:add -- ~/papers/draft.docx   # or a Word file, a Markdown file, or a folder of them
+npm run books:add -- ~/papers/paper.tex    # or a paper written in LaTeX (.tex) or Typst (.typ)
 npm run dev                            # http://localhost:4321
 ```
 
@@ -108,6 +109,13 @@ converted when the library is built, its equations carried over and laid out (on
 convert is marked `[equation not shown]`); what cannot be shown yet, such as a chart, is marked
 on the page and named by the build.
 
+A paper written in LaTeX (`.tex`) or Typst (`.typ`) is read the same way: its sections, formulas,
+theorems, tables, figures, references and citations are shown, and what cannot be carried over,
+such as a TikZ drawing, is marked `[LaTeX not shown]` and named by the build. The reading is
+done by [pandoc](https://pandoc.org), installed by `npm` as `pandoc-wasm`, which is under the
+GPL (version 2 or later). Tome calls it when a library that holds a paper is built; it is not in
+Tome's built pages or in the desktop apps.
+
 Mathematics written in LaTeX notation, `$…$` within a line and `$$…$$` set apart, is laid out
 in any chapter. [Write Mathematics](src/content/books/tome/write-mathematics.md) shows how.
 
@@ -116,7 +124,7 @@ Your library lives in **`tome.local.toml`** (git-ignored) and is copied into
 leaves out `.git`, `node_modules`, and rendered output. The bundled guide walks through
 the whole path, from discovery to a tablet at the table, with an agent recipe:
 
-- [Find Your Books](src/content/books/tome/find-your-books.md): `books:find`, manual search, `books:add`, adding a Word or Markdown document, and the `--json` recipe for agents.
+- [Find Your Books](src/content/books/tome/find-your-books.md): `books:find`, manual search, `books:add`, adding a Word or Markdown document or a LaTeX or Typst paper, and the `--json` recipe for agents.
 - [Take It to the Table](src/content/books/tome/take-it-to-the-table.md): desktop, a tablet over Wi-Fi, live edits during a session, and static hosting.
 - [A Campaign of Tablets](src/content/books/tome/a-campaign-of-tablets.md): handouts that unseal as players find them.
 

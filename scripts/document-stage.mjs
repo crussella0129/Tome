@@ -6,7 +6,10 @@
 // Nothing here writes. A Markdown document is passed through as written apart
 // from three rules: a front matter block is left out, a local image is pointed
 // at the copy the loader will make, and an image that cannot be shown is
-// replaced by a mark. A Word document goes through docx-to-markdown.mjs.
+// replaced by a mark. A Word document goes through docx-to-markdown.mjs. A
+// paper written in LaTeX or Typst (INT-0033) is read by pandoc
+// (pandoc-read.mjs) and written by pandoc-to-markdown.mjs; its pictures are
+// staged from the paper's own folder, and nowhere else.
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +18,8 @@ import { mathFromMarkdown } from 'mdast-util-math';
 import { unified } from 'unified';
 import remarkStringify from 'remark-stringify';
 import { convertDocx, MARKS } from './docx-to-markdown.mjs';
+import { readPaper } from './pandoc-read.mjs';
+import { writePaper } from './pandoc-to-markdown.mjs';
 import {
   PARENT_ASSET_DIR,
   imageDestinationSpans,
@@ -29,8 +34,12 @@ export const MEDIA_DIR = '__tome_media__';
 /** What a chapter reads in place of a document that could not be opened. */
 export const DOCUMENT_MARK = '[document not shown]';
 
-/** Image files the build can read, by extension. */
+/** Image files the build can read, by extension, in the order a bare name is tried with them. */
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
+/** What each kind of document is called, in a message about one that could not be read. */
+const KIND_NAMES = { word: 'Word', latex: 'LaTeX', typst: 'Typst' };
+/** The kinds a folder goes on being read past, when one of them cannot be. */
+const PLACEHOLDER_KINDS = new Set(Object.keys(KIND_NAMES));
 /** A mark as Markdown: brackets escaped, so it is text and never a link. */
 const escaped = (mark) => mark.replace(/[[\]]/g, '\\$&');
 const posix = (value) => value.split(path.sep).join('/');
@@ -252,31 +261,138 @@ async function prepareWord(document) {
 }
 
 /**
+ * The folders a LaTeX paper says its pictures are kept in
+ * (`\graphicspath{{a/}{b/}}`), as written, comments left out.
+ * @param {string} text the paper's own text
+ * @returns {string[]}
+ */
+function graphicsPaths(text) {
+  const shown = text.replace(/(\\*)%.*$/gm, (rest, slashes) =>
+    slashes.length % 2 === 1 ? rest : slashes,
+  );
+  const named = shown.match(/\\graphicspath\s*\{((?:\s*\{[^{}]*\}\s*)+)\}/);
+  return named ? [...named[1].matchAll(/\{([^{}]*)\}/g)].map((match) => match[1].trim()) : [];
+}
+
+/**
+ * Find the file a paper names as a picture: a regular file in the paper's own
+ * folder or a folder within it, of a kind the build reads. A name with no
+ * extension is tried with each; a name not found beside the paper is tried in
+ * each folder `\graphicspath` names.
+ * @returns {Promise<{ from: string, to: string } | null>}
+ */
+async function paperPicture({ root, folder, realFolder, local, folders }) {
+  const bare = path.extname(local.path) === '';
+  const names = bare ? [...IMAGE_EXTENSIONS].map((ext) => `${local.path}${ext}`) : [local.path];
+  for (const from of ['', ...folders]) {
+    for (const name of names) {
+      const target = path.resolve(folder, from, name);
+      if (!isPathInside(folder, target)) continue;
+      if (!IMAGE_EXTENSIONS.has(path.extname(target).toLowerCase())) continue;
+      try {
+        const real = await realpath(target);
+        if (!isPathInside(realFolder, real) || !(await stat(real)).isFile()) continue;
+        return { from: real, to: `${PARENT_ASSET_DIR}/${posix(path.relative(root, target))}` };
+      } catch {
+        /* not there: try the next */
+      }
+    }
+  }
+  return null;
+}
+
+/** A paper in LaTeX or Typst: pandoc's tree, written as the chapter's Markdown. */
+async function preparePaper(document, root) {
+  const read = await readPaper({ file: document.file, format: document.format });
+  const out = writePaper({
+    tree: read.tree,
+    skipped: read.skipped,
+    format: document.format,
+    name: path.basename(document.file),
+    fallbackTitle: stem(document.file),
+  });
+  const folder = path.dirname(document.file);
+  const realFolder = await realpath(folder);
+  // Where else a picture's name is looked for: the folders a LaTeX paper
+  // names in `\graphicspath`. (A Typst file in a folder of its own has its
+  // pictures' paths written from the paper's folder by the reader, so each is
+  // found beside the file that names it, and nowhere else.)
+  let folders = [];
+  if (out.images.length > 0 && document.format === 'latex') {
+    folders = graphicsPaths((await readFile(document.file, 'utf8')).replace(/^\uFEFF/, ''));
+  }
+  const chapterDir = path.posix.dirname(document.staged);
+  const files = new Map();
+  const leftOut = [...out.leftOut];
+  let markdown = out.markdown;
+  for (const image of out.images) {
+    const written = `](${image.placeholder})`;
+    // A path from `/` is read by Typst from the paper's own folder; in a LaTeX
+    // paper it is a place on the writer's machine, outside the paper's folder.
+    const rooted = /^\/(?!\/)/.test(image.url);
+    const local = rooted
+      ? document.format === 'typst'
+        ? localPath(image.url.replace(/^\/+/, ''))
+        : null
+      : localPath(image.url);
+    if (!local && !rooted) {
+      // An address on the web: as written.
+      markdown = markdown.replaceAll(written, `](${image.url})`);
+      continue;
+    }
+    const staged = local
+      ? await paperPicture({ root, folder, realFolder, local, folders: rooted ? [] : folders })
+      : null;
+    if (staged) {
+      files.set(staged.to, staged);
+      const refer = toMarkdownPath(path.posix.relative(chapterDir, staged.to));
+      markdown = markdown.replaceAll(written, `](${refer}${local?.suffix ?? ''})`);
+      continue;
+    }
+    // The image with its words, whatever they hold, gives way to the mark.
+    const whole = new RegExp(
+      `!\\[(?:\\\\.|[^\\]\\\\])*\\]\\(${image.placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`,
+      'g',
+    );
+    markdown = markdown.replace(whole, () => escaped(MARKS.image));
+    leftOut.push({ kind: 'image', count: 1, detail: image.url });
+  }
+  for (const name of read.missing) leftOut.push({ kind: 'include', count: 1, detail: name });
+  return { markdown, title: out.title, files: [...files.values()], leftOut };
+}
+
+/**
  * Read one document and return what the library needs of it.
  *
- * @param {{ file: string, rel: string, format: 'markdown' | 'word', staged: string }} document
+ * @param {{ file: string, rel: string, format: 'markdown' | 'word' | 'latex' | 'typst', staged: string }} document
  *   one of `resolveSource()`'s documents
  * @param {{ root: string }} context the folder its local images must lie within
  * @returns {Promise<{
  *   markdown: string,
  *   title: string,
  *   files: { to: string, from?: string, bytes?: Buffer }[],
- *   leftOut: { kind: string, count: number, detail?: string }[],
+ *   leftOut: { kind: string, count: number, detail?: string, name?: string, file?: string, line?: number, reason?: string }[],
  * }>} `files[].to` is a `/`-separated path within the tome; each file comes
  *   from `from` (a path to copy) or `bytes`.
  */
 export async function prepareDocument(document, { root }) {
-  return document.format === 'word' ? prepareWord(document) : prepareMarkdown(document, root);
+  if (document.format === 'word') return prepareWord(document);
+  if (document.format === 'latex' || document.format === 'typst')
+    return preparePaper(document, root);
+  return prepareMarkdown(document, root);
 }
 
 /**
- * The chapter that stands in for a Word document that could not be opened, so
- * one bad file does not stop a folder from being read.
- * @param {{ file: string, rel: string }} document
+ * The chapter that stands in for a document that could not be read (a Word
+ * document that could not be opened, a paper pandoc refuses), so one bad file
+ * does not stop a folder from being read.
+ * @param {{ file: string, rel: string, format?: string }} document
  * @param {unknown} error what `prepareDocument` threw
  */
 export function placeholderDocument(document, error) {
   const title = stem(document.file);
+  const kind = KIND_NAMES[document.format] ?? KIND_NAMES.word;
+  const reason = error instanceof Error ? error.message : String(error);
   const markdown = unified()
     .use(remarkStringify)
     .stringify({
@@ -288,7 +404,7 @@ export function placeholderDocument(document, error) {
           children: [
             {
               type: 'text',
-              value: `${DOCUMENT_MARK} ${path.basename(document.file)} could not be read as a Word document.`,
+              value: `${DOCUMENT_MARK} ${path.basename(document.file)} could not be read as a ${kind} document.`,
             },
           ],
         },
@@ -302,7 +418,9 @@ export function placeholderDocument(document, error) {
       {
         kind: 'document',
         count: 1,
-        detail: error instanceof Error ? error.message : String(error),
+        detail: reason,
+        // A paper's reason is pandoc's own, and is told in the build's report.
+        ...(document.format === 'latex' || document.format === 'typst' ? { reason } : {}),
       },
     ],
   };
@@ -310,9 +428,9 @@ export function placeholderDocument(document, error) {
 
 /**
  * Read every document of a `document` or `folder` source, in order. In a
- * folder, a Word document that cannot be opened becomes a placeholder chapter
- * so the rest is still read; a source that names one document directly throws
- * instead, since there would be nothing to read.
+ * folder, a Word document that cannot be opened, or a paper pandoc refuses,
+ * becomes a placeholder chapter so the rest is still read; a source that names
+ * one document directly throws instead, since there would be nothing to read.
  * @param {{ kind: string, root: string, documents: any[] }} source from `resolveSource()`
  * @returns {Promise<any[]>} each document with its prepared `markdown`, `title`,
  *   `files`, `leftOut`, and `report` (what it left out, in words; '' when nothing)
@@ -324,7 +442,7 @@ export async function readDocuments(source) {
     try {
       prepared = await prepareDocument(document, { root: source.root });
     } catch (error) {
-      if (source.kind !== 'folder' || document.format !== 'word') throw error;
+      if (source.kind !== 'folder' || !PLACEHOLDER_KINDS.has(document.format)) throw error;
       prepared = placeholderDocument(document, error);
     }
     chapters.push({ ...document, ...prepared, report: describeLeftOut(prepared.leftOut) });
@@ -342,14 +460,61 @@ const plural = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one :
 /**
  * One line's worth of what a document left out, for the loader's output:
  * `2 equations, 1 image`. Empty when nothing was.
- * @param {{ kind: string, count: number, detail?: string }[]} leftOut
+ * @param {{ kind: string, count: number, detail?: string, name?: string, file?: string, line?: number, reason?: string }[]} leftOut
  */
 export function describeLeftOut(leftOut) {
   const total = (kind) =>
     leftOut.filter((entry) => entry.kind === kind).reduce((sum, entry) => sum + entry.count, 0);
+  /** The names of a kind's entries, each once, five at most. */
+  const named = (kind, nameOf = (entry) => entry.detail) => {
+    const names = [
+      ...new Set(
+        leftOut
+          .filter((entry) => entry.kind === kind)
+          .map(nameOf)
+          .filter(Boolean),
+      ),
+    ];
+    if (names.length === 0) return '';
+    const shown = names.slice(0, 5).join(', ');
+    return ` (${shown}${names.length > 5 ? ` and ${names.length - 5} more` : ''})`;
+  };
+  /** A skipped piece by its name, and by its file when that is not the paper's own. */
+  const piece = (entry) =>
+    entry.name ? `${entry.name}${entry.file ? ` in ${entry.file}` : ''}` : entry.detail;
   const parts = [];
-  if (total('document') > 0) parts.push('the whole document (it could not be read)');
+  if (total('document') > 0) {
+    const reason = leftOut.find((entry) => entry.kind === 'document' && entry.reason)?.reason;
+    parts.push(`the whole document (it could not be read${reason ? `: ${reason}` : ''})`);
+  }
   if (total('equation') > 0) parts.push(plural(total('equation'), 'equation'));
+  if (total('latex') > 0) {
+    parts.push(
+      `${plural(total('latex'), 'piece of LaTeX', 'pieces of LaTeX')} not shown${named('latex', piece)}`,
+    );
+  }
+  if (total('command') > 0) {
+    parts.push(`${plural(total('command'), 'command')} not read${named('command', piece)}`);
+  }
+  if (total('node') > 0) {
+    parts.push(
+      `${plural(total('node'), 'part', 'parts')} of a kind Tome has no rule for${named('node')}`,
+    );
+  }
+  if (total('reference') > 0) {
+    parts.push(
+      `${plural(total('reference'), 'reference')} that could not be followed${named('reference')}`,
+    );
+  }
+  if (total('citation') > 0) {
+    parts.push(`${plural(total('citation'), 'citation')} with no entry${named('citation')}`);
+  }
+  if (total('include') > 0) {
+    const count = total('include');
+    parts.push(
+      `${plural(count, 'file')} it pulls in that ${count === 1 ? 'was' : 'were'} not found${named('include')}`,
+    );
+  }
   if (total('figure') > 0) {
     parts.push(plural(total('figure'), 'chart or diagram', 'charts or diagrams'));
   }

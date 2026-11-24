@@ -1,0 +1,124 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\DeclareMathOperator{\tr}{tr}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+
+\title{A Short Paper on Sums}
+\author{A. Writer \and B. Reader}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We prove a closed form for the first $n$ whole numbers and note a bound in $\R^n$.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+The sum of the first $n$ whole numbers was known to Gauss~\cite{gauss}.
+It costs \$5 to print this paper, and 50\% of it is formulas.
+We write \emph{emphasis}, \textbf{strong words} and \texttt{code} as usual,
+and a footnote\footnote{A note at the foot, with $x^2$ in it.} too.
+See Section~\ref{sec:result} for the result and \eqref{eq:gauss} for its statement.
+More is at \url{https://example.org/sums} and in \href{https://example.org}{the archive}.
+
+\section{The result}\label{sec:result}
+
+\begin{theorem}[Gauss]\label{thm:gauss}
+For every whole number $n \ge 1$,
+\begin{equation}\label{eq:gauss}
+  \sum_{i=1}^{n} i = \frac{n(n+1)}{2}.
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+By induction. The case $n = 1$ is plain. If it holds for $n$, then
+\begin{align}
+  \sum_{i=1}^{n+1} i &= \frac{n(n+1)}{2} + (n+1) \\
+                     &= \frac{(n+1)(n+2)}{2}. \nonumber
+\end{align}
+\end{proof}
+
+\begin{lemma}\label{lem:norm}
+For $x, y \in \R^n$ we have $\norm{x + y} \le \norm{x} + \norm{y}$, and
+\[
+  \tr\begin{pmatrix} a & b \\ c & d \end{pmatrix} = a + d .
+\]
+\end{lemma}
+
+Theorem~\ref{thm:gauss} and Lemma~\ref{lem:norm} are all we need.
+
+\subsection{Lists and a table}
+
+\begin{itemize}
+  \item A first point, with $\alpha \to \beta$.
+  \item A second point:
+  \begin{enumerate}
+    \item numbered within;
+    \item and again.
+  \end{enumerate}
+\end{itemize}
+
+\begin{description}
+  \item[Sum] what adding gives.
+  \item[Product] what multiplying gives.
+\end{description}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{l|rr}
+    $n$ & sum & square \\ \hline
+    1 & 1 & 1 \\
+    2 & 3 & 4 \\
+    3 & 6 & 9
+  \end{tabular}
+  \caption{The first three sums.}\label{tab:sums}
+\end{table}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/triangle.png}
+  \caption{A triangle of dots.}\label{fig:triangle}
+\end{figure}
+
+Table~\ref{tab:sums} and Figure~\ref{fig:triangle} show the pattern.
+
+\begin{quote}
+Mathematics is the queen of the sciences.
+\end{quote}
+
+\begin{verbatim}
+def total(n):
+    return n * (n + 1) // 2   # costs $0
+\end{verbatim}
+
+\begin{lstlisting}[language=Python]
+print(total(100))
+\end{lstlisting}
+
+A drawing stands next, which Tome cannot show.
+
+	\begin{tikzpicture}
+	\draw (0,0) -- (1,1);
+	\end{tikzpicture}
+
+We also write \mycmd{x} within a line, and set x\quad y apart.
+See \ref{nowhere}, the same book again \cite{gauss,missing}, and one page of it \cite[p.~3]{gauss}.
+
+\input{appendix}
+
+\input{sections/closing}
+
+\begin{thebibliography}{9}
+\bibitem{gauss} C. F. Gauss, \emph{Disquisitiones Arithmeticae}, 1801.
+\end{thebibliography}
+
+\end{document}

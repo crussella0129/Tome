@@ -5,6 +5,7 @@
 //   npm run books:find -- --depth 8 --json   # deeper, machine-readable
 //   npm run books:add -- ../my-campaign      # validate + append to tome.local.toml
 //   npm run books:add -- ~/papers/draft.docx # a Word or Markdown file, or a folder of them
+//   npm run books:add -- ~/papers/paper.tex  # a paper written in LaTeX (.tex) or Typst (.typ)
 //
 // A folder is a book when Tome's own loader would accept it (the shared
 // book-source rules: `book.toml` [book].src, else src/ → docs/ → the root holding
@@ -227,7 +228,7 @@ async function describeForAdd(target) {
     chapters: chapters.length,
     notShown: chapters
       .filter((chapter) => chapter.leftOut.some((entry) => entry.kind === 'document'))
-      .map((chapter) => chapter.rel),
+      .map((chapter) => ({ rel: chapter.rel, format: chapter.format })),
   };
 }
 
@@ -260,8 +261,9 @@ async function add({ add: target, title, slug, config }) {
   console.log(
     `Added "${title ?? book.title}" (${book.chapters} chapter${book.chapters === 1 ? '' : 's'}) to ${basename(manifest)}.`,
   );
-  for (const rel of book.notShown ?? []) {
-    console.log(`  ${rel} could not be read as a Word document and will not be shown.`);
+  for (const { rel, format } of book.notShown ?? []) {
+    const kind = { latex: 'LaTeX', typst: 'Typst' }[format] ?? 'Word';
+    console.log(`  ${rel} could not be read as a ${kind} document and will not be shown.`);
   }
   console.log('Next:  npm run dev     (or npm run build for a static site in dist/)');
 }

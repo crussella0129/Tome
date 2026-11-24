@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  cpSync,
   mkdtempSync,
   mkdirSync,
   rmSync,
@@ -411,3 +412,61 @@ describe('find-books.mjs --add — documents (INT-0029 AC1)', { timeout: 180_000
     expect(table.stdout).not.toMatch(/top\.md|\bTop\b/);
   });
 });
+
+describe(
+  'find-books.mjs --add — papers in LaTeX and Typst (INT-0033 AC1)',
+  { timeout: 180_000 },
+  () => {
+    let tmp: string;
+    let cwd: string;
+    const fixtures = join(projectRoot, 'fixtures');
+    const manifest = () => readFileSync(join(cwd, 'tome.local.toml'), 'utf8');
+
+    beforeAll(() => {
+      tmp = mkdtempSync(join(tmpdir(), 'tome-add-papers-'));
+      cwd = join(tmp, 'checkout');
+      write(tmp, {
+        'checkout/tome.config.toml': '# tracked template\n',
+        'mixed/good.md': '# Good\n',
+        'mixed/broken.docx': 'plain text under a Word name\n',
+      });
+      cpSync(join(fixtures, 'latex'), join(tmp, 'latex'), { recursive: true });
+      cpSync(
+        join(fixtures, 'typst', 'uses-a-package.typ'),
+        join(tmp, 'mixed', 'uses-a-package.typ'),
+      );
+    });
+    afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+    it('test_books_add_paper: a .tex file is added under the paper’s own title', () => {
+      const paper = join(tmp, 'latex', 'paper.tex');
+      const added = books(['--add', paper], cwd);
+      expect(added.status, added.stderr).toBe(0);
+      expect(added.stdout).toContain(
+        'Added "A Short Paper on Sums" (1 chapter) to tome.local.toml.',
+      );
+      expect(manifest()).toContain(`path = ${JSON.stringify(paper)}`);
+      expect(added.stdout).not.toContain('will not be shown');
+    });
+
+    it('test_books_add_refused_paper: a paper pandoc refuses is named by its kind', () => {
+      const added = books(['--add', join(tmp, 'mixed')], cwd);
+      expect(added.status, added.stderr).toBe(0);
+      expect(added.stdout).toContain('(3 chapters)');
+      expect(added.stdout).toContain(
+        'uses-a-package.typ could not be read as a Typst document and will not be shown.',
+      );
+      // A Word document that cannot be read is told as it was before.
+      expect(added.stdout).toContain(
+        'broken.docx could not be read as a Word document and will not be shown.',
+      );
+    });
+
+    it('test_find_books_usage_names_papers: the command’s own words name the two kinds', () => {
+      const usage = readFileSync(cli, 'utf8').split('\nimport ')[0];
+      expect(usage).toContain('npm run books:add');
+      expect(usage).toContain('.tex');
+      expect(usage).toContain('.typ');
+    });
+  },
+);

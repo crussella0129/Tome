@@ -96,6 +96,7 @@ An equation with a number:
 ```text
 $$
 \begin{equation}
+\label{eq:energy}
 E = mc^2
 \end{equation}
 $$
@@ -103,6 +104,7 @@ $$
 
 $$
 \begin{equation}
+\label{eq:energy}
 E = mc^2
 \end{equation}
 $$
@@ -111,6 +113,34 @@ Numbers count from one down each page, and stand at the right edge. `align`
 numbers every line, `equation` its one; `align*` and `equation*` number none.
 `\tag{A}` at the end of a line gives it the label you choose in place of a
 number.
+
+## Refer to an equation by its number
+
+Give the equation a name with `\label`, and link to that name. The link shows
+the equation's number and leads to it:
+
+```text
+$$
+\begin{equation}
+\label{eq:gauss}
+1 + 2 + \dots + n = \frac{n(n+1)}{2}
+\end{equation}
+$$
+
+Gauss is said to have found [](#eq:gauss) as a schoolboy.
+```
+
+Leave the link's words empty, or make them the name itself, as in
+`[eq:gauss](#eq:gauss)`: the page writes the number in, in brackets. Inside a
+pair of brackets it writes the number alone, so the brackets are not doubled.
+A link with words of your own is left as you wrote it.
+
+So give an equation a name no heading has: a link written `[intro](#intro)`
+is taken for an equation named `intro`, though a heading called "intro" has
+the same address. A prefix such as `eq:` keeps the two apart.
+
+The numbered equation above is named `eq:energy` in this chapter's source, so
+this sentence can refer to it as equation ([](#eq:energy)).
 
 ## Prices keep their dollar signs
 
@@ -150,7 +180,8 @@ In a table a `|` ends the cell, even inside a formula. Write `\vert` for it:
   as in `\frac{a}{`. The build goes on.
 - Inside a formula `%` begins a comment, as it does in LaTeX, and the rest of
   the line is not shown. Write `\%` for a percent sign: `$5\%$` gives $5\%$.
-- Referring to an equation by its number, with `\ref`, is not offered yet.
+- `\ref` and `\eqref` inside a formula are not read. Refer to an equation with
+  a link, as above.
 - A link or a picture cannot be put inside a formula.
 - The form mdBook itself uses for mathematics, `\\(` and `\\)`, is not laid
   out. Write dollar signs.
@@ -164,4 +195,4 @@ heading, and by the names of its symbols, so `alpha` finds `$\alpha$`.
 
 A Word document's equations are carried over as LaTeX notation and laid out
 the same way. [Find Your Books](find-your-books.md) says what else a Word
-document keeps.
+document keeps, and how a paper written in LaTeX or Typst is read.

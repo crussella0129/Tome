@@ -414,6 +414,82 @@ process.exit(31);
     );
   }, 60_000);
 
+  it('test_papers_e2e_mode: the papers mode lists one spec in Chromium and WebKit, and the others are as they were', () => {
+      const list = (env: NodeJS.ProcessEnv) => {
+        const result = spawnSync('npx --no-install playwright test --list', {
+          cwd: projectRoot,
+          env: {
+            ...process.env,
+            TOME_MATH_E2E: '',
+            TOME_DOCUMENTS_E2E: '',
+            TOME_EXTERNAL_BOOK_E2E: '',
+            TOME_PAPERS_E2E: '',
+            ...env,
+          },
+          encoding: 'utf8',
+          shell: true,
+        });
+        expect(result.status, result.stderr).toBe(0);
+        return result.stdout
+          .split(/\r?\n/)
+          .map((line) =>
+            line.match(/^\s*(?:\[(\w+)\] › )?([\w.-]+\.spec\.ts):/),
+          )
+          .filter((match): match is RegExpMatchArray => match !== null)
+          .map((match) => ({
+            project: match[1] ?? 'default',
+            file: match[2]!,
+          }));
+      };
+      const unique = (values: string[]) => [...new Set(values)].sort();
+
+      const papers = list({ TOME_PAPERS_E2E: '1' });
+      expect(unique(papers.map((entry) => entry.file))).toEqual([
+        'papers.spec.ts',
+      ]);
+      expect(unique(papers.map((entry) => entry.project))).toEqual([
+        'chromium',
+        'webkit',
+      ]);
+      expect(
+        papers.filter((entry) => entry.project === 'chromium').length,
+      ).toBe(5);
+      expect(papers.filter((entry) => entry.project === 'webkit').length).toBe(
+        5,
+      );
+
+      // The documents mode is as it was: its own spec, in the default engine.
+      const documents = list({ TOME_DOCUMENTS_E2E: '1' });
+      expect(unique(documents.map((entry) => entry.file))).toEqual([
+        'documents.spec.ts',
+      ]);
+      expect(unique(documents.map((entry) => entry.project))).toEqual([
+        'default',
+      ]);
+      // So is the default list, which holds neither.
+      const standard = list({});
+      expect(unique(standard.map((entry) => entry.file))).toEqual([
+        'reader.spec.ts',
+        'scaling.spec.ts',
+        'search.spec.ts',
+        'theme.spec.ts',
+      ]);
+
+      // Each mode serves its site on a port of its own.
+      const config = readFileSync(
+        join(projectRoot, 'playwright.config.ts'),
+        'utf8',
+      );
+      const ports = [...config.matchAll(/port: (\d+)/g)].map(
+        (match) => match[1],
+      );
+      expect(ports).toHaveLength(4);
+      expect(new Set(ports).size).toBe(4);
+      expect(config).toMatch(
+        /TOME_PAPERS_E2E[^\n]*\n[^\n]*papers\.spec\.ts[^\n]*engines: true/,
+      );
+    }, 90_000);
+
   it('test_live_reload_stops_before_restore_on_failure: real server stops before content and temp cleanup', () => {
     cpSync(
       join(projectRoot, 'fixtures/handbook'),

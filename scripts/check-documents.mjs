@@ -4,14 +4,24 @@
 // anchors that match the search index, and, in Chromium, the Word chapter's
 // footnotes, table, image, marks and links (e2e/documents.spec.ts). A second
 // build puts the folder beside an mdBook and checks the Bibliotheca; a third
-// builds one Word document on its own.
+// builds one Word document on its own. A fourth builds two papers, one
+// written in LaTeX and one in Typst (INT-0033), with a Typst document pandoc
+// refuses, and reads them in Chromium and in WebKit (e2e/papers.spec.ts).
 //
 // The Word papers are zipped here from their parts (fixtures/word/), into a
 // temporary copy of fixtures/papers/, so nothing is written into the checkout.
 // Like the other gates it refuses to start unless the committed sample is
 // pristine, restores it after, and rebuilds the default library. Runs locally
 // and in CI.
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import process from 'node:process';
@@ -56,6 +66,72 @@ async function makePapers(parent) {
 }
 
 const CHAPTERS = ['/1-first-note', '/3-paper', '/letters/2-letter', '/letters/paper'];
+
+/** The temporary source of the papers' build: the LaTeX and the Typst fixture, a folder each. */
+function makeWritings(parent) {
+  const writings = join(parent, 'writings');
+  cpSync(join(fixtures, 'latex'), join(writings, 'latex'), { recursive: true });
+  cpSync(join(fixtures, 'typst'), join(writings, 'typst'), { recursive: true });
+  return writings;
+}
+
+const PAPERS = ['/latex/paper', '/typst/paper', '/typst/uses-a-package'];
+
+/** Every route of the built site, as its address. */
+function builtRoutes(dir = dist, prefix = '') {
+  const routes = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory())
+      routes.push(...builtRoutes(join(dir, entry.name), `${prefix}/${entry.name}`));
+    else if (entry.name === 'index.html') routes.push(prefix || '/');
+  }
+  return routes;
+}
+
+/**
+ * @param {string} output what the papers' build printed
+ */
+function checkPapers(output) {
+  // check_papers_routes: a chapter for each paper and for the refused
+  // document, none for a file that is part of a paper, one search record each.
+  for (const route of PAPERS) requireRoute(route, 'papers');
+  for (const route of builtRoutes()) {
+    if (/appendix|closing|house/.test(route))
+      fail(`papers: a part of a paper has a page of its own at ${route}`);
+  }
+  const index = JSON.parse(readFileSync(join(dist, 'search-index.json'), 'utf8'));
+  const urls = index.map((record) => record.url).sort();
+  if (JSON.stringify(urls) !== JSON.stringify([...PAPERS].sort())) {
+    fail(`papers: search holds ${JSON.stringify(urls)}`);
+  }
+
+  // check_papers_output: the build names what each paper left out.
+  const lines = output.split(/\r?\n/).filter((line) => line.includes('left out'));
+  const of = (name) => lines.filter((line) => line.includes(name));
+  const [latex] = of('latex/paper.tex');
+  if (!latex || of('latex/paper.tex').length !== 1) fail('papers: no one line for latex/paper.tex');
+  for (const named of [
+    'tikzpicture',
+    '\\mycmd',
+    '\\appcmd in appendix.tex',
+    'nowhere',
+    'missing',
+  ]) {
+    if (!latex.includes(named)) fail(`papers: the line for latex/paper.tex does not name ${named}`);
+  }
+  const [refused] = of('typst/uses-a-package.typ');
+  if (
+    !refused ||
+    !refused.includes('the whole document') ||
+    !refused.includes('HOME not defined')
+  ) {
+    fail('papers: the refused document is not told with its reason');
+  }
+  if (of('typst/paper.typ').length > 0)
+    fail('papers: the Typst paper is said to have left something out');
+  if (lines.length !== 2)
+    fail(`papers: ${lines.length} documents are said to have left something out`);
+}
 
 function checkSingleTome() {
   requireRoute('/', 'documents'); // a tome with no opening page still answers at `/`
@@ -155,6 +231,12 @@ try {
       gate.build({ TOME_BOOK: join(papers, '3-paper.docx') });
       checkSingleDocument();
       console.log('check-documents: OK — one Word document read as a tome');
+
+      console.log('check-documents: building two papers, in LaTeX and in Typst …');
+      checkPapers(gate.buildWithOutput({ TOME_BOOK: makeWritings(parent) }));
+      console.log('check-documents: reading the papers in Chromium and in WebKit …');
+      gate.command('npx --no-install playwright test', { TOME_PAPERS_E2E: '1' });
+      console.log('check-documents: OK — papers read as a tome');
     } finally {
       rmSync(parent, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
     }
