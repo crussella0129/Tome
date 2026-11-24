@@ -3,14 +3,14 @@
 - **Sprint number:** 26
 - **Book schema version:** 2
 - **Start timestamp:** 2026-11-24T05:28:04Z
-- **End timestamp:** (filled at Loop Phase)
+- **End timestamp:** 2026-11-24T19:48:51Z
 - **Model:** claude-fable-5-2
 - **Bundle version:** 0.22.0
-- **Exit status:** in-progress
+- **Exit status:** success
 - **Token count:** (filled at Loop Phase if observable)
 - **Summary:** Read papers: a document written in LaTeX or Typst is read as a tome, its formulas laid out and whatever cannot be carried over marked and named.
 - **Intents:** [INT-0033](../../intents/INT-0033-latex-and-typst-documents.md) — realized; INT-0029 and INT-0030 realized compatibility boundaries; INT-0032 and INT-0026 proposed constraints.
-- **Completion evidence:** (filled at Loop Phase)
+- **Completion evidence:** INT-0033 realized: T-086 to T-094 complete; Vitest 457 tests, 456 passed and 1 platform skip at ec59737 on Windows and in CI; papers gate 10/10 in Chromium and WebKit, documents 6/6, mathematics 22/22, Playwright 40/40, Electron 7/7; final test review proceed-with-caveats after five rounds and a check; GitHub Actions 45473215105 succeeded at ec59737.
 
 ## Blockages
 
