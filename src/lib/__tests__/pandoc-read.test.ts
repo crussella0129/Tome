@@ -253,7 +253,7 @@ describe('pandoc-read.mjs — a LaTeX paper (INT-0033 AC1, AC4, AC5)', () => {
     const drawing = read.skipped.find((entry: { contents: string }) =>
       entry.contents.startsWith(String.raw`\begin{tikzpicture}`),
     );
-    expect(drawing.contents).toContain(String.raw`\end{tikzpicture}`);
+    expect(drawing!.contents).toContain(String.raw`\end{tikzpicture}`);
     expect(readFileSync(join(fixtures, 'latex', 'paper.tex'), 'utf8')).toContain(
       '\t' + String.raw`\begin{tikzpicture}`,
     );
@@ -276,7 +276,7 @@ describe('pandoc-read.mjs — a LaTeX paper (INT-0033 AC1, AC4, AC5)', () => {
     const institute = preamble.skipped.find((entry: { contents: string }) =>
       entry.contents.startsWith(String.raw`\institute`),
     );
-    expect(institute.placed).toBe(false);
+    expect(institute!.placed).toBe(false);
   }, 120_000);
 
   it('test_pandoc_today: the day a library is built is never written', async () => {
@@ -284,8 +284,8 @@ describe('pandoc-read.mjs — a LaTeX paper (INT-0033 AC1, AC4, AC5)', () => {
     const today = read.skipped.find(
       (entry: { contents: string }) => entry.contents === String.raw`\today`,
     );
-    expect(today.placed).toBe(true);
-    expect(words(read.tree.meta.date)).toBe(today.token);
+    expect(today!.placed).toBe(true);
+    expect(words(read.tree.meta.date)).toBe(today!.token);
 
     const dir = join(tmp, 'today');
     write(dir, {
@@ -339,7 +339,7 @@ describe('pandoc-read.mjs — a Typst paper, and a paper pandoc refuses (INT-003
   }, 120_000);
 
   it('test_pandoc_refused: pandoc’s own reason, and no path from this machine', async () => {
-    const refusal = async (file: string, format: string): Promise<Error> => {
+    const refusal = async (file: string, format: 'latex' | 'typst'): Promise<Error> => {
       try {
         await readPaper({ file, format });
       } catch (error) {
@@ -383,11 +383,12 @@ describe('pandoc-read.mjs — what it touches (INT-0033 AC6)', () => {
       'p/paper.tex': DOC(String.raw`Main. \input{../outside} \input{appendix}`),
       'p/appendix.tex': 'Appendix words.\n',
     });
-    for (const [file, format] of [
+    const papers: [string, 'latex' | 'typst'][] = [
       [join(fixtures, 'latex', 'paper.tex'), 'latex'],
       [join(fixtures, 'typst', 'paper.typ'), 'typst'],
       [join(root, 'p', 'paper.tex'), 'latex'],
-    ]) {
+    ];
+    for (const [file, format] of papers) {
       opened.length = 0;
       await readPaper({ file, format });
       expect(opened.length).toBeGreaterThan(0);

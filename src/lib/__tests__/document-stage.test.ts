@@ -1,6 +1,6 @@
 // Runs in the default (jsdom) environment, as parent-assets.test.ts does: the
 // module under test imports the Markdown parser.
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import {
   mkdirSync,
@@ -15,13 +15,20 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fromMarkdown } from 'mdast-util-from-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
 import { buildDocx } from '../../../fixtures/word/build-docx.mjs';
+import { resolveSource } from '../../../scripts/document-source.mjs';
 import {
   DOCUMENT_MARK,
   describeLeftOut,
   placeholderDocument,
   prepareDocument,
+  readDocuments,
 } from '../../../scripts/document-stage.mjs';
+import { readable } from '../../../scripts/rehype-math.mjs';
+import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
 
 // INT-0029 — one document made ready for the library (T-068).
 
@@ -414,5 +421,279 @@ describe('document-stage.mjs — a Word document', () => {
     expect(describeLeftOut(stand.leftOut)).toMatch(/could not be read/);
 
     expect(snapshot(root)).toEqual(before); // test_prepare_writes_nothing, the error included
+  });
+});
+
+// INT-0033 — a paper written in LaTeX or Typst, made ready for the library.
+describe('document-stage.mjs — a paper in LaTeX or Typst', { timeout: 180_000 }, () => {
+  const fixtures = join(process.cwd(), 'fixtures');
+  const paperDoc = (root: string, rel: string, staged = 'README.md') => ({
+    file: join(root, ...rel.split('/')),
+    rel,
+    format: (rel.endsWith('.typ') ? 'typst' : 'latex') as 'latex' | 'typst',
+    staged,
+  });
+  const R = String.raw;
+  const tex = (body: string, preamble = '') =>
+    `${R`\documentclass{article}`}\n${preamble}\n${R`\begin{document}`}\n${body}\n${R`\end{document}`}\n`;
+  const paperReader = unified().use(remarkParse).use(remarkGfm).use(remarkMathDollars);
+  const readPaperMarkdown = (markdown: string) =>
+    paperReader.runSync(paperReader.parse(markdown), markdown) as unknown as MdNode;
+  const every = (tree: MdNode, type: string): MdNode[] => {
+    const found: MdNode[] = [];
+    const walk = (node: MdNode) => {
+      if (node.type === type) found.push(node);
+      (node.children ?? []).forEach(walk);
+    };
+    walk(tree);
+    return found;
+  };
+  const wordsIn = (node: MdNode): string =>
+    node.type === 'text' ? String(node.value) : (node.children ?? []).map(wordsIn).join('');
+  const kinds = (leftOut: { kind: string }[]) => leftOut.map((entry) => entry.kind).sort();
+  const count = (text: string, part: string) => text.split(part).length - 1;
+
+  it('test_prepare_paper: the LaTeX paper and the Typst paper, each as a chapter', async () => {
+    const latex = await prepareDocument(paperDoc(join(fixtures, 'latex'), 'paper.tex'), {
+      root: join(fixtures, 'latex'),
+    });
+    expect(latex.title).toBe('A Short Paper on Sums');
+    const tree = readPaperMarkdown(latex.markdown);
+    expect(every(tree, 'heading').map(wordsIn)).toEqual([
+      'A Short Paper on Sums',
+      'Introduction',
+      'The result',
+      'Lists and a table',
+      'Appendix',
+      'Closing',
+      'References',
+    ]);
+    const formulas = [
+      ...every(tree, 'inlineMath').map((node) => ({ value: String(node.value), apart: false })),
+      ...every(tree, 'math').map((node) => ({ value: String(node.value), apart: true })),
+    ];
+    expect(formulas.length).toBeGreaterThanOrEqual(16);
+    for (const formula of formulas)
+      expect(readable(formula.value, formula.apart), formula.value).toBe(true);
+    expect(every(tree, 'table')).toHaveLength(1);
+    expect(every(tree, 'footnoteDefinition')).toHaveLength(1);
+    expect(count(latex.markdown, '\\[LaTeX not shown]')).toBe(3);
+    expect(latex.markdown).toContain('and set x y apart.');
+    expect(kinds(latex.leftOut)).toEqual([
+      'citation',
+      'command',
+      'latex',
+      'latex',
+      'latex',
+      'reference',
+    ]);
+    expect(latex.leftOut).toContainEqual(
+      expect.objectContaining({ kind: 'latex', name: R`\appcmd`, file: 'appendix.tex' }),
+    );
+    expect(latex.leftOut).toContainEqual(
+      expect.objectContaining({ kind: 'command', name: R`\today` }),
+    );
+    expect(JSON.stringify(latex.leftOut)).not.toContain('quad');
+
+    const typst = await prepareDocument(paperDoc(join(fixtures, 'typst'), 'paper.typ'), {
+      root: join(fixtures, 'typst'),
+    });
+    expect(typst.title).toBe('A Short Paper on Sums');
+    const typstTree = readPaperMarkdown(typst.markdown);
+    expect(
+      every(typstTree, 'inlineMath').length + every(typstTree, 'math').length,
+    ).toBeGreaterThanOrEqual(15);
+    expect(typst.leftOut).toEqual([]);
+    expect(typst.markdown).not.toContain('not shown');
+  });
+
+  it('test_prepare_paper_images: a picture from the paper’s own folder, and nothing from outside it', async () => {
+    const root = vault({
+      'latex/paper.tex': tex(
+        [
+          R`One \includegraphics{figures/triangle.png}`,
+          R`Two \includegraphics{figures/triangle}`,
+          R`Three \includegraphics{figures/chart.pdf}`,
+          R`Four \includegraphics{figures/absent.png}`,
+          R`Five \includegraphics{../shared/x.png}`,
+          R`Six \includegraphics{https://example.org/a.png}`,
+        ].join('\n\n'),
+      ),
+      'latex/figures/triangle.png': PNG,
+      'latex/figures/chart.pdf': PNG,
+      'latex/pathed.tex': tex(R`Seven \includegraphics{triangle}`, R`\graphicspath{{figures/}}`),
+      'latex/outside.tex': tex(R`Eight \includegraphics{x}`, R`\graphicspath{{../shared/}}`),
+      'shared/x.png': PNG,
+    });
+    const out = await prepareDocument(paperDoc(root, 'latex/paper.tex', 'latex/paper.md'), {
+      root,
+    });
+    const staged = '../__tome_parent_assets__/latex/figures/triangle.png';
+    const images = every(readPaperMarkdown(out.markdown), 'image').map((node) => node.url);
+    expect(images).toEqual([staged, staged, 'https://example.org/a.png']);
+    expect(out.files.map((file) => file.to)).toEqual([
+      '__tome_parent_assets__/latex/figures/triangle.png',
+    ]);
+    expect(readFileSync(out.files[0].from!)).toEqual(PNG);
+    expect(count(reads(out.markdown), '[image not shown]')).toBe(3);
+    expect(out.leftOut).toEqual([
+      { kind: 'image', count: 1, detail: 'figures/chart.pdf' },
+      { kind: 'image', count: 1, detail: 'figures/absent.png' },
+      { kind: 'image', count: 1, detail: '../shared/x.png' },
+    ]);
+    expect(out.markdown).not.toContain('tome-paper-image');
+
+    const pathed = await prepareDocument(paperDoc(root, 'latex/pathed.tex', 'latex/pathed.md'), {
+      root,
+    });
+    expect(every(readPaperMarkdown(pathed.markdown), 'image').map((node) => node.url)).toEqual([
+      staged,
+    ]);
+    expect(pathed.leftOut).toEqual([]);
+    const outside = await prepareDocument(paperDoc(root, 'latex/outside.tex', 'latex/outside.md'), {
+      root,
+    });
+    expect(every(readPaperMarkdown(outside.markdown), 'image')).toEqual([]);
+    expect(outside.files).toEqual([]);
+    expect(outside.leftOut).toEqual([{ kind: 'image', count: 1, detail: 'x' }]);
+  });
+
+  it('test_prepare_paper_missing_include: a file the paper pulls in that is not there', async () => {
+    const root = vault({ 'paper.tex': tex(R`Text. \input{absent}`) });
+    const out = await prepareDocument(paperDoc(root, 'paper.tex'), { root });
+    expect(out.leftOut).toEqual([{ kind: 'include', count: 1, detail: 'absent.tex' }]);
+    expect(describeLeftOut(out.leftOut)).toBe('1 file it pulls in that was not found (absent.tex)');
+  });
+
+  it('test_read_documents_refused_paper: a paper pandoc refuses does not stop the folder', async () => {
+    const root = vault({
+      'note.md': '# A Note\n',
+      'paper.tex': tex('Text.', R`\title{The Paper}`),
+      'gone.tex': tex('Soon gone.'),
+      'uses-a-package.typ': readFileSync(join(fixtures, 'typst', 'uses-a-package.typ')),
+    });
+    const source = (await resolveSource(root)) as Parameters<typeof readDocuments>[0];
+    rmSync(join(root, 'gone.tex')); // removed after the folder was walked
+    const chapters = await readDocuments(source);
+    expect(chapters.map((chapter) => [chapter.rel, chapter.title])).toEqual([
+      ['gone.tex', 'gone'],
+      ['note.md', 'A Note'],
+      ['paper.tex', 'The Paper'],
+      ['uses-a-package.typ', 'uses-a-package'],
+    ]);
+    const refused = chapters[3];
+    expect(refused.markdown).toContain('# uses-a-package\n');
+    expect(reads(refused.markdown)).toContain(
+      `${DOCUMENT_MARK} uses-a-package.typ could not be read as a Typst document.`,
+    );
+    expect(refused.leftOut).toMatchObject([{ kind: 'document', count: 1 }]);
+    expect(refused.leftOut[0].detail).toContain('HOME not defined');
+    expect(refused.report).toContain('the whole document (it could not be read: ');
+    expect(refused.report).toContain('HOME not defined');
+    expect(reads(chapters[0].markdown)).toContain(
+      'gone.tex could not be read as a LaTeX document.',
+    );
+    expect(chapters[2].report).toBe('');
+  });
+
+  it('test_prepare_paper_refused_alone: named on its own, a refused paper stops the load', async () => {
+    const source = (await resolveSource(
+      join(fixtures, 'typst', 'uses-a-package.typ'),
+    )) as Parameters<typeof readDocuments>[0];
+    await expect(readDocuments(source)).rejects.toMatchObject({
+      name: 'PaperRefused',
+      message: expect.stringContaining('HOME not defined'),
+    });
+  });
+
+  it('test_left_out_paper_words: each kind a paper leaves out has its words', () => {
+    const latex = (name: string, file?: string) => ({
+      kind: 'latex',
+      count: 1,
+      detail: name,
+      name,
+      ...(file ? { file } : {}),
+    });
+    expect(describeLeftOut([latex('tikzpicture'), latex(R`\mycmd`)])).toBe(
+      R`2 pieces of LaTeX not shown (tikzpicture, \mycmd)`,
+    );
+    expect(describeLeftOut([latex(R`\appcmd`, 'appendix.tex')])).toBe(
+      R`1 piece of LaTeX not shown (\appcmd in appendix.tex)`,
+    );
+    expect(describeLeftOut([{ kind: 'command', count: 1, detail: 'x', name: R`\myname` }])).toBe(
+      R`1 command not read (\myname)`,
+    );
+    expect(describeLeftOut([{ kind: 'node', count: 1, detail: 'Invented' }])).toBe(
+      '1 part of a kind Tome has no rule for (Invented)',
+    );
+    expect(describeLeftOut([{ kind: 'reference', count: 1, detail: 'nowhere' }])).toBe(
+      '1 reference that could not be followed (nowhere)',
+    );
+    expect(describeLeftOut([{ kind: 'citation', count: 1, detail: 'missing' }])).toBe(
+      '1 citation with no entry (missing)',
+    );
+    expect(describeLeftOut([{ kind: 'include', count: 1, detail: 'absent.tex' }])).toBe(
+      '1 file it pulls in that was not found (absent.tex)',
+    );
+    expect(
+      describeLeftOut([
+        { kind: 'include', count: 1, detail: 'a.tex' },
+        { kind: 'include', count: 1, detail: 'b.tex' },
+      ]),
+    ).toBe('2 files it pulls in that were not found (a.tex, b.tex)');
+    // Five names, then how many more; a name that occurs several times is given once.
+    expect(
+      describeLeftOut(['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((name) => latex(`\\${name}`))),
+    ).toBe(R`7 pieces of LaTeX not shown (\a, \b, \c, \d, \e and 2 more)`);
+    expect(describeLeftOut(Array.from({ length: 5 }, () => latex(R`\State`)))).toBe(
+      R`5 pieces of LaTeX not shown (\State)`,
+    );
+    // Several kinds in one line, with the kinds a document already had.
+    expect(
+      describeLeftOut([
+        { kind: 'equation', count: 1 },
+        latex('tikzpicture'),
+        { kind: 'citation', count: 1, detail: 'missing' },
+        { kind: 'image', count: 1, detail: 'a.pdf' },
+      ]),
+    ).toBe(
+      '1 equation, 1 piece of LaTeX not shown (tikzpicture), 1 citation with no entry (missing), 1 image',
+    );
+  });
+
+  it('test_read_documents_no_paper_no_pandoc: pandoc is not loaded for a library with no paper', async () => {
+    vi.resetModules();
+    let loaded = 0;
+    vi.doMock('pandoc-wasm', () => {
+      loaded += 1;
+      return {
+        convert: async () => {
+          throw new Error('pandoc was called');
+        },
+      };
+    });
+    try {
+      const stage = await import('../../../scripts/document-stage.mjs');
+      const sources = await import('../../../scripts/document-source.mjs');
+      const root = vault({
+        'note.md': '# A Note\n\nBody.\n',
+        'paper.docx': await buildDocx(),
+      });
+      const chapters = await stage.readDocuments((await sources.resolveSource(root)) as never);
+      expect(chapters.map((chapter: { title: string }) => chapter.title)).toEqual([
+        'A Note',
+        'On the Weight of Obsidian',
+      ]);
+      expect(loaded).toBe(0);
+      // The stand-in is in place: a paper named on its own loads it, and meets it.
+      const lone = vault({ 'paper.tex': tex('Text.') });
+      await expect(
+        stage.readDocuments((await sources.resolveSource(join(lone, 'paper.tex'))) as never),
+      ).rejects.toThrow(/pandoc was called/);
+      expect(loaded).toBe(1);
+    } finally {
+      vi.doUnmock('pandoc-wasm');
+      vi.resetModules();
+    }
   });
 });

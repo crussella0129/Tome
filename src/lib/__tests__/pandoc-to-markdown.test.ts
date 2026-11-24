@@ -93,15 +93,14 @@ const textOf = (node: Md): string =>
     ? String(node.value)
     : (node.children ?? []).map(textOf).join('');
 /** The formulas Tome's reader finds, in order, with whether each is set apart. */
-const formulas = (tree: Md) =>
-  [
+const formulas = (tree: Md) => {
+  const at = (node: Md) => (node.position as { start: { offset: number } }).start.offset;
+  const found: (Md & { apart: boolean })[] = [
     ...all(tree, 'inlineMath').map((n) => ({ ...n, apart: false })),
     ...all(tree, 'math').map((n) => ({ ...n, apart: true })),
-  ].sort(
-    (a, b) =>
-      (a.position as { start: { offset: number } }).start.offset -
-      (b.position as { start: { offset: number } }).start.offset,
-  );
+  ];
+  return found.sort((a, b) => at(a) - at(b));
+};
 const write = (blocks: Json[], more: Json = {}) =>
   writePaper({
     tree: doc(blocks, (more.meta as Json) ?? {}),
@@ -644,7 +643,7 @@ describe('pandoc-to-markdown.mjs — what pandoc skipped (INT-0033 AC5)', () => 
       },
     ]);
     for (const entry of out.leftOut.slice(0, 3)) expect(entry).not.toHaveProperty('file');
-    expect(out.leftOut.slice(4).map((entry: { name: string }) => entry.name)).toEqual([
+    expect(out.leftOut.slice(4).map((entry) => entry.name)).toEqual([
       String.raw`\noindent`,
       String.raw`\centering`,
       String.raw`\color`,
@@ -807,7 +806,7 @@ describe('pandoc-to-markdown.mjs — references (INT-0033 AC4, AC5)', () => {
     const paper = paperMarkdown();
     expect(paper).toContain('\n\n_Table 1._ The first three sums.\n');
     expect(paper).toContain('\n\n_Figure 1._ A triangle of dots.\n');
-    const second = (id: string): Json => ({
+    const second = (): Json => ({
       ...table(
         ['AlignDefault'],
         [row(cell(plain(inl('h'))))],
@@ -815,10 +814,10 @@ describe('pandoc-to-markdown.mjs — references (INT-0033 AC4, AC5)', () => {
         [plain(inl('A caption.'))],
       ),
     });
-    const referred = second('t');
+    const referred = second();
     (referred.c as unknown[])[0] = ['tab:one', [], []];
     const out = body(
-      write([referred, second('u'), para(inl('See'), sp, ref('tab:one', '1'), str('.'))]).markdown,
+      write([referred, second(), para(inl('See'), sp, ref('tab:one', '1'), str('.'))]).markdown,
     );
     expect(out.split('_Table 1._ A caption.').length - 1).toBe(1);
     expect(out.split('A caption.').length - 1).toBe(2);
