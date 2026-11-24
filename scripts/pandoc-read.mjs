@@ -1,0 +1,460 @@
+// Ask pandoc for a paper's tree (INT-0033): a document written in LaTeX or in
+// Typst, with the files it pulls in and a record of what pandoc skipped.
+//
+// Pandoc is the npm package `pandoc-wasm`. It runs on a file system held in
+// memory, one flat map of names, and can open nothing else: so this module
+// reads the paper's own files, from the paper's folder and the folders within
+// it and nowhere else, and hands pandoc copies of them. Nothing is written to
+// disk and nothing is fetched. A file from a folder within the paper's is
+// given under a stand-in name with no `/`, and the argument that names it is
+// rewritten in the copy of the file that names it.
+//
+// A LaTeX paper is read without pandoc's `raw_tex`, which would hand back
+// references, labels and included files unread. What pandoc skips it reports
+// with a place; the paper is then read once more from copies in which each
+// skipped piece is a word of letters and digits, so that the tree holds that
+// word where the piece stood (scripts/pandoc-to-markdown.mjs writes a mark
+// there, or passes it over).
+import { randomBytes } from 'node:crypto';
+import { readFile, realpath, stat } from 'node:fs/promises';
+import path from 'node:path';
+
+/**
+ * Whether `target` is `root` or lies within it, as `isPathInside()` in
+ * parent-assets.mjs decides it. (Kept here so that this module loads nothing
+ * that reads Markdown.)
+ */
+function isPathInside(root, target) {
+  const rel = path.relative(path.resolve(root), path.resolve(target));
+  return rel === '' || (!path.isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${path.sep}`));
+}
+
+/** Pandoc could not read the paper at all. The message is pandoc's own reason. */
+export class PaperRefused extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'PaperRefused';
+  }
+}
+
+/** How much of a paper's own files is handed to pandoc. */
+export const LIMITS = Object.freeze({ readings: 20, files: 200, bytes: 20 * 1024 * 1024 });
+
+let loading = null;
+/** Pandoc's `convert`, loaded on the first call and once in a process. */
+async function pandoc() {
+  loading ??= import('pandoc-wasm');
+  return (await loading).convert;
+}
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** The word that stands for the `index`th skipped piece. */
+function tokenFor(nonce, index) {
+  return `tomeSkipped${nonce}n${index}x`;
+}
+
+/** Code in a LaTeX file, where nothing is replaced, or `\today` outside it. */
+const TODAY_OR_CODE =
+  /\\begin\{(verbatim\*?|lstlisting|minted)\}[\s\S]*?\\end\{\1\}|\\verb\*?([^A-Za-z\s])[^\n]*?\2|\\today(?![A-Za-z])/g;
+
+/**
+ * The paper's own files as pandoc is given them.
+ * `texts` maps the name pandoc knows a file by to its content; `rels` maps
+ * that name to the file's path from the paper's folder.
+ */
+class Supply {
+  constructor(dir, realDir) {
+    this.dir = dir;
+    this.realDir = realDir;
+    this.texts = new Map();
+    this.rels = new Map();
+    this.byRel = new Map();
+    this.bytes = 0;
+    this.full = false;
+  }
+
+  /** The name a file was given, by its path from the paper's folder. */
+  nameOf(rel) {
+    return this.byRel.get(rel);
+  }
+
+  /**
+   * Read one file of the paper's and keep a copy, or return null: it is not
+   * there, is not a regular file, lies outside the paper's folder, is reached
+   * through a link that leaves it, or the limits are spent.
+   * @param {string} rel `/`-separated path from the paper's folder
+   * @param {{ flat?: boolean, change?: (text: string) => string }} [how]
+   * @returns {Promise<string | null>} the name pandoc is to know it by
+   */
+  async add(rel, { flat = false, change } = {}) {
+    const normal = path.posix.normalize(rel);
+    if (this.byRel.has(normal)) return this.byRel.get(normal);
+    if (normal.startsWith('../') || normal === '..' || path.posix.isAbsolute(normal)) return null;
+    const target = path.join(this.dir, ...normal.split('/'));
+    if (!isPathInside(this.dir, target)) return null;
+    if (this.full || this.texts.size >= LIMITS.files) {
+      this.full = true;
+      return null;
+    }
+    let text;
+    try {
+      const real = await realpath(target);
+      if (!isPathInside(this.realDir, real) || !(await stat(real)).isFile()) return null;
+      const size = (await stat(real)).size;
+      if (this.bytes + size > LIMITS.bytes) {
+        this.full = true;
+        return null;
+      }
+      text = (await readFile(real, 'utf8')).replace(/^﻿/, '');
+      this.bytes += size;
+    } catch {
+      return null;
+    }
+    let name = normal;
+    if (!flat || normal.includes('/') || this.texts.has(name)) {
+      name = `tomefile${this.texts.size}${path.posix.extname(normal)}`;
+    }
+    this.texts.set(name, change ? change(text) : text);
+    this.rels.set(name, normal);
+    this.byRel.set(normal, name);
+    return name;
+  }
+
+  /** What pandoc is handed: a fresh object of names and contents. */
+  files() {
+    return Object.fromEntries(this.texts);
+  }
+
+  /** A text with every stand-in name turned back to the path the paper has. */
+  real(text) {
+    let out = text;
+    for (const [name, rel] of this.rels) {
+      if (name !== rel) out = out.replaceAll(name, rel);
+    }
+    return out;
+  }
+}
+
+/** Run pandoc once. Resolves `{ tree, warnings }`, or rejects with `PaperRefused`. */
+async function reading(convert, options, supply) {
+  let result;
+  try {
+    result = await convert({ to: 'json', ...options }, null, supply.files());
+  } catch (error) {
+    throw new PaperRefused(supply.real(error instanceof Error ? error.message : String(error)));
+  }
+  let tree = null;
+  try {
+    tree = JSON.parse(result.stdout);
+  } catch {
+    /* pandoc wrote no tree */
+  }
+  if (!tree || !Array.isArray(tree.blocks)) {
+    const reason = String(result.stderr ?? '')
+      .replace(/^ERROR:\s*/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const refused = new PaperRefused(supply.real(reason || 'pandoc gave no reason'));
+    refused.stderr = String(result.stderr ?? '');
+    throw refused;
+  }
+  return { tree, warnings: Array.isArray(result.warnings) ? result.warnings : [] };
+}
+
+/** The bibliography files a tree names, as written. */
+function bibliographyNames(meta) {
+  const text = (node) => {
+    if (!node) return [];
+    if (node.t === 'MetaList') return node.c.flatMap(text);
+    if (node.t === 'MetaString') return [node.c];
+    if (node.t === 'MetaInlines') {
+      return [node.c.map((inline) => (inline.t === 'Str' ? inline.c : ' ')).join('')];
+    }
+    return [];
+  };
+  return text(meta?.bibliography)
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+/** Read the paper again with its `.bib` files, when it names any that are there. */
+async function withBibliography(convert, options, supply, first, missing, from) {
+  const given = [];
+  for (const written of bibliographyNames(first.tree.meta)) {
+    if (!/\.bib$/i.test(written)) continue;
+    const rel = path.posix.normalize(path.posix.join(from, written.replace(/^\/+/, '')));
+    const name = await supply.add(rel);
+    if (name) given.push(name);
+    else if (!missing.includes(written)) missing.push(written);
+  }
+  if (given.length === 0) return { options, read: first };
+  const cited = {
+    ...options,
+    citeproc: true,
+    bibliography: given,
+    metadata: { 'link-citations': true },
+  };
+  return { options: cited, read: await reading(convert, cited, supply) };
+}
+
+/** Where a 1-based line begins in a text. */
+function lineStart(text, line) {
+  let offset = 0;
+  for (let i = 1; i < line; i++) {
+    const next = text.indexOf('\n', offset);
+    if (next === -1) return -1;
+    offset = next + 1;
+  }
+  return offset;
+}
+
+/**
+ * Where a skipped piece stands in the copy of its file: pandoc's place is
+ * just after a piece on one line, and the end of the first line of an
+ * environment on several. Returns -1 when the piece is not found there.
+ */
+function placeOf(text, entry) {
+  const begin = lineStart(text, entry.line);
+  if (begin === -1) return -1;
+  const end = begin + entry.column - 1;
+  const start = end - entry.contents.length;
+  if (start >= 0 && text.slice(start, end) === entry.contents) return start;
+  const lineEnd = text.indexOf('\n', begin);
+  const found = text.indexOf(entry.contents, begin);
+  if (found !== -1 && (lineEnd === -1 || found <= lineEnd)) return found;
+  return -1;
+}
+
+async function readLatex(file, convert, nonce) {
+  const dir = path.dirname(file);
+  const supply = new Supply(dir, await realpath(dir));
+  const missing = [];
+  const skipped = [];
+  let pieces = 0;
+
+  // Tabs are made spaces, as pandoc makes them in what it reports; and
+  // `\today` outside code is a piece of its own, so the day is never written.
+  const asCopy = (name) => (text) =>
+    text.replace(/\t/g, '    ').replace(TODAY_OR_CODE, (found) => {
+      if (!found.startsWith('\\today')) return found;
+      const entry = {
+        contents: '\\today',
+        source: name,
+        line: 0,
+        token: tokenFor(nonce, pieces++),
+        placed: false,
+        made: true,
+      };
+      skipped.push(entry);
+      return entry.token;
+    });
+
+  const main = path.basename(file);
+  if (!(await supply.add(main, { flat: true, change: asCopy(main) }))) {
+    throw new PaperRefused(`${main} could not be opened`);
+  }
+  // `line` of a made piece is found now, while its word stands once in the copy.
+  const settleMade = () => {
+    for (const entry of skipped) {
+      if (!entry.made || entry.line !== 0) continue;
+      const text = supply.texts.get(supply.nameOf(entry.source)) ?? '';
+      const at = text.indexOf(entry.token);
+      entry.line = at === -1 ? 1 : text.slice(0, at).split('\n').length;
+    }
+  };
+  settleMade();
+
+  let options = { from: 'latex', 'input-files': [main] };
+  let read;
+  const decided = new Set();
+  for (let count = 0; ; count++) {
+    read = await reading(convert, options, supply);
+    let added = false;
+    for (const notice of read.warnings) {
+      if (notice.type !== 'CouldNotLoadIncludeFile' || typeof notice.path !== 'string') continue;
+      const written = notice.path;
+      if (decided.has(written)) continue;
+      decided.add(written);
+      const quiet = /\.sty$/i.test(written);
+      const rel = path.posix.normalize(written);
+      const nested = rel.includes('/');
+      // A file in a folder of its own needs its argument rewritten; find it first.
+      const stems = [written, written.replace(/\.tex$/i, '')].map(escapeRegExp).join('|');
+      const naming = new RegExp(
+        `(\\\\(?:input|include|subfile)\\s*\\{\\s*)(?:${stems})(\\s*\\})`,
+        'g',
+      );
+      const named = [...supply.texts].filter(([, text]) => text.search(naming) !== -1);
+      if (count >= LIMITS.readings - 1 || (nested && named.length === 0)) {
+        if (!quiet) missing.push(written);
+        continue;
+      }
+      const relPath = rel;
+      const name = await supply.add(relPath, {
+        flat: true,
+        change: (text) => asCopy(relPath)(text),
+      });
+      if (!name) {
+        if (!quiet) missing.push(written);
+        continue;
+      }
+      settleMade();
+      if (name !== relPath) {
+        const standIn = name.replace(/\.tex$/i, '');
+        for (const [holder] of named) {
+          supply.texts.set(holder, supply.texts.get(holder).replace(naming, `$1${standIn}$2`));
+        }
+      }
+      added = true;
+    }
+    if (!added) break;
+  }
+
+  ({ options, read } = await withBibliography(convert, options, supply, read, missing, '.'));
+
+  // What pandoc skipped, each piece once.
+  const seen = new Set();
+  for (const notice of read.warnings) {
+    if (notice.type !== 'SkippedContent' || typeof notice.contents !== 'string') continue;
+    const key = JSON.stringify([notice.source, notice.line, notice.column, notice.contents]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    skipped.push({
+      contents: notice.contents,
+      source: supply.rels.get(notice.source) ?? String(notice.source ?? main),
+      name: notice.source,
+      line: Number(notice.line) || 1,
+      column: Number(notice.column) || 1,
+      token: tokenFor(nonce, pieces++),
+      placed: false,
+    });
+  }
+  const reported = skipped.filter((entry) => !entry.made);
+  if (reported.length > 0) {
+    // Replace from the end of each file, so earlier places stay true.
+    const copies = new Map(supply.texts);
+    const placed = [];
+    for (const entry of reported) {
+      const text = copies.get(entry.name);
+      const start = typeof text === 'string' ? placeOf(text, entry) : -1;
+      if (start !== -1) placed.push({ entry, start, end: start + entry.contents.length });
+    }
+    placed.sort((a, b) => (a.entry.name === b.entry.name ? b.start - a.start : 0));
+    const taken = new Map();
+    for (const { entry, start, end } of placed) {
+      const ranges = taken.get(entry.name) ?? [];
+      if (ranges.some((range) => start < range.end && range.start < end)) continue;
+      ranges.push({ start, end });
+      taken.set(entry.name, ranges);
+      const text = copies.get(entry.name);
+      // A space keeps the word apart from a command or a word that ends just before it.
+      const gap = /[A-Za-z]$/.test(text.slice(0, start)) ? ' ' : '';
+      copies.set(entry.name, `${text.slice(0, start)}${gap}${entry.token}${text.slice(end)}`);
+    }
+    const again = new Supply(supply.dir, supply.realDir);
+    again.texts = copies;
+    again.rels = supply.rels;
+    try {
+      read = await reading(convert, options, again);
+    } catch (error) {
+      if (!(error instanceof PaperRefused)) throw error;
+      // The copies cannot be read: keep the first reading. None of the pieces
+      // pandoc reported has a word in it; `\today`'s word was there from the start.
+      const first = JSON.stringify(read.tree);
+      for (const entry of skipped)
+        entry.placed = Boolean(entry.made) && first.includes(entry.token);
+      return finish(read.tree, skipped, missing);
+    }
+  }
+  const whole = JSON.stringify(read.tree);
+  for (const entry of skipped) entry.placed = whole.includes(entry.token);
+  return finish(read.tree, skipped, missing);
+}
+
+function finish(tree, skipped, missing) {
+  return {
+    tree,
+    skipped: skipped.map(({ contents, source, line, token, placed }) => ({
+      contents,
+      source,
+      line,
+      token,
+      placed,
+    })),
+    missing,
+  };
+}
+
+async function readTypst(file, convert) {
+  const dir = path.dirname(file);
+  const supply = new Supply(dir, await realpath(dir));
+  const main = path.basename(file);
+  if (!(await supply.add(main, { flat: true }))) {
+    throw new PaperRefused(`${main} could not be opened`);
+  }
+  const missing = [];
+  const options = { from: 'typst', 'input-files': [main] };
+  let read;
+  for (let count = 0; ; count++) {
+    try {
+      read = await reading(convert, options, supply);
+      break;
+    } catch (error) {
+      if (!(error instanceof PaperRefused)) throw error;
+      const asked = String(error.stderr ?? '').match(
+        /ERROR:\s*(.+?): withBinaryFile: does not exist/,
+      );
+      if (!asked || count >= LIMITS.readings - 1) throw error;
+      // Pandoc asks for a file by the words that name it; find who names it.
+      const wanted = asked[1].replace(/^\.\//, '');
+      let supplied = false;
+      let asWritten = wanted;
+      for (const [holder, text] of [...supply.texts]) {
+        const literal = [...text.matchAll(/"([^"\n]+)"/g)]
+          .map((match) => match[1])
+          .find((value) => value.replace(/^\.?\/+/, '') === wanted);
+        if (literal === undefined) continue;
+        asWritten = literal;
+        const from = literal.startsWith('/') ? '.' : path.posix.dirname(supply.rels.get(holder));
+        const rel = path.posix.normalize(path.posix.join(from, literal.replace(/^\/+/, '')));
+        const flat = from === '.' && !literal.includes('/');
+        const name = await supply.add(rel, { flat });
+        if (!name) continue;
+        if (name !== literal) {
+          supply.texts.set(holder, text.replaceAll(`"${literal}"`, `"${name}"`));
+        }
+        supplied = true;
+        break;
+      }
+      if (!supplied) {
+        throw new PaperRefused(
+          `${asWritten} could not be read: it is not a file in the paper's folder (${error.message})`,
+        );
+      }
+    }
+  }
+  ({ read } = await withBibliography(convert, options, supply, read, missing, '.'));
+  return finish(read.tree, [], missing);
+}
+
+/**
+ * Read one paper.
+ *
+ * @param {{ file: string, format: 'latex' | 'typst' }} paper
+ * @param {{ convert?: Function, nonce?: string }} [stand] for tests: a stand-in
+ *   for pandoc's `convert`, and the letters a skipped piece's word is made of
+ * @returns {Promise<{
+ *   tree: { blocks: any[], meta: Record<string, any> },
+ *   skipped: { contents: string, source: string, line: number, token: string, placed: boolean }[],
+ *   missing: string[],
+ * }>} pandoc's tree; what it skipped, each piece once, with the word that
+ *   stands for it and whether that word is in the tree; and the files the
+ *   paper pulls in that were not read. `source` is a path from the paper's
+ *   folder. Rejects with `PaperRefused` when pandoc cannot read the paper.
+ */
+export async function readPaper({ file, format }, stand = {}) {
+  const convert = stand.convert ?? (await pandoc());
+  const nonce = stand.nonce ?? randomBytes(8).toString('hex');
+  return format === 'typst' ? readTypst(file, convert) : readLatex(file, convert, nonce);
+}
