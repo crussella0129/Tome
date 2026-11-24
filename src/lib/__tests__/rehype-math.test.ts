@@ -14,6 +14,7 @@ import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
 import rehypeMath, {
   asTyped,
   formulaText,
+  numberedLabels,
   readable,
   titleText,
 } from '../../../scripts/rehype-math.mjs';
@@ -581,5 +582,234 @@ describe('laid out: what the first cases did not try', () => {
       ['23^2', '23²'],
     ];
     for (const [tex, expected] of cases) expect(titleText(tex), tex).toBe(expected);
+  });
+});
+
+// --- A link to a numbered equation (INT-0033, T-090) ------------------------
+describe('a link to a numbered equation shows its number', () => {
+  const GAUSS = lines('$$', R`\begin{equation}\label{eq:gauss} a = b \end{equation}`, '$$');
+  /** Every `id` on the page, in order. */
+  const ids = (tree: Hast): string[] => {
+    const found: string[] = [];
+    visit(tree as never, 'element', (node: Hast) => {
+      if (typeof node.properties?.id === 'string') found.push(node.properties.id);
+    });
+    return found;
+  };
+  const links = (tree: Hast) =>
+    all(tree, 'a').map((link) => ({ href: String(link.properties?.href), words: text(link) }));
+  /** The row a link's address reaches, by its `id`. */
+  const reached = (tree: Hast, href: string): Hast | undefined => {
+    let found: Hast | undefined;
+    visit(tree as never, 'element', (node: Hast) => {
+      if (`#${node.properties?.id}` === href) found = node;
+    });
+    return found;
+  };
+
+  it('test_math_label_link: the row takes an id of Tome’s own, and the link reaches it', () => {
+    const { tree } = render(lines(GAUSS, '', 'See [eq:gauss](#eq:gauss).'));
+    expect(links(tree)).toEqual([{ href: '#eq.eq:gauss', words: '(1)' }]);
+    expect(ids(tree)).toEqual(['eq.eq:gauss']);
+    const row = reached(tree, '#eq.eq:gauss')!;
+    expect(row.tagName).toBe('mtr');
+    expect(all(tree, 'div', 'tome-math')).toHaveLength(1);
+    expect(text(row)).toContain('(1)');
+
+    // Two labels that differ only in what an id cannot hold: an id each.
+    const two = render(
+      lines(
+        '$$',
+        R`\begin{equation}\label{eq:a b} a = b \end{equation}`,
+        '$$',
+        '',
+        '$$',
+        R`\begin{equation}\label{eq:a.b} c = d \end{equation}`,
+        '$$',
+        '',
+        'See [](#eq:a%20b) and [](#eq:a.b).',
+      ),
+    ).tree;
+    expect(links(two)).toEqual([
+      { href: '#eq.eq:a-b', words: '(1)' },
+      { href: '#eq.eq:a-b-2', words: '(2)' },
+    ]);
+    expect(ids(two)).toEqual(['eq.eq:a-b', 'eq.eq:a-b-2']);
+    expect(text(reached(two, '#eq.eq:a-b-2')!)).toContain('(2)');
+  });
+
+  it('test_math_label_link_words: the number in brackets, once; words of the writer’s own are left', () => {
+    const page = (words: string) => render(lines(GAUSS, '', words)).tree;
+    expect(links(page('See [eq:gauss](#eq:gauss).'))[0].words).toBe('(1)');
+    expect(links(page('See [](#eq:gauss).'))[0].words).toBe('(1)');
+    expect(links(page('see ([eq:gauss](#eq:gauss)) here'))[0].words).toBe('1');
+    expect(links(page('see [eq:gauss](#eq:gauss)) here'))[0].words).toBe('(1)');
+    const tagged = render(
+      lines(
+        '$$',
+        R`\begin{equation} a = b \tag{A}\label{eq:t} \end{equation}`,
+        '$$',
+        '',
+        'See [eq:t](#eq:t).',
+      ),
+    ).tree;
+    expect(links(tagged)).toEqual([{ href: '#eq.eq:t', words: '(A)' }]);
+
+    // A link with words of its own is not this step's: address and all are left.
+    const own = page('See [words of mine](#eq:gauss).');
+    expect(links(own)).toEqual([{ href: '#eq:gauss', words: 'words of mine' }]);
+    expect(ids(own)).toEqual([]);
+    // So a link a chapter already has to a heading is never taken over.
+    const heading = render(
+      lines(
+        '# Pythagoras',
+        '',
+        '$$',
+        R`\begin{equation}\label{pythagoras} a^2 + b^2 = c^2 \end{equation}`,
+        '$$',
+        '',
+        'See [the theorem](#pythagoras).',
+      ),
+      { asAstro: true },
+    ).tree;
+    expect(links(heading)).toEqual([{ href: '#pythagoras', words: 'the theorem' }]);
+    expect(ids(heading)).toEqual(['pythagoras']);
+  });
+
+  it('test_math_label_rows: each label is matched to its own row', () => {
+    const align = lines(
+      '$$',
+      R`\begin{equation} z = 0 \end{equation}`,
+      '$$',
+      '',
+      '$$',
+      R`\begin{align}`,
+      R`  a &= b \label{eq:a} \\`,
+      R`  c &= d \nonumber \\`,
+      R`  e &= f \label{eq:c} % \label{eq:not}`,
+      R`\end{align}`,
+      '$$',
+      '',
+      'See [eq:a](#eq:a), [eq:c](#eq:c) and [eq:not](#eq:not).',
+    );
+    const { tree } = render(align);
+    expect(numbers(tree)).toEqual(['(1)', '(2)', '(3)']);
+    expect(links(tree)).toEqual([
+      { href: '#eq.eq:a', words: '(2)' },
+      { href: '#eq.eq:c', words: '(3)' },
+      { href: '#eq:not', words: 'eq:not' },
+    ]);
+    expect(text(reached(tree, '#eq.eq:a')!)).toContain('(2)');
+    expect(text(reached(tree, '#eq.eq:c')!)).toContain('(3)');
+    expect(reached(tree, '#eq.eq:a')).not.toBe(reached(tree, '#eq.eq:c'));
+
+    // What `subequations` gives: a label before the environment meets no row,
+    // and the labels beside it are served all the same.
+    const sub = render(
+      lines(
+        '$$',
+        R`\label{eq:all}\begin{align} a &= b \label{eq:sa} \\ c &= d \label{eq:sb}\end{align}`,
+        '$$',
+        '',
+        'See [eq:sa](#eq:sa), [eq:sb](#eq:sb) and [eq:all](#eq:all).',
+      ),
+    ).tree;
+    expect(links(sub)).toEqual([
+      { href: '#eq.eq:sa', words: '(1)' },
+      { href: '#eq.eq:sb', words: '(2)' },
+      { href: '#eq:all', words: 'eq:all' },
+    ]);
+  });
+
+  it('test_math_numbered_labels: which labels of a formula take a number', () => {
+    expect(numberedLabels(R`\begin{equation}\label{eq:one} a = b \end{equation}`)).toEqual([
+      'eq:one',
+    ]);
+    expect(
+      numberedLabels(
+        R`\begin{align} a &= b \label{eq:a} \\ c &= d \nonumber \label{eq:b} \\ e &= f \label{eq:c} \end{align}`,
+      ),
+    ).toEqual(['eq:a', 'eq:c']);
+    expect(numberedLabels(R`\begin{equation} a = b \tag{A}\label{eq:t} \end{equation}`)).toEqual([
+      'eq:t',
+    ]);
+    expect(numberedLabels(R`\begin{equation*}\label{x} a = b \end{equation*}`)).toEqual([]);
+    expect(
+      numberedLabels(
+        R`\begin{equation}\begin{split} a &= b \label{eq:in} \\ &= c \end{split}\end{equation}`,
+      ),
+    ).toEqual([]);
+    expect(numberedLabels(R`a = b \label{eq:bare}`)).toEqual([]);
+    expect(
+      numberedLabels(R`\begin{equation} a = \badmacro{1} \label{eq:bad} \end{equation}`),
+    ).toEqual([]);
+  });
+
+  it('test_math_label_unreached: a label no link reaches leaves nothing on the page', () => {
+    expect(ids(render(GAUSS).tree)).toEqual([]);
+    const other = render(lines(GAUSS, '', 'See [x](#nolabel) and [y](https://example.org).')).tree;
+    expect(links(other)).toEqual([
+      { href: '#nolabel', words: 'x' },
+      { href: 'https://example.org', words: 'y' },
+    ]);
+    expect(ids(other)).toEqual([]);
+    // A label on a row that has no number.
+    const unnumbered = render(
+      lines(
+        '$$',
+        R`\begin{align} a &= b \label{eq:n} \notag \\ c &= d \end{align}`,
+        '$$',
+        '',
+        'See [eq:n](#eq:n).',
+      ),
+    ).tree;
+    expect(links(unnumbered)).toEqual([{ href: '#eq:n', words: 'eq:n' }]);
+    expect(ids(unnumbered)).toEqual([]);
+    // Two formulas with one label: the link reaches the first.
+    const twice = render(
+      lines(
+        '$$',
+        R`\begin{equation}\label{eq:same} a = b \end{equation}`,
+        '$$',
+        '',
+        '$$',
+        R`\begin{equation}\label{eq:same} c = d \end{equation}`,
+        '$$',
+        '',
+        'See [eq:same](#eq:same).',
+      ),
+    ).tree;
+    expect(links(twice)).toEqual([{ href: '#eq.eq:same', words: '(1)' }]);
+    expect(ids(twice)).toEqual(['eq.eq:same']);
+  });
+
+  it('test_math_no_link_no_change: a page with no link to a label is laid out as before', () => {
+    const before = JSON.parse(
+      readFileSync(
+        join(process.cwd(), 'src/lib/__tests__/papers/proofs-before-links.json'),
+        'utf8',
+      ),
+    );
+    for (const name of ['1-proof.md', '2-more.md']) {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { tree } = render(fixture(name).replace(/\r\n/g, '\n'), { path: `chapters/${name}` });
+      const plain = JSON.parse(
+        JSON.stringify(tree, (key, value) => (key === 'position' ? undefined : value)),
+      );
+      expect(plain, name).toEqual(before[name]);
+    }
+    const labelled = render(
+      lines(
+        GAUSS,
+        '',
+        '$$',
+        R`\begin{align} a &= b \label{eq:a} \\ c &= d \label{eq:b} \end{align}`,
+        '$$',
+        '',
+        'No link here, only [a site](https://example.org).',
+      ),
+    ).tree;
+    expect(ids(labelled)).toEqual([]);
+    expect(numbers(labelled)).toEqual(['(1)', '(2)', '(3)']);
   });
 });

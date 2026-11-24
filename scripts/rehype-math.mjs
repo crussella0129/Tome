@@ -362,16 +362,42 @@ const isMathCode = (node) =>
   node?.type === 'element' && node.tagName === 'code' && classes(node).includes('language-math');
 
 /**
+ * The labels a formula's LaTeX holds, in order, its comments left out.
+ * @param {string} tex
+ * @returns {string[]}
+ */
+function labelsIn(tex) {
+  const shown = tex.replace(/(\\*)%.*$/gm, (rest, slashes) =>
+    slashes.length % 2 === 1 ? rest : slashes,
+  );
+  return [...shown.matchAll(/\\label\s*\{([^{}]*)\}/g)].map((match) => match[1].trim());
+}
+
+/** What Temml writes on a row for a label: its letters, digits and `_`. */
+const rowMark = (label) => label.replace(/[^A-Za-z0-9_]/g, '');
+
+/**
  * Finish a laid-out formula: drop what `\label` wrote, give its numbered
  * tables a width WebKit keeps, and write the page's equation numbers in.
  * @param {any} math the formula's element
  * @param {{ next: number }} counter
+ * @param {string} [tex] the formula's LaTeX, to read its labels from
+ * @returns {{ label: string, row: any, number: string }[]} each label whose
+ *   row takes a number, with that row and the number as the page shows it
  */
-function settle(math, counter) {
-  visit(math, 'element', (node) => {
-    // `\label` writes an `id`; with no reference to follow it, it could only
-    // clash with a heading's address.
-    if (node.properties && 'id' in node.properties) delete node.properties.id;
+function settle(math, counter, tex = '') {
+  /** The rows Temml marked for a label, in order, with its mark. */
+  const marked = [];
+  /** The cell of each row that holds its number or its tag. */
+  const numbers = new Map();
+  visit(math, 'element', (node, _index, parent) => {
+    // `\label` writes an `id`. It is dropped here: with no link to follow it,
+    // it could only clash with a heading's address. A label a link reaches is
+    // given an `id` of Tome's own afterwards (see the plugin).
+    if (node.properties && 'id' in node.properties) {
+      if (node.tagName === 'mtr') marked.push({ row: node, mark: String(node.properties.id) });
+      delete node.properties.id;
+    }
     if (node.tagName === 'mtable' && typeof node.properties?.style === 'string') {
       node.properties.style = node.properties.style.replace(
         /(^|;)\s*width\s*:\s*100%/,
@@ -392,8 +418,39 @@ function settle(math, counter) {
     // The cell that holds a row's number or its tag is set at the right edge.
     // `tml-right` is Temml's own class for that, with the rule each engine
     // needs for it in Temml's stylesheet.
-    if (numbered) node.properties.className = [...classes(node), 'tml-right'];
+    if (numbered) {
+      node.properties.className = [...classes(node), 'tml-right'];
+      if (parent) numbers.set(parent, node);
+    }
   });
+  // Each marked row takes the next label, in order, that its mark stands for.
+  // A label that meets no row (inside `split`, or before the environment
+  // begins) is one no link can reach; the others are served all the same.
+  const labels = labelsIn(tex);
+  const labelled = [];
+  let from = 0;
+  for (const { row, mark } of marked) {
+    const at = labels.findIndex((label, index) => index >= from && rowMark(label) === mark);
+    if (at === -1) continue;
+    from = at + 1;
+    const cell = numbers.get(row);
+    const number = cell ? toString(cell).trim() : '';
+    if (number !== '') labelled.push({ label: labels[at], row, number });
+  }
+  return labelled;
+}
+
+/**
+ * The labels of a set-apart formula whose rows take a number on the page, in
+ * order; none for a formula that cannot be laid out. A reference to any other
+ * label of the formula has nothing to show.
+ * @param {string} tex
+ * @returns {string[]}
+ */
+export function numberedLabels(tex) {
+  const math = mathElement(tex, true);
+  if (math === null) return [];
+  return settle(math, { next: 1 }, tex).map((entry) => entry.label);
 }
 
 /**
@@ -403,8 +460,9 @@ function settle(math, counter) {
  * @param {{ next: number }} counter
  * @param {(tex: string, unclosed: boolean) => void} unreadable called for a formula that is shown as typed
  * @param {boolean} [unclosed] the formula is what a fence took that was never closed
+ * @param {{ label: string, row: any, number: string }[]} [labelled] takes the formula's numbered labels
  */
-function layOut(tex, display, counter, unreadable, unclosed = false) {
+function layOut(tex, display, counter, unreadable, unclosed = false, labelled = []) {
   // What an unclosed fence took is the rest of the document, not a formula.
   const math = unclosed ? null : mathElement(tex, display);
   if (math === null) {
@@ -416,7 +474,7 @@ function layOut(tex, display, counter, unreadable, unclosed = false) {
       children: [{ type: 'text', value: asTyped(tex, display) }],
     };
   }
-  settle(math, counter);
+  labelled.push(...settle(math, counter, tex));
   if (display) {
     return {
       type: 'element',
@@ -441,6 +499,8 @@ function layOut(tex, display, counter, unreadable, unclosed = false) {
 export default function rehypeMath() {
   return (tree, file) => {
     const counter = { next: 1 };
+    /** The page's labels whose rows take a number, as its formulas are laid out. */
+    const labelled = [];
     /** @param {string} tex @param {boolean} unclosed */
     const unreadable = (tex, unclosed) => {
       const quoted = tex.replace(/\s+/g, ' ').trim().slice(0, QUOTED);
@@ -457,7 +517,7 @@ export default function rehypeMath() {
         const unclosed = classes(code).includes(UNCLOSED);
         // A fenced block's text ends with the line end before its closing fence.
         const tex = toString(code).replace(/\n$/, '');
-        parent.children[index] = layOut(tex, true, counter, unreadable, unclosed);
+        parent.children[index] = layOut(tex, true, counter, unreadable, unclosed, labelled);
         return SKIP;
       }
       if (isMathCode(node)) {
@@ -465,5 +525,64 @@ export default function rehypeMath() {
         return SKIP;
       }
     });
+    linkLabels(tree, labelled);
   };
+}
+
+/**
+ * Make each link to a numbered equation show that equation's number
+ * (INT-0033). A link is one of these when its address, decoded, is `#` and the
+ * label of a numbered row on the page, and its words are empty or are the
+ * label: the two forms Tome writes for a paper and teaches for a chapter. Any
+ * other link is left as it is, address and all, so a link a chapter already
+ * has to a heading is never taken over.
+ *
+ * The row takes an `id` of Tome's own, `eq.` and the label: the full stop is
+ * what no heading's address holds, so the two cannot clash. This step runs
+ * before headings are given their addresses and cannot compare against them.
+ * @param {any} tree
+ * @param {{ label: string, row: any, number: string }[]} labelled
+ */
+function linkLabels(tree, labelled) {
+  if (labelled.length === 0) return;
+  /** The first row of each label: a second with the same label is not reached. */
+  const rows = new Map();
+  for (const entry of labelled) if (!rows.has(entry.label)) rows.set(entry.label, entry);
+  const taken = new Set();
+  const idOf = (entry) => {
+    if (entry.id) return entry.id;
+    const base = `eq.${entry.label.replace(/[^A-Za-z0-9_:-]/g, '-')}`;
+    let id = base;
+    for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+    taken.add(id);
+    entry.id = id;
+    entry.row.properties.id = id;
+    return id;
+  };
+  const textAt = (parent, index) => {
+    const node = parent.children[index];
+    return node?.type === 'text' ? node.value : '';
+  };
+  visit(tree, 'element', (node, index, parent) => {
+    if (node.tagName !== 'a' || typeof node.properties?.href !== 'string') return;
+    if (!node.properties.href.startsWith('#')) return;
+    let label;
+    try {
+      label = decodeURIComponent(node.properties.href.slice(1));
+    } catch {
+      return;
+    }
+    const entry = rows.get(label);
+    const words = toString(node).trim();
+    if (!entry || (words !== '' && words !== label)) return;
+    node.properties.href = `#${idOf(entry)}`;
+    // In brackets, once: a number written inside a pair already has them.
+    const within =
+      parent && index !== undefined
+        ? textAt(parent, index - 1).endsWith('(') && textAt(parent, index + 1).startsWith(')')
+        : false;
+    const bare = entry.number.replace(/^\((.*)\)$/, '$1');
+    node.children = [{ type: 'text', value: within ? bare : entry.number }];
+    return SKIP;
+  });
 }
