@@ -729,3 +729,241 @@ describe('pandoc-to-markdown.mjs — what pandoc skipped (INT-0033 AC5)', () => 
     ]);
   });
 });
+
+describe('pandoc-to-markdown.mjs — references (INT-0033 AC4, AC5)', () => {
+  /** A reference as pandoc gives a LaTeX paper's: the label as an attribute, its words the number. */
+  const ref = (label: string, words: string, type = 'ref'): Json => ({
+    t: 'Link',
+    c: [
+      [
+        '',
+        [],
+        [
+          ['reference-type', type],
+          ['reference', label],
+        ],
+      ],
+      [str(words)],
+      [`#${label}`, ''],
+    ],
+  });
+  /** A reference as pandoc gives a Typst paper's. */
+  const typstRef = (label: string): Json => ({
+    t: 'Link',
+    c: [['', ['ref'], []], [str(`[${label}]`)], [`#${label}`, '']],
+  });
+  const label = (id: string): Json => ({ t: 'Span', c: [[id, [], []], []] });
+  const paperMarkdown = () =>
+    body(writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' }).markdown);
+  const linksOf = (markdown: string) =>
+    all(read(markdown), 'link').map((link) => [textOf(link), link.url]);
+  /** The block that stands directly after an anchor of its own paragraph. */
+  const after = (markdown: string, id: string): string => {
+    const blocks = markdown.split('\n\n');
+    const at = blocks.indexOf(`<a id="${id}"></a>`);
+    expect(at, id).toBeGreaterThanOrEqual(0);
+    return blocks[at + 1];
+  };
+
+  it('test_paper_references: a number that leads to an anchor before what it names', () => {
+    const paper = paperMarkdown();
+    expect(after(paper, 'ref-sec-result')).toBe('## The result');
+    expect(after(paper, 'ref-thm-gauss')).toMatch(/^\*\*Theorem 1\*\* \(Gauss\)\./);
+    expect(after(paper, 'ref-tab-sums')).toMatch(/^\| \$n\$/);
+    expect(after(paper, 'ref-fig-triangle')).toMatch(/^!\[/);
+    expect(linksOf(paper)).toEqual(
+      expect.arrayContaining([
+        ['2', '#ref-sec-result'],
+        ['1', '#ref-thm-gauss'],
+        ['2', '#ref-lem-norm'],
+        ['1', '#ref-tab-sums'],
+        ['1', '#ref-fig-triangle'],
+        ['1', '#ref-sec-intro'],
+      ]),
+    );
+    // Search computes a heading's address from the heading alone: it is untouched.
+    expect(all(read(paper), 'heading').map(textOf)).toContain('The result');
+
+    // Two labels that differ only in what an anchor cannot hold; one nothing refers to.
+    const out = write([
+      header(1, 'One', 'a:b'),
+      header(1, 'Two', 'a.b'),
+      header(1, 'Three', 'unreferred'),
+      para(inl('See'), sp, ref('a:b', '1'), sp, inl('and'), sp, ref('a.b', '2'), str('.')),
+    ]);
+    const markdown = body(out.markdown);
+    expect(after(markdown, 'ref-a-b')).toBe('## One');
+    expect(after(markdown, 'ref-a-b-2')).toBe('## Two');
+    expect(linksOf(markdown)).toEqual([
+      ['1', '#ref-a-b'],
+      ['2', '#ref-a-b-2'],
+    ]);
+    expect(markdown).not.toContain('unreferred');
+    expect(markdown.split('<a id=').length - 1).toBe(2);
+    expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_paper_caption_numbers: a caption takes the number a reference shows, and no other', () => {
+    const paper = paperMarkdown();
+    expect(paper).toContain('\n\n_Table 1._ The first three sums.\n');
+    expect(paper).toContain('\n\n_Figure 1._ A triangle of dots.\n');
+    const second = (id: string): Json => ({
+      ...table(
+        ['AlignDefault'],
+        [row(cell(plain(inl('h'))))],
+        [row(cell(plain(inl('x'))))],
+        [plain(inl('A caption.'))],
+      ),
+    });
+    const referred = second('t');
+    (referred.c as unknown[])[0] = ['tab:one', [], []];
+    const out = body(
+      write([referred, second('u'), para(inl('See'), sp, ref('tab:one', '1'), str('.'))]).markdown,
+    );
+    expect(out.split('_Table 1._ A caption.').length - 1).toBe(1);
+    expect(out.split('A caption.').length - 1).toBe(2);
+    expect(out).toMatch(/\n\nA caption\.\n/);
+  });
+
+  it('test_paper_equation_reference: a link the page will write the number into, or none', () => {
+    const numbered = String.raw`\begin{equation}\label{eq:gauss} a = b \end{equation}`;
+    const out = write([
+      para(
+        inl('See'),
+        sp,
+        ref('eq:gauss', '[eq:gauss]', 'eqref'),
+        sp,
+        inl('and'),
+        sp,
+        ref('eq:gauss', '[eq:gauss]'),
+        str('.'),
+      ),
+      para(math(numbered, true)),
+    ]);
+    expect(linksOf(out.markdown)).toEqual([
+      ['eq:gauss', '#eq:gauss'],
+      ['eq:gauss', '#eq:gauss'],
+    ]);
+    expect(out.markdown).not.toContain('<a id=');
+    expect(out.leftOut).toEqual([]);
+    const spaced = write([
+      para(ref('eq:a b', '[eq:a b]', 'eqref')),
+      para(math(String.raw`\begin{equation}\label{eq:a b} a = b \end{equation}`, true)),
+    ]);
+    expect(linksOf(spaced.markdown)).toEqual([['eq:a b', '#eq:a%20b']]);
+
+    // A label whose row shows no number, and one in a formula that cannot be shown.
+    const cases: [string, string][] = [
+      [
+        'eq:in',
+        String.raw`\begin{equation}\begin{split} a &= b \label{eq:in} \\ &= c \end{split}\end{equation}`,
+      ],
+      ['eq:no', String.raw`\begin{align} a &= b \label{eq:no} \notag \\ c &= d \end{align}`],
+      ['eq:star', String.raw`\begin{equation*}\label{eq:star} a = b \end{equation*}`],
+      ['eq:bad', String.raw`\begin{equation}\label{eq:bad} a = \badmacro{1} \end{equation}`],
+    ];
+    for (const [name, tex] of cases) {
+      const dead = write([
+        para(inl('See'), sp, ref(name, `[${name}]`, 'eqref'), str('.')),
+        para(math(tex, true)),
+      ]);
+      expect(linksOf(dead.markdown), name).toEqual([]);
+      expect(body(dead.markdown).split('\n')[0], name).toBe(`See \\[${name}].`);
+      expect(
+        dead.leftOut.filter((entry: { kind: string }) => entry.kind === 'reference'),
+        name,
+      ).toEqual([{ kind: 'reference', count: 1, detail: name }]);
+    }
+    // A numbered formula in a table cell is written within the line, where it has no number.
+    const inCell = write([
+      table(
+        ['AlignDefault'],
+        [row(cell(plain(inl('h'))))],
+        [row(cell(plain(math(numbered, true))))],
+      ),
+      para(ref('eq:gauss', '[eq:gauss]', 'eqref')),
+    ]);
+    expect(linksOf(inCell.markdown)).toEqual([]);
+    expect(inCell.leftOut).toContainEqual({ kind: 'reference', count: 1, detail: 'eq:gauss' });
+  });
+
+  it('test_paper_item_label: a label pandoc keeps as a mark within a line', () => {
+    const out = write([
+      {
+        t: 'BulletList',
+        c: [[plain(label('it:one'), inl('The first point.'))], [plain(inl('The second.'))]],
+      },
+      para(inl('See item'), sp, ref('it:one', '[it:one]'), str('.')),
+    ]);
+    expect(body(out.markdown)).toBe(
+      '- <a id="ref-it-one"></a>The first point.\n- The second.\n\nSee item [\\[it:one\\]](#ref-it-one).\n',
+    );
+    expect(linksOf(out.markdown)).toEqual([['[it:one]', '#ref-it-one']]);
+    expect(out.leftOut).toEqual([]);
+  });
+
+  it('test_paper_reference_not_followed: shown as written, and counted', () => {
+    const paper = writePaper({ tree: latex.tree, skipped: latex.skipped, name: 'paper.tex' });
+    expect(paper.markdown).toContain('See \\[nowhere], the same book again');
+    expect(paper.leftOut.filter((entry: { kind: string }) => entry.kind === 'reference')).toEqual([
+      { kind: 'reference', count: 1, detail: 'nowhere' },
+    ]);
+    const several = write([
+      header(1, 'A', 'sec:a'),
+      header(1, 'B', 'sec:b'),
+      para(inl('See'), sp, ref('sec:a,sec:b', '[sec:a,sec:b]'), str('.')),
+    ]);
+    expect(linksOf(several.markdown)).toEqual([]);
+    expect(body(several.markdown)).toContain('See \\[sec:a,sec:b].');
+    expect(several.leftOut).toEqual([{ kind: 'reference', count: 1, detail: 'sec:a,sec:b' }]);
+  });
+
+  it('test_paper_typst_references: a label names what stands before it', () => {
+    const paper = body(
+      writePaper({ tree: typst.tree, format: 'typst', name: 'paper.typ' }).markdown,
+    );
+    expect(after(paper, 'ref-sec-result')).toBe('## The result');
+    expect(after(paper, 'ref-tab-sums')).toMatch(/^\| \$n\$/);
+    expect(after(paper, 'ref-fig-triangle')).toMatch(/^!\[/);
+    expect(after(paper, 'ref-eq-gauss')).toMatch(/^\$\$\\sum/);
+    expect(linksOf(paper)).toEqual(
+      expect.arrayContaining([
+        ['The result', '#ref-sec-result'],
+        ['the equation', '#ref-eq-gauss'],
+        ['the table', '#ref-tab-sums'],
+        ['the figure', '#ref-fig-triangle'],
+      ]),
+    );
+    expect(paper).not.toContain('<span');
+    for (const block of paper.split('\n\n')) expect(block.trim()).not.toBe('');
+    // A label nothing refers to leaves nothing behind.
+    expect(paper).not.toContain('sec-intro');
+    expect(paper).not.toContain('sec-appendix');
+
+    // No blank line after the heading: the label is the first inline of the next paragraph.
+    const close = body(
+      writePaper({
+        tree: doc([
+          header(1, 'Close', ''),
+          para(label('sec-close'), sp, inl('Words that follow.')),
+          para(inl('Some words'), label('here'), str('.')),
+          para(
+            inl('See'),
+            sp,
+            typstRef('sec-close'),
+            sp,
+            inl('and'),
+            sp,
+            typstRef('here'),
+            str('.'),
+          ),
+        ]),
+        format: 'typst',
+      }).markdown,
+    );
+    expect(close).toBe(
+      '<a id="ref-sec-close"></a>\n\n## Close\n\nWords that follow.\n\nSome words<a id="ref-here"></a>.\n\n' +
+        'See [Close](#ref-sec-close) and [\\[here\\]](#ref-here).\n',
+    );
+  });
+});

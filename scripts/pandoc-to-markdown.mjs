@@ -13,11 +13,16 @@
 // (`skipped[].token`). A drawing or a command that holds words takes the mark
 // `[LaTeX not shown]`; a bare command is counted with no mark; a command known
 // to be layout is passed over. The word itself is never written.
+//
+// A reference leads somewhere: to an anchor written before the heading,
+// block, table or figure it names, with the number pandoc gave it; or to a
+// numbered equation, whose number the page itself writes in (rehype-math.mjs).
+// One that cannot be followed is shown as written and counted.
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import { unified } from 'unified';
 import { placeholders, settleEquations } from './docx-to-markdown.mjs';
-import { titleText } from './rehype-math.mjs';
+import { numberedLabels, titleText } from './rehype-math.mjs';
 
 /** What a chapter reads where a piece of LaTeX could not be carried over. */
 export const LATEX_MARK = '[LaTeX not shown]';
@@ -279,7 +284,241 @@ function makeContext({ skipped, format, name }) {
     pattern,
     counted: new Set(),
     shift: 1,
+    refs: emptyReferences(),
   };
+}
+
+// --- References --------------------------------------------------------------
+
+const isSpace = (node) => node?.t === 'Space' || node?.t === 'SoftBreak';
+/** The label an empty mark carries: what pandoc leaves where a label stood. */
+const markLabel = (node) =>
+  node?.t === 'Span' && node.c[0][0] && node.c[1].length === 0 ? node.c[0][0] : null;
+
+function emptyReferences() {
+  return {
+    /** label -> what it names: `{ kind, node }` */
+    targets: new Map(),
+    /** node -> the labels that name it */
+    byNode: new Map(),
+    /** label -> the words pandoc gave the first reference to it (its number), or null */
+    referred: new Map(),
+    /** the empty marks that are not written, their label naming what stands before */
+    dropped: new Set(),
+    /** a set-apart formula -> the label a Typst paper gave it */
+    mathLabel: new Map(),
+    /** labels of formulas whose rows take a number on the page */
+    numbered: new Set(),
+    /** label -> the anchor written for it */
+    anchors: new Map(),
+    taken: new Set(),
+  };
+}
+
+/** What a link refers to, when it is a reference: its label or labels. */
+function referenceOf(node) {
+  const [, classes, pairs] = node.c[0];
+  const named = pairs.find(([key]) => key === 'reference');
+  if (named) return named[1];
+  if (classes.includes('ref') && node.c[2][0].startsWith('#')) {
+    try {
+      return decodeURIComponent(node.c[2][0].slice(1));
+    } catch {
+      return node.c[2][0].slice(1);
+    }
+  }
+  return null;
+}
+
+/**
+ * Read a paper's labels and references before any of it is written: what each
+ * label names, which labels are referred to, and which formulas' labels take a
+ * number. A reference may stand before what it names, so this is a pass of
+ * its own.
+ * @param {any[]} top the paper's blocks
+ * @param {string} format
+ */
+function surveyReferences(top, format) {
+  const refs = emptyReferences();
+  const target = (label, kind, node) => {
+    if (!label || refs.targets.has(label)) return;
+    refs.targets.set(label, { kind, node });
+    refs.byNode.set(node, [...(refs.byNode.get(node) ?? []), label]);
+  };
+  const KIND = { Header: 'heading', Table: 'table', Figure: 'figure' };
+
+  const inlines = (list, apart) => {
+    list.forEach((node, i) => {
+      switch (node.t) {
+        case 'Math':
+          if (node.c[0].t === 'DisplayMath' && apart) {
+            for (const label of numberedLabels(oneLine(node.c[1]))) refs.numbered.add(label);
+          }
+          break;
+        case 'Span': {
+          const label = markLabel(node);
+          if (label === null) {
+            target(node.c[0][0], 'span', node);
+            inlines(node.c[1], apart);
+          } else if (!refs.dropped.has(node)) {
+            let j = i - 1;
+            while (j >= 0 && isSpace(list[j])) j -= 1;
+            const before = list[j];
+            if (
+              format === 'typst' &&
+              apart &&
+              before?.t === 'Math' &&
+              before.c[0].t === 'DisplayMath'
+            ) {
+              // A Typst label directly after a set-apart formula names that formula.
+              target(label, 'equation', before);
+              refs.mathLabel.set(before, label);
+              refs.dropped.add(node);
+            } else target(label, 'span', node);
+          }
+          break;
+        }
+        case 'Link': {
+          const label = referenceOf(node);
+          if (label !== null && !refs.referred.has(label)) {
+            refs.referred.set(label, format === 'typst' ? null : wordsOf(node.c[1]).trim());
+          }
+          inlines(node.c[1], false);
+          break;
+        }
+        case 'Note':
+          blocks(node.c, true);
+          break;
+        case 'Quoted':
+        case 'Cite':
+          inlines(node.c[1], apart);
+          break;
+        case 'Emph':
+        case 'Strong':
+        case 'Strikeout':
+        case 'Superscript':
+        case 'Subscript':
+        case 'SmallCaps':
+        case 'Underline':
+          inlines(node.c, apart);
+          break;
+        default:
+      }
+    });
+  };
+  const blocks = (list, apart) => {
+    list.forEach((node, i) => {
+      switch (node.t) {
+        case 'Para':
+        case 'Plain': {
+          // A Typst label that is first in its paragraph names the heading,
+          // table or figure before that paragraph.
+          const first = node.c.find((inline) => !isSpace(inline));
+          const label = format === 'typst' ? markLabel(first) : null;
+          const before = list[i - 1];
+          if (label !== null && before && KIND[before.t]) {
+            target(label, KIND[before.t], before);
+            refs.dropped.add(first);
+          }
+          inlines(node.c, apart);
+          break;
+        }
+        case 'Header':
+          target(node.c[1][0], 'heading', node);
+          inlines(node.c[2], false);
+          break;
+        case 'Div':
+          target(node.c[0][0], 'block', node);
+          blocks(node.c[1], apart);
+          break;
+        case 'Table': {
+          target(node.c[0][0], 'table', node);
+          const [, caption, , head, bodies, foot] = node.c;
+          const rows = [
+            ...head[1],
+            ...bodies.flatMap((part) => [...part[2], ...part[3]]),
+            ...foot[1],
+          ];
+          for (const row of rows) for (const cell of row[1]) blocks(cell[4], false);
+          blocks(caption?.[1] ?? [], false);
+          break;
+        }
+        case 'Figure':
+          target(node.c[0][0], 'figure', node);
+          blocks(node.c[2], apart);
+          blocks(node.c[1]?.[1] ?? [], false);
+          break;
+        case 'BulletList':
+          node.c.forEach((item) => blocks(item, apart));
+          break;
+        case 'OrderedList':
+          node.c[1].forEach((item) => blocks(item, apart));
+          break;
+        case 'DefinitionList':
+          node.c.forEach(([term, definitions]) => {
+            inlines(term, false);
+            definitions.forEach((definition) => blocks(definition, apart));
+          });
+          break;
+        case 'BlockQuote':
+          blocks(node.c, apart);
+          break;
+        case 'LineBlock':
+          node.c.forEach((lineOf) => inlines(lineOf, apart));
+          break;
+        default:
+      }
+    });
+  };
+  blocks(top, true);
+  return refs;
+}
+
+/** The anchor a label is reached by: `ref-` and the label, made safe and its own. */
+function anchorOf(ctx, label) {
+  const { anchors, taken } = ctx.refs;
+  if (anchors.has(label)) return anchors.get(label);
+  const base = `ref-${label.replace(/[^A-Za-z0-9_-]/g, '-')}`;
+  let id = base;
+  for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+  taken.add(id);
+  anchors.set(label, id);
+  return id;
+}
+
+const anchorTag = (id) => html(`<a id="${id}"></a>`);
+/** An anchor in a paragraph of its own, to stand directly before what it names. */
+const anchorBlock = (id) => ({ type: 'paragraph', children: [anchorTag(id)] });
+
+/** The anchors written before a heading, block, table or figure that is referred to. */
+function anchorsBefore(node, ctx) {
+  return (ctx.refs.byNode.get(node) ?? [])
+    .filter((label) => ctx.refs.referred.has(label))
+    .map((label) => anchorBlock(anchorOf(ctx, label)));
+}
+
+/** A reference, written as a link to what it names, or as its words and counted. */
+function referenceLink(node, label, ctx, inside) {
+  const words = phrasing(node.c[1], ctx, inside);
+  const single = !label.includes(',');
+  const named = single ? ctx.refs.targets.get(label) : undefined;
+  if (named) {
+    let children = words;
+    if (ctx.format === 'typst') {
+      // Pandoc numbers nothing in a Typst paper: the words say what is named.
+      if (named.kind === 'heading') children = [text(wordsOf(named.node).trim())];
+      else if (named.kind === 'table') children = [text('the table')];
+      else if (named.kind === 'figure') children = [text('the figure')];
+      else if (named.kind === 'equation') children = [text('the equation')];
+    }
+    return [{ type: 'link', url: `#${anchorOf(ctx, label)}`, title: null, children }];
+  }
+  if (single && ctx.refs.numbered.has(label)) {
+    // A numbered equation: the page writes the number in (rehype-math.mjs).
+    return [{ type: 'link', url: `#${encodeURI(label)}`, title: null, children: [text(label)] }];
+  }
+  ctx.leftOut.push({ kind: 'reference', count: 1, detail: label });
+  return words;
 }
 
 /** Count a skipped piece, once, by the way it is dealt with. */
@@ -361,9 +600,16 @@ function phrasing(inlines, ctx, where) {
       case 'SmallCaps':
         out.push(...phrasing(node.c, ctx, where));
         break;
-      case 'Span':
+      case 'Span': {
+        if (ctx.refs.dropped.has(node)) break;
+        // A label pandoc keeps as a mark within the line: an anchor at its place.
+        const named = ctx.refs.byNode.get(node) ?? [];
+        for (const label of named) {
+          if (ctx.refs.referred.has(label)) out.push(anchorTag(anchorOf(ctx, label)));
+        }
         out.push(...phrasing(node.c[1], ctx, where));
         break;
+      }
       case 'Quoted': {
         const double = node.c[0].t === 'DoubleQuote';
         out.push(
@@ -376,9 +622,17 @@ function phrasing(inlines, ctx, where) {
       case 'Code':
         out.push({ type: 'inlineCode', value: node.c[1] });
         break;
-      case 'Math':
-        out.push(carry(node, ctx, where));
+      case 'Math': {
+        const carried = carry(node, ctx, where);
+        const label = ctx.refs.mathLabel.get(node);
+        if (label !== undefined && ctx.refs.referred.has(label)) {
+          // A Typst formula that is referred to: an anchor before it.
+          if (carried.type === 'tomeDisplay') carried.anchor = anchorOf(ctx, label);
+          else out.push(anchorTag(anchorOf(ctx, label)));
+        }
+        out.push(carried);
         break;
+      }
       case 'Link':
         out.push(...link(node, ctx, where));
         break;
@@ -417,6 +671,8 @@ function phrasing(inlines, ctx, where) {
 /** A link: its address when it is one Tome writes, else its words. */
 function link(node, ctx, where) {
   const inside = { ...where, apart: false };
+  const label = referenceOf(node);
+  if (label !== null) return referenceLink(node, label, ctx, inside);
   const children = phrasing(node.c[1], ctx, inside);
   const address = node.c[2][0];
   if (!SAFE_ADDRESS.test(address)) return children;
@@ -473,11 +729,12 @@ function divide(nodes) {
   const current = () => parts[parts.length - 1].nodes;
   for (const node of nodes) {
     if (node.type === 'tomeDisplay') {
-      parts.push({ display: node.index }, { nodes: [] });
+      parts.push({ display: node.index, anchor: node.anchor }, { nodes: [] });
     } else if (holdsDisplay(node)) {
       for (const part of divide(node.children)) {
-        if (part.display !== undefined) parts.push({ display: part.display }, { nodes: [] });
-        else if (shows(part.nodes)) current().push({ ...node, children: tidy(part.nodes) });
+        if (part.display !== undefined) {
+          parts.push({ display: part.display, anchor: part.anchor }, { nodes: [] });
+        } else if (shows(part.nodes)) current().push({ ...node, children: tidy(part.nodes) });
       }
     } else {
       current().push(node);
@@ -507,6 +764,7 @@ function paragraphs(inlines, ctx) {
   const out = [];
   for (const part of divide(phrasing(inlines, ctx, { apart: true }))) {
     if (part.display !== undefined) {
+      if (part.anchor) out.push(anchorBlock(part.anchor));
       out.push({ type: 'paragraph', children: [text(ctx.marks.token(part.display))] });
       continue;
     }
@@ -567,16 +825,23 @@ function table(node, ctx) {
   return out;
 }
 
-/** A caption's one line. (References add a number before it: see `captionLead`.) */
+/** A caption's one line, after the number a reference to it shows. */
 function captionOf(caption, ctx, node) {
   const words = lineOfBlocks(caption?.[1] ?? [], ctx);
   if (words.length === 0) return words;
   return [...captionLead(node, ctx), ...words];
 }
 
-/** What stands before a caption's words. */
-function captionLead() {
-  return [];
+/**
+ * What stands before a caption's words: `Table 1.` or `Figure 1.`, the number
+ * being the one a reference to it shows. Tome works out no number of its own,
+ * so a table or figure nothing refers to has its caption as written.
+ */
+function captionLead(node, ctx) {
+  const number = ctx.refs.referred.get(node.c[0][0]);
+  if (typeof number !== 'string' || !/^[0-9A-Za-z][0-9A-Za-z.]*$/.test(number)) return [];
+  const kind = node.t === 'Table' ? 'Table' : 'Figure';
+  return [{ type: 'emphasis', children: [text(`${kind} ${number}.`)] }, text(' ')];
 }
 
 function figure(node, ctx) {
@@ -601,6 +866,7 @@ function flow(blocks, ctx) {
       case 'Header': {
         const children = line(node.c[2], ctx);
         if (children.length === 0) break;
+        out.push(...anchorsBefore(node, ctx));
         out.push({ type: 'heading', depth: Math.min(6, node.c[0] + ctx.shift), children });
         break;
       }
@@ -654,13 +920,13 @@ function flow(blocks, ctx) {
         );
         break;
       case 'Table':
-        out.push(...table(node, ctx));
+        out.push(...anchorsBefore(node, ctx), ...table(node, ctx));
         break;
       case 'Figure':
-        out.push(...figure(node, ctx));
+        out.push(...anchorsBefore(node, ctx), ...figure(node, ctx));
         break;
       case 'Div':
-        out.push(...flow(node.c[1], ctx));
+        out.push(...anchorsBefore(node, ctx), ...flow(node.c[1], ctx));
         break;
       case 'RawBlock':
       case 'Null':
@@ -746,6 +1012,10 @@ export function writePaper({
   const ctx = makeContext({ skipped, format, name });
   const meta = tree.meta ?? {};
   let blocks = tree.blocks ?? [];
+  ctx.refs = surveyReferences(
+    [...(meta.abstract?.t === 'MetaBlocks' ? meta.abstract.c : []), ...blocks],
+    format,
+  );
 
   const titled = takeNotes(metaInlines(meta.title));
   const frontNotes = [...titled.notes];
