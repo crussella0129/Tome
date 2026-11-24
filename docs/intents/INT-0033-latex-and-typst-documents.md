@@ -44,13 +44,24 @@ paper holds has a place to land.
 
 ## Alternatives
 
-- **Call pandoc.** It reads both formats well and writes Markdown. It is a
-  separate program a person building Tome would have to install; `npm ci`
-  does not bring it.
-- **A LaTeX reader installed by `npm`.** Sprint 25's Research did not try
-  one. A paper's own macros and packages are where such readers fall short.
-- **Typst's own compiler**, which can write HTML. Also a separate program,
-  or a large WebAssembly build of it.
+Sprint 26's Research tried each of these on one paper written in both
+formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
+
+- **Pandoc.** It read the whole paper in both formats: the author's own
+  commands written out, a second file pulled in, theorems and sections
+  numbered, and every formula one that Tome's layout reads. It need not be a
+  separate program a person installs: its official WebAssembly build comes
+  by `npm` (56 MB, under the GPL). Its own Markdown puts a set-apart formula
+  inside its paragraph, where Tome reads it as within the line, so Tome
+  would take pandoc's tree and write the Markdown itself. It refuses a whole
+  Typst document that uses a package or a function it does not carry.
+- **A LaTeX reader installed by `npm`** (unified-latex, MIT). It parses
+  LaTeX, but its Markdown lost the author's commands, the second file,
+  every label, the footnote and the theorem blocks. Tome would have to write
+  most of a LaTeX reader on top of it.
+- **Typst's own compiler**, which can write HTML, also installed by `npm`.
+  It resolves references and the bibliography, but its HTML export, which
+  Typst calls "very incomplete", left out every formula.
 - **Leave it to the author:** export to Word or Markdown first, which Tome
   already reads. Costs nothing, and loses the formulas in a Word export
   unless INT-0030's second part carries them.
@@ -61,7 +72,21 @@ paper holds has a place to land.
 - The choice between a separate program and a reader installed with Tome
   bears on [INT-0032](INT-0032-shared-ground-with-mdbook.md), which asks
   the same question of mdBook.
+- Pandoc is under the GPL and Tome under the MIT licence. Called when a
+  library is built, pandoc is in neither Tome's repository nor its desktop
+  apps, which hold only the built pages. If the desktop app comes to build
+  libraries itself
+  ([INT-0020](INT-0020-native-library-folder-management.md)), pandoc would
+  be shipped inside it, and the owner decides again.
+- A paper is often several files. A LaTeX file that another pulls in is
+  part of that paper and is not a chapter of its own.
+- A Typst document that uses a package cannot be read by pandoc at all; it
+  can only be shown as a chapter that says so.
 
 ## Transition history
 - 2026-11-23: created as `proposed` in Sprint 25's Research, split from
   INT-0030.
+- 2026-11-24: revised in Sprint 26's Research, still `proposed`. The owner
+  chose this intent for the sprint ("LaTeX and Typst"). Alternatives now
+  say what each reader did with a paper, and Consequences gained pandoc's
+  licence, papers of several files, and the limit on Typst documents.

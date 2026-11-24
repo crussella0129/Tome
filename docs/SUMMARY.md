@@ -62,3 +62,4 @@
 - [Sprint 23](sprints/s23/sprint-meta.md)
 - [Sprint 24](sprints/s24/sprint-meta.md)
 - [Sprint 25](sprints/s25/sprint-meta.md)
+- [Sprint 26](sprints/s26/sprint-meta.md)

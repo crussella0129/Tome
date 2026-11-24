@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>A Short Paper on Sums</title>
+    <meta name="authors" content="A. Writer, B. Reader">
+  </head>
+  <body>
+    <h2>1. A Short Paper on Sums</h2>
+    <p><em>A. Writer and B. Reader, November 2026</em></p>
+    <p>We prove a closed form for the first</p>
+    <p>whole numbers and note a bound in</p>
+    <p>.</p>
+    <h3>1.1. Introduction</h3>
+    <p>The sum of the first</p>
+    <p>whole numbers was known to Gauss <a id="loc-1" href="#loc-3" role="doc-biblioref">[1]</a>. It costs $5 to print this paper, and 50% of it is formulas. We write <em>emphasis</em>, <strong>strong words</strong> and <code>code</code> as usual, and a footnote<a id="loc-2" href="#loc-4" role="doc-noteref"><sup>1</sup></a> too. See <a href="#sec-result">Section 1.2</a> for the result and <a href="#eq-gauss">Equation 1</a> for its statement. More is at <a href="https://example.org/sums">https://example.org/sums</a> and in <a href="https://example.org">the archive</a>.</p>
+    <h3 id="sec-result">1.2. The result</h3>
+    <p><strong>Theorem (Gauss).</strong> For every whole number</p>
+    <p>,</p>
+    <span id="eq-gauss"></span>
+    <p><em>Proof.</em> By induction. The case</p>
+    <p>is plain. If it holds for</p>
+    <p>, then</p>
+    <p><strong>Lemma.</strong> For</p>
+    <p>we have</p>
+    <p>, and</p>
+    <h4>1.2.1. Lists and a table</h4>
+    <ul>
+      <li>
+        <p>A first point, with</p>
+        <p>.</p>
+      </li>
+      <li>
+        <p>A second point:</p>
+        <ol>
+          <li>numbered within;</li>
+          <li>and again.</li>
+        </ol>
+      </li>
+    </ul>
+    <dl>
+      <dt>Sum</dt>
+      <dd>what adding gives.</dd>
+      <dt>Product</dt>
+      <dd>what multiplying gives.</dd>
+    </dl>
+    <figure id="tab-sums">
+      <table>
+        <tr>
+          <td></td>
+          <td>sum</td>
+          <td>square</td>
+        </tr>
+        <tr>
+          <td>1</td>
+          <td>1</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>3</td>
+          <td>4</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>6</td>
+          <td>9</td>
+        </tr>
+      </table>
+      <figcaption>Table 1: The first three sums.</figcaption>
+    </figure>
+    <figure id="fig-triangle">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAa0lEQVR4nLXNtw0AIBAEQcr5/hsEEYDwvLlbaeNJIpKZpQowkQ6wkAlgIBuARo4AErkCKOQJIJAvEEVUQARRA17EBHgQM2BFXIAFcQNaJARokDDwQyDAC4EBNwQKnBA4sCIUYERoQEOoQL0ARnUDf9Zg6HAAAAAASUVORK5CYII=" style="width: 50%">
+      <figcaption>Figure 1: A triangle of dots.</figcaption>
+    </figure>
+    <p><a href="#tab-sums">Table 1</a> and <a href="#fig-triangle">Figure 1</a> show the pattern.</p>
+    <blockquote>Mathematics is the queen of the sciences.</blockquote>
+    <pre><code data-lang="python"><span style="color: #d73948">def</span> <span style="color: #4b69c6">total</span>(n):<br>    <span style="color: #d73948">return</span> n <span style="color: #d73948">*</span> (n <span style="color: #d73948">+</span> <span style="color: #b60157">1</span>) <span style="color: #d73948">/</span><span style="color: #d73948">/</span> <span style="color: #b60157">2</span>   <span style="color: #74747c">#</span><span style="color: #74747c"> costs $0</span></code></pre>
+    <h3>1.3. Appendix</h3>
+    <p>This section is read from a second file. It holds one more formula,</p>
+    <p>, and a case split:</p>
+    <section role="doc-bibliography">
+      <h2>Bibliography</h2>
+      <ul style="list-style-type: none">
+        <li id="loc-3"><span class="prefix"><a href="#loc-1" role="doc-backlink">[1]</a></span> C. F. Gauss, <em>Disquisitiones Arithmeticae</em>. 1801.</li>
+      </ul>
+    </section>
+    <section role="doc-endnotes">
+      <ol style="list-style-type: none">
+        <li id="loc-4">
+          <p><a href="#loc-2" role="doc-backlink"><sup>1</sup></a>A note at the foot, with</p>
+          <p>in it.</p>
+        </li>
+      </ol>
+    </section>
+  </body>
+</html>
