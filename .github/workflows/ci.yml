@@ -28,8 +28,8 @@ jobs:
       - name: Unit & integration tests
         run: npx vitest run
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
       - name: End-to-end tests
         run: npx playwright test
@@ -45,6 +45,9 @@ jobs:
 
       - name: Documents build gate
         run: node scripts/check-documents.mjs
+
+      - name: Mathematics build gate
+        run: node scripts/check-math.mjs
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7

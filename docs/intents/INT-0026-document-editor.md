@@ -31,8 +31,9 @@ sprint as you said)." So the work comes in three steps, each its own intent:
 
 1. Reading a Markdown file or a Word document as a tome:
    [INT-0029](INT-0029-documents-as-tomes.md).
-2. Mathematics, and documents written in LaTeX and Typst:
-   [INT-0030](INT-0030-mathematics-and-code.md).
+2. Mathematics: [INT-0030](INT-0030-mathematics-and-code.md). Documents
+   written in LaTeX and Typst:
+   [INT-0033](INT-0033-latex-and-typst-documents.md).
 3. Editing and saving, which is what remains here.
 
 ## Acceptance criteria
@@ -48,7 +49,9 @@ To be settled when a sprint plans it. The owner's words set the outline:
    as Unicode text (the symbols Cruor draws from Sprint 5 of the Cruor
    project). Equations laid out by an engine, as LaTeX or Typst set them,
    wait on Cruor's OpenType MATH table, which the owner placed after
-   Cruor's Sprint 5.
+   Cruor's Sprint 5. (Sprint 25 of Tome lays equations out without waiting:
+   [INT-0030](INT-0030-mathematics-and-code.md) sets them in a bundled
+   mathematical font until Cruor has its own.)
 
 Showing a Word document (the first half of criterion 2) is INT-0029, and
 laying out equations is INT-0030. What stays here is editing, and saving in
@@ -86,3 +89,6 @@ those are used.
 - 2026-11-23: revised in Sprint 24's Research, still `proposed`. Added the
   owner's statement of purpose and order of work, and split reading
   (INT-0029) and mathematics (INT-0030) into intents of their own.
+- 2026-11-23: revised in Sprint 25's Plan phase, still `proposed`. Whole
+  LaTeX and Typst documents are INT-0033 now, and criterion 3 notes that
+  INT-0030 lays equations out without waiting for Cruor's MATH table.

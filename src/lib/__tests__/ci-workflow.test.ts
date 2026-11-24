@@ -27,6 +27,10 @@ describe('CI workflow', () => {
     expect(ci).toMatch(/check-search\.mjs/);
     // Loose documents read as a tome are gated too (INT-0029, T-073).
     expect(ci).toMatch(/check-documents\.mjs/);
+    // Formulas are laid out by the browser, so they are gated in two engines:
+    // WebKit is installed beside Chromium (INT-0030, T-081).
+    expect(ci).toMatch(/check-math\.mjs/);
+    expect(ci).toMatch(/playwright install --with-deps chromium webkit/);
     // Dependencies installed reproducibly.
     expect(ci).toMatch(/npm ci/);
     // Actions are on the non-deprecated (Node 24) majors — no @v4 (Node 20).

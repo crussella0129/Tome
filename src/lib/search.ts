@@ -12,9 +12,66 @@ export interface SearchHit {
 
 const WORD_RE = /[a-z0-9]+/g;
 
+/**
+ * Raised and lowered characters and the plain ones they stand for. A formula is
+ * shown in a heading as `E = mc²` (INT-0030); a reader types `mc2`. This is a
+ * table of exactly these characters, not a general normalization: every other
+ * character is split as it always was.
+ */
+const RAISED: Record<string, string> = {
+  '⁰': '0',
+  '¹': '1',
+  '²': '2',
+  '³': '3',
+  '⁴': '4',
+  '⁵': '5',
+  '⁶': '6',
+  '⁷': '7',
+  '⁸': '8',
+  '⁹': '9',
+  '⁺': '+',
+  '⁻': '-',
+  '⁼': '=',
+  '⁽': '(',
+  '⁾': ')',
+  ⁿ: 'n',
+  ⁱ: 'i',
+  '₀': '0',
+  '₁': '1',
+  '₂': '2',
+  '₃': '3',
+  '₄': '4',
+  '₅': '5',
+  '₆': '6',
+  '₇': '7',
+  '₈': '8',
+  '₉': '9',
+  '₊': '+',
+  '₋': '-',
+  '₌': '=',
+  '₍': '(',
+  '₎': ')',
+  ₐ: 'a',
+  ₑ: 'e',
+  ᵢ: 'i',
+  ⱼ: 'j',
+  ₖ: 'k',
+  ₘ: 'm',
+  ₙ: 'n',
+  ₒ: 'o',
+  ₜ: 't',
+  ₓ: 'x',
+};
+const RAISED_RE = new RegExp(`[${Object.keys(RAISED).join('')}]`, 'g');
+
 /** Lowercase + split into alphanumeric word tokens. */
 export function tokenize(text: string): string[] {
-  return text.toLowerCase().match(WORD_RE) ?? [];
+  return (
+    text
+      .replace(RAISED_RE, (character) => RAISED[character]!)
+      .toLowerCase()
+      .match(WORD_RE) ?? []
+  );
 }
 
 /** A term matches a token list on an exact or prefix hit. */

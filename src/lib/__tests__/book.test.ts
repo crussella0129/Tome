@@ -28,6 +28,7 @@ describe('library (bundled book)', () => {
       'getting-started',
       'components',
       'components/panels',
+      'write-mathematics',
       'find-your-books',
       'take-it-to-the-table',
       'a-campaign-of-tablets',

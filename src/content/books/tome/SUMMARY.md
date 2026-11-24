@@ -7,6 +7,7 @@
 - [Getting Started](getting-started.md)
 - [Sacred Components](components.md)
   - [Panels & Tables](components/panels.md)
+- [Write Mathematics](write-mathematics.md)
 - [Unwritten Chapter]()
 
 # Your Library

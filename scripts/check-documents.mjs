@@ -122,7 +122,11 @@ function checkSingleDocument() {
   if (!existsSync(join(dist, ...image.split('/').filter(Boolean)))) {
     fail(`single document: ${image} is missing from the build`);
   }
-  if (!home.includes('[equation not shown]')) fail('single document: no equation mark');
+  // Its two equations are carried over and laid out (INT-0030).
+  if (home.includes('[equation not shown]')) fail('single document: an equation was left out');
+  if ((home.match(/<math\b/g) ?? []).length !== 2) {
+    fail('single document: the paper does not show its two equations');
+  }
   const index = JSON.parse(readFileSync(join(dist, 'search-index.json'), 'utf8'));
   if (index.length !== 1 || index[0].url !== '/') {
     fail(`single document: search holds ${JSON.stringify(index.map((record) => record.url))}`);

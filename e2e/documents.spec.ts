@@ -100,12 +100,32 @@ test.describe('Documents as a tome', () => {
     await expect(article.locator('table thead th')).toHaveText(['Tablet', 'Weight']);
     await expect(article.locator('table tbody td')).toHaveText(['First', 'nine stone']);
 
-    // The picture loads; superscript is kept; equations are marked.
+    // The picture loads; superscript is kept.
     expect(await imageLoaded(page, 'article.tome-prose img')).toBe(true);
     await expect(article.locator('sup:not(:has(a))')).toHaveText('2');
     await expect(article.locator('sub')).toHaveText(['2', '2']);
-    await expect(article.getByText('[equation not shown]')).toHaveCount(2);
-    await expect(article).toContainText('Density is [equation not shown](see the table)');
+
+    // The paper's two equations are laid out (INT-0030): one within its line,
+    // the words either side of it kept, and one set apart.
+    await expect(article.getByText('[equation not shown]')).toHaveCount(0);
+    await expect(article.locator('math')).toHaveCount(2);
+    const density = article.locator('p', { hasText: 'Density is' });
+    await expect(density.locator('math')).toHaveCount(1);
+    await expect(density.locator('math mfrac')).toHaveCount(1);
+    const around = await density.evaluate((paragraph) => {
+      const math = paragraph.querySelector('math')!;
+      return {
+        before: math.previousSibling?.textContent ?? '',
+        after: math.nextSibling?.textContent ?? '',
+      };
+    });
+    expect(around.before).toMatch(/Density is\s*$/);
+    expect(around.after).toMatch(/^\(see the table\)/);
+    await expect(article.locator('.tome-math math[display="block"]')).toHaveCount(1);
+    const laidOut = await article
+      .locator('math')
+      .evaluateAll((all) => all.map((math) => math.getBoundingClientRect().height > 1));
+    expect(laidOut).toEqual([true, true]);
   });
 
   test('test_documents_nested_word_image', async ({ page }) => {

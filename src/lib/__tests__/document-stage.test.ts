@@ -127,6 +127,47 @@ describe('document-stage.mjs — a Markdown document', () => {
     expect(snapshot(root)).toEqual(before);
   });
 
+  // INT-0030, T-084 clauses 1, 2
+  it('test_prepare_markdown_title_formula: a formula in the heading is shown on one line, or as typed', async () => {
+    const R = String.raw;
+    const documents: Record<string, [string, string]> = {
+      'root.md': [R`# Proof that $\sqrt{2}$ is irrational`, 'Proof that √2 is irrational'],
+      'power.md': [R`# Why $x^2 \ge 0$`, 'Why x² ≥ 0'],
+      'broken.md': [R`# Broken $\frac{a}{$ here`, R`Broken $\frac{a}{$ here`],
+      'matrix.md': [
+        R`# The matrix $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$`,
+        R`The matrix $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$`,
+      ],
+      'price.md': ['# Costs $5 and then $10', 'Costs $5 and then $10'],
+    };
+    const root = vault(
+      Object.fromEntries(
+        Object.entries(documents).map(([name, [heading]]) => [name, `${heading}\n\nBody.\n`]),
+      ),
+    );
+    const before = snapshot(root);
+    for (const [name, [heading, title]] of Object.entries(documents)) {
+      const out = await prepareDocument(markdownDoc(root, name), { root });
+      expect(out.title, name).toBe(title);
+      // The document itself is as it was typed: only its title is read anew.
+      expect(out.markdown, name).toBe(`${heading}\n\nBody.\n`);
+    }
+    expect(snapshot(root)).toEqual(before);
+  });
+
+  // INT-0030, T-084 clause 3
+  it('test_prepare_markdown_title_unchanged: a heading with no dollar sign is titled as before', async () => {
+    const root = vault({
+      'plain.md': '# A plain *title* with `code` and <b>a tag</b>\n\nBody.\n',
+      'none.md': 'No heading here, but $x^2$ in the text.\n',
+    });
+    const plain = await prepareDocument(markdownDoc(root, 'plain.md'), { root });
+    expect(plain.title).toBe('A plain title with code and a tag');
+    const none = await prepareDocument(markdownDoc(root, 'none.md'), { root });
+    expect(none.title).toBe('none');
+    expect(none.markdown).toBe('No heading here, but $x^2$ in the text.\n');
+  });
+
   it('test_prepare_markdown_images: inline and by reference, from the root and from a subfolder', async () => {
     const root = vault({
       'note.md':
@@ -330,8 +371,10 @@ describe('document-stage.mjs — a Word document', () => {
     expect(top.markdown).toContain(
       '![A plate of the first tablet](./__tome_media__/README/image-1.png)',
     );
-    expect(top.leftOut).toEqual([{ kind: 'equation', count: 2 }]);
-    expect(describeLeftOut(top.leftOut)).toBe('2 equations');
+    // The paper's two equations are carried over as LaTeX (INT-0030).
+    expect(top.leftOut).toEqual([]);
+    expect(describeLeftOut(top.leftOut)).toBe('');
+    expect(top.markdown).toContain('$$E=mc^{2}$$');
 
     const nested = await prepareDocument(
       wordDoc(root, 'letters/Paper Two.docx', 'letters/paper-two.md'),

@@ -11,6 +11,7 @@ import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fromMarkdown } from 'mdast-util-from-markdown';
+import { mathFromMarkdown } from 'mdast-util-math';
 import { unified } from 'unified';
 import remarkStringify from 'remark-stringify';
 import { convertDocx, MARKS } from './docx-to-markdown.mjs';
@@ -20,6 +21,8 @@ import {
   isPathInside,
   toMarkdownPath,
 } from './parent-assets.mjs';
+import { titleText } from './rehype-math.mjs';
+import { mathSyntax } from './remark-math-dollars.mjs';
 
 /** Where a Word document's images go, under the tome. */
 export const MEDIA_DIR = '__tome_media__';
@@ -48,11 +51,34 @@ function splitFrontMatter(text) {
   return { body: rest.slice(close.index + close[0].length), title: title?.trim() || null };
 }
 
-/** The text of an inline subtree, HTML tags left out. */
+/**
+ * The text of an inline subtree, HTML tags left out. A formula is written on
+ * one line that keeps what it says (`√2`), or, where it has no such form, as it
+ * was typed: a title is plain text, shown in a sidebar and a tab (INT-0030).
+ */
 function inlineText(node) {
   if (node.type === 'html') return '';
+  if (node.type === 'inlineMath') return titleText(node.value) ?? `$${node.value}$`;
   if (typeof node.value === 'string') return node.value;
   return (node.children ?? []).map(inlineText).join('');
+}
+
+/**
+ * A document's title from its top heading. A heading that holds a dollar sign
+ * is read again by the rule the page reads it by, so a formula in it is known
+ * for one and a price is left a price.
+ * @param {any} heading the heading as the plain reader gave it
+ * @param {string} body the document it stands in
+ */
+function headingTitle(heading, body) {
+  const source = body.slice(heading.position.start.offset, heading.position.end.offset);
+  if (!source.includes('$')) return inlineText(heading).trim();
+  const read = fromMarkdown(source, {
+    extensions: mathSyntax(),
+    mdastExtensions: [mathFromMarkdown()],
+  });
+  const again = collect(read, ['heading'])[0];
+  return inlineText(again ?? heading).trim();
 }
 
 function collect(tree, types) {
@@ -200,7 +226,7 @@ async function prepareMarkdown(document, root) {
   }
 
   const heading = collect(tree, ['heading']).find((node) => node.depth === 1);
-  const title = (heading && inlineText(heading).trim()) || front.title || stem(document.file);
+  const title = (heading && headingTitle(heading, body)) || front.title || stem(document.file);
   const leftOut = missing.map((detail) => ({ kind: 'image', count: 1, detail }));
   if (htmlImages > 0) leftOut.push({ kind: 'html-image', count: htmlImages });
   return { markdown, title, files: [...files.values()], leftOut };

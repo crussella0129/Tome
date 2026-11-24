@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { buildSearchIndex, parseChapter } from '../search-index';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import { rehypeHeadingIds } from '@astrojs/markdown-remark';
+import { VFile } from 'vfile';
+import { buildSearchIndex, formulaHeadings, parseChapter } from '../search-index';
+import { search } from '../search';
 import { makeBook } from '../book';
+import remarkMathDollars from '../../../scripts/remark-math-dollars.mjs';
+import rehypeMath from '../../../scripts/rehype-math.mjs';
 
 const SUMMARY = [
   '# Tome',
@@ -191,5 +200,185 @@ describe('parseChapter with HTML', () => {
     const { headings, text } = parseChapter('## Washing in H<sub>2</sub>O\n\nRinsed.');
     expect(headings).toEqual([{ text: 'Washing in H2O', slug: 'washing-in-h2o', depth: 2 }]);
     expect(text).toBe('Washing in H2O Rinsed.');
+  });
+});
+
+// --- Formulas (INT-0030, T-079) ----------------------------------------------
+
+const R = String.raw;
+const joined = (...parts: string[]) => parts.join('\n');
+
+/** The heading ids and texts Astro's own collector gives a chapter, after the layout plugin. */
+function pageHeadings(raw: string): { id: string; text: string }[] {
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkMathDollars)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeMath)
+    .use(rehypeHeadingIds);
+  const file = new VFile({ value: raw, path: 'chapter.md' });
+  processor.runSync(processor.parse(file), file);
+  const collected = (file.data as { astro?: { headings?: { slug: string; text: string }[] } }).astro
+    ?.headings;
+  return (collected ?? []).map((heading) => ({ id: heading.slug, text: heading.text }));
+}
+
+describe('parseChapter with formulas', () => {
+  // T-079 clause 1
+  it('test_search_formula_text: a formula is found by what it shows', () => {
+    const inline = parseChapter('Energy $E = mc^2$ here.').text;
+    expect(inline).toBe('Energy E=mc2 here.');
+    expect(inline).not.toMatch(/[$^]/);
+
+    for (const formula of [
+      joined('$$', R`\frac{a}{b}`, '$$'),
+      joined('```math', R`\frac{a}{b}`, '```'),
+    ]) {
+      const text = parseChapter(joined('Before it.', '', formula, '', 'After it.')).text;
+      expect(text, formula).toBe('Before it. ab After it.');
+    }
+
+    const applied = parseChapter(R`A sine $\sin x$ here.`).text;
+    expect(applied).toBe('A sine sinx here.');
+    expect(applied).not.toMatch(
+      new RegExp(`[${String.fromCharCode(0x2061)}-${String.fromCharCode(0x2064)}]`),
+    );
+  });
+
+  // T-079 clause 1
+  it('test_search_set_apart_environment: a numbered environment is read set apart, its number left out', () => {
+    for (const source of [
+      joined('$$', R`\begin{equation} E = mc^2 \end{equation}`, '$$'),
+      R`$$\begin{equation} E = mc^2 \end{equation}$$`,
+      joined(R`$$\begin{align}`, 'E &= mc^2', R`\end{align}$$`),
+    ]) {
+      const text = parseChapter(joined('Before.', '', source, '', 'After.')).text;
+      expect(text, source).toBe('Before. E=mc2 After.');
+    }
+    const tagged = parseChapter(joined('$$', R`x = y \tag{7}`, '$$')).text;
+    expect(tagged).toBe('x=y');
+
+    // With Windows line ends (found by the Test phase's review): read set
+    // apart all the same, with a line of text directly under it.
+    const crlf = [R`$$\begin{align}`, 'E &= mc^2', R`\end{align}$$`, 'Text under it.'].join(
+      String.fromCharCode(13, 10),
+    );
+    expect(parseChapter(crlf).text).toBe('E=mc2 Text under it.');
+  });
+
+  // T-079 clause 2
+  it('test_search_symbol_names: a symbol is found by the name it was typed with', () => {
+    const greek = parseChapter(R`Take $\alpha + \beta \le \gamma$ here.`).text;
+    expect(greek).toBe('Take α+β≤γ alpha beta le gamma here.');
+    const record = {
+      tomeSlug: 't',
+      tomeTitle: 'T',
+      chapterTitle: 'Greek',
+      url: '/greek',
+      headings: [],
+      text: greek,
+    };
+    expect(search('alpha', [record]).map((hit) => hit.url)).toEqual(['/greek']);
+
+    const built = parseChapter(R`Take $\frac{a}{b} + \sqrt{c}$ here.`).text;
+    expect(built).toBe('Take ab+c here.');
+    // A command that writes plain letters adds no second word.
+    expect(parseChapter(R`A sine $\sin x$ here.`).text).toBe('A sine sinx here.');
+  });
+
+  // T-079 clause 3
+  it('test_search_unreadable_formula: one that cannot be laid out is held as typed', () => {
+    expect(parseChapter(R`A mistake $\frac{a}{$ here.`).text).toBe(R`A mistake $\frac{a}{$ here.`);
+    const unclosed = parseChapter(
+      joined('Before.', '', '$$', 'never closed', '', 'Later words.'),
+    ).text;
+    expect(unclosed).toBe('Before. $$never closed Later words.$$');
+  });
+
+  // T-079 clause 4
+  it('test_search_money_lines: dollar signs that are not formulas are text', () => {
+    for (const line of [
+      'It costs $5 and then $10 for two things.',
+      'Between $5 and$10 nothing.',
+      'A $ b $ c.',
+      'USD$5 and CAD$6.',
+      'Costs $5 (see `$x`).',
+      'Pay $5 or write `\\$`.',
+      'Ends with a price of $5',
+    ]) {
+      // Inline code is read as its text, a run of its own, as it always was;
+      // so the line is compared without regard to spaces.
+      const squeezed = (value: string) => value.replace(/\s+/g, '');
+      expect(squeezed(parseChapter(line).text), line).toBe(squeezed(line.replace(/`/g, '')));
+      expect(parseChapter(line).text.match(/\$/g), line).toHaveLength(line.match(/\$/g)!.length);
+    }
+    expect(parseChapter('Costs $5 (not \\$x).').text).toBe('Costs $5 (not $x).');
+    // A link is read as its words; its address was never search text.
+    expect(parseChapter('$5 [pay](https://e.test/?q=$a) now').text).toBe('$5 pay now');
+    expect(parseChapter('Pay $5 at <https://e.test/?a=$b>').text).toBe(
+      'Pay $5 at https://e.test/?a=$b',
+    );
+  });
+
+  // T-079 clause 5
+  it('test_search_heading_formula_slug: a heading with a formula has the page’s own address', () => {
+    const raw = joined(
+      '# A chapter',
+      '',
+      R`## The $E = mc^2$ law`,
+      '',
+      R`## Why $\frac{a}{b}$ matters`,
+      '',
+      R`## Broken $\frac{a}{$ here`,
+      '',
+      R`## A matrix $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$ here`,
+      '',
+      R`## The $E = mc^2$ law`,
+      '',
+      '## Plain words',
+    );
+    const page = pageHeadings(raw);
+    const index = parseChapter(raw).headings;
+    expect(index.map((heading) => heading.slug)).toEqual(page.map((heading) => heading.id));
+    expect(index.map((heading) => heading.slug)).toContain('the-emc2-law');
+    expect(index.map((heading) => heading.slug)).toContain('the-emc2-law-1');
+    expect(index.map((heading) => heading.text)).toEqual([
+      'A chapter',
+      'The E = mc² law',
+      'Why a/b matters',
+      R`Broken $\frac{a}{$ here`,
+      R`A matrix $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$ here`,
+      'The E = mc² law',
+      'Plain words',
+    ]);
+    // Every heading object is the shape the index always had.
+    for (const heading of index)
+      expect(Object.keys(heading).sort()).toEqual(['depth', 'slug', 'text']);
+  });
+
+  // T-079 clause 6
+  it('test_search_formula_headings: only a heading that holds a formula is given other text', () => {
+    const raw = joined(
+      '# A chapter',
+      '',
+      R`## The $E = mc^2$ law`,
+      '',
+      '## Alpha<br>Beta',
+      '',
+      '## Plain',
+    );
+    expect([...formulaHeadings(raw)]).toEqual([['the-emc2-law', 'The E = mc² law']]);
+    expect(
+      formulaHeadings(joined('# A chapter', '', '## Alpha<br>Beta', '', '## Plain')).size,
+    ).toBe(0);
+  });
+
+  // T-079 clause 8
+  it('test_search_formula_in_code: a formula’s source in code is code', () => {
+    expect(parseChapter('Code `$x$` here.').text).toBe('Code $x$ here.');
+    expect(
+      parseChapter(joined('Before.', '', '```js', 'const a = "$a$";', '```', '', 'After.')).text,
+    ).toBe('Before. After.');
   });
 });

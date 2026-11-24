@@ -33,6 +33,7 @@
   - [INT-0030 — Mathematics, code and proofs that can be read](intents/INT-0030-mathematics-and-code.md)
   - [INT-0031 — Files that are simple to find](intents/INT-0031-files-simple-to-find.md)
   - [INT-0032 — Nothing done twice that mdBook already does](intents/INT-0032-shared-ground-with-mdbook.md)
+  - [INT-0033 — LaTeX and Typst documents read as tomes](intents/INT-0033-latex-and-typst-documents.md)
 - [Tasks](work/tasks.md)
 - [Completed tasks](work/completed-tasks.md)
 - [Sprint 0](sprints/s0/sprint-meta.md)
@@ -60,3 +61,4 @@
 - [Sprint 22](sprints/s22/sprint-meta.md)
 - [Sprint 23](sprints/s23/sprint-meta.md)
 - [Sprint 24](sprints/s24/sprint-meta.md)
+- [Sprint 25](sprints/s25/sprint-meta.md)

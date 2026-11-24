@@ -385,3 +385,13 @@ body.theme-sanguine-atonement .numeral {
     background: none;
   }
 }
+
+/* A formula in a heading (INT-0030). The heading's letters are gradient text
+   with a transparent fill, which a formula would inherit and vanish into where
+   an engine draws a fraction bar or a radical as a shape and not as a letter.
+   So it has a fill of its own, the inscription's crimson, and no stroke. */
+body.theme-sanguine-atonement :is(.tome-prose h1, .tome-prose h2, .tome-prose h3) math {
+  color: var(--sanguine-ink);
+  -webkit-text-fill-color: var(--sanguine-ink);
+  -webkit-text-stroke: 0;
+}

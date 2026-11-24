@@ -898,14 +898,34 @@ describe(
       );
     });
 
-    it('test_loader_reports_left_out: one line per document that left something out', () => {
-      const base = put(join(tmp, 'report', 'vault'), {
+    it('test_loader_word_equations: a paper’s equations reach the library as LaTeX, with nothing reported', () => {
+      const base = put(join(tmp, 'equations', 'vault'), {
         'paper.docx': paper,
+      });
+      const dest = join(tmp, 'equations', 'out');
+      const out = run(dest, { TOME_BOOK: join(base, 'paper.docx') });
+      const chapter = text(dest, 'paper', 'README.md');
+      expect(chapter).toContain('Density is $\\frac{m}{V}$(see the table)');
+      expect(chapter).toContain('$$E=mc^{2}$$');
+      expect(chapter).not.toContain('equation not shown');
+      expect(out).not.toMatch(/left out/);
+    });
+
+    it('test_loader_reports_left_out: one line per document that left something out', async () => {
+      // One equation the converter knows, and one it does not.
+      const partly = await buildDocx(undefined, {
+        replace: {
+          'word/document.xml': (xml: string) =>
+            xml.replace('<m:oMath><m:f>', '<m:oMath><m:mystery/><m:f>'),
+        },
+      });
+      const base = put(join(tmp, 'report', 'vault'), {
+        'paper.docx': partly,
         'note.md': '# Note\n\n![gone](missing.png)\n',
         'clean.md': '# Clean\n',
       });
       const out = run(join(tmp, 'report', 'out'), { TOME_BOOK: base });
-      expect(out).toMatch(/paper\.docx: left out 2 equations/);
+      expect(out).toMatch(/paper\.docx: left out 1 equation(?!s)/);
       expect(out).toMatch(/note\.md: left out 1 image/);
       expect(out).not.toMatch(/clean\.md/);
       expect(out.match(/left out/g)).toHaveLength(2);
@@ -938,7 +958,7 @@ describe(
       const dest = join(base, 'out');
       const out = run(dest, { TOME_BOOK: join(base, 'figures.docx') });
       expect(out).toContain(
-        'figures.docx: left out 2 equations, 1 chart or diagram, ' +
+        'figures.docx: left out 1 chart or diagram, ' +
           '1 element the Word reader did not recognise (w:madeUpThing)',
       );
       expect(text(dest, 'figures', 'README.md')).toContain('figure not shown');

@@ -16,6 +16,7 @@
 @import './fonts.css';
 @import './paper.css';
 @import './prose.css';
+@import './math.css';
 @import './print.css';
 @import './sanguine.css';
 
@@ -91,6 +92,9 @@ html,
 body {
   --font-family-mono: 'MekzantineMono', 'Mekzantine', ui-monospace, 'Cascadia Mono',
     Consolas, monaco, monospace;
+  /* Formulas (math.css): the font that ships with Tome, then whatever the
+     system offers for mathematics. One token, so a theme can set another. */
+  --font-family-math: 'Tome Math', math;
 
   background: var(--theme-background);
   color: var(--theme-text);
