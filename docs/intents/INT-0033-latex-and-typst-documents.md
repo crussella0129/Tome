@@ -172,6 +172,10 @@ formats (`docs/sprints/s26/sprint-research/reader-trial.md`).
     cell; `multicols` leaves its number in the text.
   - A cell that spans columns or rows keeps its place, and the cells it
     covers are written empty, since a Markdown table has no spanning cell.
+  - A paper may pull in up to 200 files and 20 MB of them; past that it is
+    refused, and the reason names the limit. (Pandoc's Typst reader asks
+    for one file a reading, so a Typst paper's readings are bounded by its
+    files; a LaTeX paper's files may nest twenty deep.)
   - A paper whose files pull each other in without end is refused, as
     LaTeX cannot set it either. A file named only in code the paper shows
     names nothing. A cycle made through a command of the paper's own

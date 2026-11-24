@@ -637,7 +637,15 @@ async function readTypst(file, convert) {
         // "does not exist" for a file beside or below; "failed" for one reached by `..`.
         /ERROR:\s*(.+?): withBinaryFile: (?:does not exist|failed)/,
       );
-      if (!asked || count >= LIMITS.readings - 1) throw error;
+      // Pandoc's Typst reader stops at the first file it lacks, so a paper of
+      // many files takes a reading for each: the readings are bounded by the
+      // files a paper may pull in, not by a count of readings.
+      if (!asked) throw error;
+      if (supply.full || count > LIMITS.files + LIMITS.readings) {
+        throw new PaperRefused(
+          `it pulls in more than ${LIMITS.files} files or ${LIMITS.bytes / 1024 / 1024} MB of them, which is more than Tome reads`,
+        );
+      }
       // Pandoc asks for a file by the words that name it; find who names it.
       const wanted = asked[1].replace(/^\.\//, '');
       let supplied = false;
@@ -655,32 +663,33 @@ async function readTypst(file, convert) {
           .map((match) => match[2])
           .find((value) => value.replace(/^\.?\/+/, '') === wanted);
       const holders = [...supply.texts];
-      const pattern = holders.some(([, text]) => named(placedCall)(text) !== undefined)
-        ? placedCall
-        : TYPST_STRING;
-      for (const [holder, text] of holders) {
-        const literal = named(pattern)(text);
-        if (literal === undefined) continue;
-        asWritten = literal;
-        const from = literal.startsWith('/') ? '.' : path.posix.dirname(supply.rels.get(holder));
-        const rel = path.posix.normalize(path.posix.join(from, literal.replace(/^\/+/, '')));
-        // Every file but the paper's own takes a stand-in name: a file of the
-        // same name beside the paper could otherwise answer for a chapter's.
-        const name = await supply.add(rel, { flat: false, change: picturesFromRoot(rel) });
-        if (!name) continue;
-        if (name !== literal) {
-          supply.texts.set(
-            holder,
-            outsideCode(text, TYPST_CODE, (part) =>
-              part.replace(new RegExp(pattern.source, pattern.flags), (found, call, written) =>
-                written === literal ? `${call}"${name}"` : found,
+      for (const pattern of [placedCall, TYPST_STRING]) {
+        for (const [holder, text] of holders) {
+          const literal = named(pattern)(text);
+          if (literal === undefined) continue;
+          asWritten = literal;
+          const from = literal.startsWith('/') ? '.' : path.posix.dirname(supply.rels.get(holder));
+          const rel = path.posix.normalize(path.posix.join(from, literal.replace(/^\/+/, '')));
+          // Every file but the paper's own takes a stand-in name: a file of the
+          // same name beside the paper could otherwise answer for a chapter's.
+          const name = await supply.add(rel, { flat: false, change: picturesFromRoot(rel) });
+          if (!name) continue;
+          if (name !== literal) {
+            supply.texts.set(
+              holder,
+              outsideCode(text, TYPST_CODE, (part) =>
+                part.replace(new RegExp(pattern.source, pattern.flags), (found, call, written) =>
+                  written === literal ? `${call}"${name}"` : found,
+                ),
               ),
-            ),
-          );
+            );
+          }
+          supplied = true;
+          break;
         }
-        supplied = true;
-        break;
+        if (supplied) break;
       }
+      if (supply.full) continue;
       if (!supplied) {
         throw new PaperRefused(
           `${asWritten} could not be read: it is not a file in the paper's folder (${error.message})`,

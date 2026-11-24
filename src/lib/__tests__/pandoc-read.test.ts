@@ -601,7 +601,10 @@ describe('pandoc-read.mjs — with a stand-in for pandoc (INT-0033 AC5, AC6)', (
     );
     expect(weighed.missing).toEqual(['b.tex']);
 
-    // A Typst paper that never stops asking is refused with pandoc's reason.
+    // A Typst paper whose chain of files ends in one that is not there is
+    // refused with pandoc's reason, after a reading for each file it has.
+    // (Pandoc's Typst reader asks for one file a reading: the readings are
+    // bounded by the files, not counted.)
     const endless = join(tmp, 'endless');
     const typ: Record<string, string> = { 'paper.typ': '#include "t0.typ"\n' };
     for (let i = 0; i < 30; i++) typ[`t${i}.typ`] = `#include "t${i + 1}.typ"\n`;
@@ -613,8 +616,24 @@ describe('pandoc-read.mjs — with a stand-in for pandoc (INT-0033 AC5, AC6)', (
     }));
     await expect(
       readPaper({ file: join(endless, 'paper.typ'), format: 'typst' }, { convert: asking }),
-    ).rejects.toThrow(/withBinaryFile/);
-    expect(asking).toHaveBeenCalledTimes(LIMITS.readings);
+    ).rejects.toThrow(/t30\.typ could not be read.*withBinaryFile/);
+    expect(asking).toHaveBeenCalledTimes(31);
+
+    // One that asks for more files than Tome reads is refused, naming the limit.
+    const wide = join(tmp, 'wide-typst');
+    const typstMany: Record<string, string> = { 'paper.typ': '= Wide\n#include "w0.typ"\n' };
+    for (let i = 0; i <= LIMITS.files + 5; i++)
+      typstMany[`w${i}.typ`] = `#include "w${i + 1}.typ"\n`;
+    write(wide, typstMany);
+    const widening = vi.fn(async (_o: unknown, _s: unknown, given: Record<string, string>) => ({
+      stdout: '',
+      stderr: `ERROR: w${Object.keys(given).length - 1}.typ: withBinaryFile: does not exist`,
+      warnings: [],
+    }));
+    await expect(
+      readPaper({ file: join(wide, 'paper.typ'), format: 'typst' }, { convert: widening }),
+    ).rejects.toThrow(new RegExp(`more than ${LIMITS.files} files`));
+    expect(widening.mock.calls.length).toBeLessThanOrEqual(LIMITS.files + 2);
   });
 
   it('test_pandoc_loaded_on_call: pandoc is loaded by the first reading, and once', async () => {
@@ -1202,5 +1221,45 @@ describe('pandoc-read.mjs — what the fifth test review found', () => {
     expect(
       read.skipped.filter((entry: { contents: string }) => entry.contents === R`\today`),
     ).toHaveLength(1);
+  }, 120_000);
+});
+
+// Found by the check of the answers to the fifth review (sprint-tests/critique.md).
+describe('pandoc-read.mjs — what the check of the fifth review found', () => {
+  it('test_pandoc_typst_many_files: a Typst paper of twenty-five files is read', async () => {
+    const dir = join(tmp, 'many-typst');
+    const files: Record<string, string> = {};
+    const lines = ['= Book', ''];
+    for (let i = 0; i < 25; i++) {
+      files[`ch/p${i}.typ`] = `PART ${i} WORDS\n`;
+      lines.push(`#include "ch/p${i}.typ"`);
+    }
+    files['main.typ'] = `${lines.join('\n')}\n`;
+    write(dir, files);
+    const text = words(
+      (await readPaper({ file: join(dir, 'main.typ'), format: 'typst' })).tree.blocks,
+    );
+    for (let i = 0; i < 25; i++) expect(text).toContain(`PART ${i} WORDS`);
+  }, 120_000);
+
+  it('test_pandoc_typst_string_after_call: a call that cannot be served does not rule out the string', async () => {
+    const dir = join(tmp, 'string-after-call');
+    write(dir, {
+      'commented.typ': '= Main\n\n// #include "intro.typ"\n#include "ch1/ch1.typ"\n',
+      'ch1/ch1.typ': '== One\n\n#let parts = ("intro.typ",)\n#for c in parts { include c }\n',
+      'ch1/intro.typ': 'CHAPTER INTRO WORDS\n',
+      'never.typ':
+        '= Main\n\n#import "lib/defs.typ": later\n#let parts = ("intro.typ",)\n#for c in parts { include c }\n',
+      'lib/defs.typ': '#let later() = include "intro.typ"\n',
+      'intro.typ': 'ROOT INTRO WORDS\n',
+    });
+    const commented = words(
+      (await readPaper({ file: join(dir, 'commented.typ'), format: 'typst' })).tree.blocks,
+    );
+    expect(commented).toContain('CHAPTER INTRO WORDS');
+    const never = words(
+      (await readPaper({ file: join(dir, 'never.typ'), format: 'typst' })).tree.blocks,
+    );
+    expect(never).toContain('ROOT INTRO WORDS');
   }, 120_000);
 });
