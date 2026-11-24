@@ -1,21 +1,25 @@
-// What a library entry may name besides an mdBook folder (INT-0029): one
-// Markdown file, one Word document, or a folder of them with no SUMMARY.md.
-// This module decides which kind a path is, lists a folder's documents in
-// reading order, gives each a safe name in the library, and writes the spine
-// (SUMMARY.md) such a tome needs. It reads no document's content: titles come
-// from the caller (scripts/document-stage.mjs).
-import { readdir, stat } from 'node:fs/promises';
-import { basename, dirname, extname, join, resolve } from 'node:path';
+// What a library entry may name besides an mdBook folder (INT-0029, INT-0033):
+// one Markdown file, one Word document, one paper written in LaTeX or Typst,
+// or a folder of them with no SUMMARY.md. This module decides which kind a
+// path is, lists a folder's documents in reading order, gives each a safe name
+// in the library, and writes the spine (SUMMARY.md) such a tome needs. Titles
+// come from the caller (scripts/document-stage.mjs). It reads a document's
+// content for one rule only: in a folder, a `.tex` or `.typ` file that is part
+// of another paper is not a chapter of its own (`partsOfPapers`).
+import { readdir, readFile, stat } from 'node:fs/promises';
+import { basename, dirname, extname, join, posix, resolve } from 'node:path';
 import { exists, resolveBookSource, slugify } from './book-source.mjs';
 
 /** What Tome reads, for refusal messages. */
 export const ACCEPTED =
   'an mdBook folder (one with a SUMMARY.md), a .md file, a .docx file, ' +
-  'or a folder of .md and .docx files';
+  'a .tex or .typ paper, or a folder of such files';
 
 const FORMATS = new Map([
   ['.md', 'markdown'],
   ['.docx', 'word'],
+  ['.tex', 'latex'],
+  ['.typ', 'typst'],
 ]);
 
 /** Folders a walk never enters: version control, dependencies, build output. */
@@ -39,7 +43,7 @@ const SKIPPED_FOLDERS = new Set([
  */
 const RESERVED_NAMES = new Set(['readme', 'index', 'summary']);
 
-/** `markdown`, `word`, or null for a path Tome does not read as a document. */
+/** `markdown`, `word`, `latex`, `typst`, or null for a path Tome does not read as a document. */
 export function documentFormat(path) {
   return FORMATS.get(extname(path).toLowerCase()) ?? null;
 }
@@ -86,6 +90,61 @@ async function walk(root) {
   }
   await visit(root, '');
   return found;
+}
+
+/** A LaTeX file's text with its comments left out: a `%` no backslash escapes, to the line's end. */
+function withoutTexComments(text) {
+  return text.replace(/(\\*)%.*$/gm, (rest, slashes) =>
+    slashes.length % 2 === 1 ? rest : slashes,
+  );
+}
+
+/** The files a Typst file names in `#include "…"` or `#import "…"`, as written. */
+function typstNamed(text) {
+  return [...text.matchAll(/#(?:include|import)\s+"([^"\n]+)"/g)].map((match) => match[1]);
+}
+
+/**
+ * Which of a folder's documents are parts of another paper, and so are not
+ * chapters of their own (INT-0033 AC1): a `.tex` file that holds no
+ * `\documentclass` outside a comment, and a `.typ` file that another `.typ`
+ * file in the folder includes or imports, the path read from the naming
+ * file's own folder (from the root when it begins with `/`). A file that
+ * cannot be read is kept, so that the stage can say so.
+ * @param {string} root
+ * @param {string[]} rels `/`-separated paths from `root`
+ * @returns {Promise<Set<string>>}
+ */
+async function partsOfPapers(root, rels) {
+  const parts = new Set();
+  const read = async (rel) => {
+    try {
+      return await readFile(join(root, ...rel.split('/')), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  const typst = new Map(
+    rels.filter((rel) => documentFormat(rel) === 'typst').map((rel) => [rel.toLowerCase(), rel]),
+  );
+  for (const rel of rels) {
+    const format = documentFormat(rel);
+    if (format !== 'latex' && format !== 'typst') continue;
+    const text = await read(rel);
+    if (text === null) continue;
+    if (format === 'latex') {
+      if (!withoutTexComments(text).includes('\\documentclass')) parts.add(rel);
+      continue;
+    }
+    for (const named of typstNamed(text)) {
+      if (named.startsWith('@')) continue; // a package, not a file of the folder
+      const from = named.startsWith('/') ? '.' : posix.dirname(rel);
+      const target = posix.normalize(posix.join(from, named.replace(/^\/+/, '')));
+      const known = typst.get(target.toLowerCase());
+      if (known && known !== rel) parts.add(known);
+    }
+  }
+  return parts;
 }
 
 const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
@@ -187,7 +246,7 @@ export function writeSpine({ title, chapters }) {
 }
 
 /**
- * @typedef {{ file: string, rel: string, format: 'markdown' | 'word', opening: boolean, staged: string, part: string | null }} SourceDocument
+ * @typedef {{ file: string, rel: string, format: 'markdown' | 'word' | 'latex' | 'typst', opening: boolean, staged: string, part: string | null }} SourceDocument
  * @typedef {{ kind: 'document' | 'folder', root: string, title: string | null, slug: string, documents: SourceDocument[] }} DocumentSource
  * @typedef {{ kind: 'book', documents?: undefined } & Awaited<ReturnType<typeof resolveBookSource>>} BookSource
  */
@@ -203,7 +262,7 @@ async function refuseAsBook(path) {
   } catch (error) {
     throw new Error(
       `${error instanceof Error ? error.message : error}\n` +
-        `  A .md file, a .docx file, or a folder of them is also accepted.`,
+        `  A .md file, a .docx file, a .tex or .typ paper, or a folder of them is also accepted.`,
     );
   }
   throw new Error(`${path} holds nothing Tome can read. Tome accepts ${ACCEPTED}.`);
@@ -215,8 +274,9 @@ async function refuseAsBook(path) {
  * - `book`: an mdBook folder, with exactly `resolveBookSource`'s fields. A
  *   folder with a `book.toml` or a spine is always a book; a broken one fails
  *   as a book and is never read as loose documents.
- * - `document`: one `.md` or `.docx` file.
- * - `folder`: any other folder holding documents at any depth.
+ * - `document`: one `.md`, `.docx`, `.tex` or `.typ` file, whatever it holds.
+ * - `folder`: any other folder holding documents at any depth. A file that
+ *   is part of another paper is not among them (`partsOfPapers`).
  *
  * Throws an Error naming the path and what Tome accepts for anything else.
  * @param {string} path
@@ -265,7 +325,16 @@ export async function resolveSource(path) {
     return { kind: 'book', ...(await resolveBookSource(target)) };
   }
 
-  const ordered = orderDocuments(await walk(target));
+  const found = await walk(target);
+  const parts = await partsOfPapers(target, found);
+  const ordered = orderDocuments(found.filter((rel) => !parts.has(rel)));
+  if (ordered.length === 0 && found.length > 0) {
+    throw new Error(
+      `${target} holds only files that are parts of a paper, so there is no paper to read.\n` +
+        `  A .tex file is read as a paper when it holds \\documentclass, and a .typ file\n` +
+        `  when no other .typ file in the folder includes or imports it.`,
+    );
+  }
   if (ordered.length === 0) return refuseAsBook(target);
   const staged = stagedNames(ordered);
   return {

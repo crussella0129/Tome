@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { resolveBookSource } from '../../../scripts/book-source.mjs';
 import {
+  ACCEPTED,
+  documentFormat,
   liveReloadNotice,
   orderDocuments,
   resolveSource,
@@ -312,5 +314,116 @@ describe('document-source.mjs — the dev server and documents (INT-0029)', () =
     expect(forDocument).toMatch(/restart/);
     expect(forFolder).toBe(forDocument);
     expect(liveReloadNotice({ kind: 'book' })).toBeUndefined();
+  });
+});
+
+describe('document-source.mjs — a paper in LaTeX or Typst (INT-0033 AC1)', () => {
+  let tmp: string;
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'tome-papersrc-'));
+    write(tmp, {
+      'one/note.tex': 'Words with no class named.\n',
+      'one/note.typ': '= A note\n',
+      'papers/paper.tex': String.raw`\documentclass{article}\begin{document}Text.\input{appendix}\end{document}`,
+      'papers/appendix.tex': String.raw`\section{Appendix}`,
+      'papers/old.tex': String.raw`% \documentclass{article}` + '\nA draft, 50\\% done.\n',
+      'papers/main.typ':
+        '#include "parts/intro.typ"\n#import "lib/house.typ": shout\n#import "@preview/x:1.0.0": y\n= Main\n',
+      'papers/parts/intro.typ': '== Intro\n',
+      'papers/lib/house.typ': '#let shout(body) = [*#body!*]\n',
+      'papers/alone.typ': '= Alone\n',
+      'papers/note.md': '# Note\n',
+      'papers/refs.bib': '@book{a}\n',
+      'like/paper.md': '# x\n',
+      'like/appendix.md': '# x\n',
+      'like/old.md': '# x\n',
+      'like/main.md': '# x\n',
+      'like/parts/intro.md': '# x\n',
+      'like/lib/house.md': '# x\n',
+      'like/alone.md': '# x\n',
+      'like/note.md': '# x\n',
+      'fragments/appendix.tex': String.raw`\section{Appendix}`,
+      'rooted/main.typ': '#include "/parts/two.typ"\n',
+      'rooted/parts/two.typ': 'Two.\n',
+      'nothing/notes.txt': 'nothing Tome reads\n',
+    });
+  });
+  afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('test_source_paper_formats: .tex and .typ in any case, and nothing for their neighbours', () => {
+    expect(['a.tex', 'A.TEX', 'b.typ', 'B.Typ'].map(documentFormat)).toEqual([
+      'latex',
+      'latex',
+      'typst',
+      'typst',
+    ]);
+    expect(['a.md', 'a.docx'].map(documentFormat)).toEqual(['markdown', 'word']);
+    for (const name of ['a.bib', 'a.sty', 'a.cls', 'a.yml', 'a.pdf']) {
+      expect(documentFormat(name), name).toBeNull();
+    }
+  });
+
+  it('test_source_one_paper: a file named on its own is a document whatever it holds', async () => {
+    for (const [name, format] of [
+      ['note.tex', 'latex'],
+      ['note.typ', 'typst'],
+    ]) {
+      const source = await resolveSource(join(tmp, 'one', name));
+      expect(source.kind).toBe('document');
+      expect(source.documents).toEqual([
+        {
+          file: join(tmp, 'one', name),
+          rel: name,
+          format,
+          opening: true,
+          staged: 'README.md',
+          part: null,
+        },
+      ]);
+    }
+  });
+
+  it('test_source_fragments_left_out: a part of a paper is not a chapter of its own', async () => {
+    const source = await resolveSource(join(tmp, 'papers'));
+    const rels = source.documents!.map((document) => document.rel);
+    expect(rels).toEqual(['alone.typ', 'main.typ', 'note.md', 'paper.tex']);
+    expect(source.documents!.map((document) => document.format)).toEqual([
+      'typst',
+      'typst',
+      'markdown',
+      'latex',
+    ]);
+    // The order, names and parts are those of .md files of the same paths.
+    const like = await resolveSource(join(tmp, 'like'));
+    const kept = new Set(rels.map((rel) => rel.replace(/\.[^.]+$/, '')));
+    const same = like.documents!.filter((document) => kept.has(document.rel.replace(/\.md$/, '')));
+    expect(source.documents!.map((d) => d.rel.replace(/\.[^.]+$/, ''))).toEqual(
+      same.map((d) => d.rel.replace(/\.md$/, '')),
+    );
+    expect(source.documents!.map((d) => [d.staged, d.part, d.opening])).toEqual(
+      same.map((d) => [d.staged, d.part, d.opening]),
+    );
+    // A path that begins with `/` is read from the folder itself.
+    const rooted = await resolveSource(join(tmp, 'rooted'));
+    expect(rooted.documents!.map((document) => document.rel)).toEqual(['main.typ']);
+  });
+
+  it('test_source_only_fragments_refused: a folder of parts alone says what makes a paper', async () => {
+    const message = await refusal(join(tmp, 'fragments'));
+    expect(message).toContain(join(tmp, 'fragments'));
+    expect(message).toContain('\\documentclass');
+  });
+
+  it('test_source_accepted_names_papers: every refusal names the two kinds', async () => {
+    expect(ACCEPTED).toContain('.tex');
+    expect(ACCEPTED).toContain('.typ');
+    const file = await refusal(join(tmp, 'nothing', 'notes.txt'));
+    expect(file).toContain('.tex');
+    expect(file).toContain('.typ');
+    // A folder with nothing to read: the book's own refusal, then the sentence that follows it.
+    const folder = await refusal(join(tmp, 'nothing'));
+    const added = folder.split('\n').slice(1).join('\n');
+    expect(added).toContain('.tex');
+    expect(added).toContain('.typ');
   });
 });
